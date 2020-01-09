@@ -5,7 +5,7 @@
 Summary: Advanced IP routing and network device configuration tools
 Name: iproute
 Version: 2.6.32
-Release: 33%{?dist}
+Release: 45%{?dist}
 Group: Applications/System
 # mistake in number of release it's really 2.6.32 but upstream released it as 2.6.31.tar
 Source: http://developer.osdl.org/dev/iproute2/download/iproute2-%{up_version}.tar.bz2
@@ -94,6 +94,18 @@ Patch50: iproute2-3.7.0-ip_monitor_neigh_miss.patch
 Patch51: iproute2-2.6.32-bridge-fdb-additional-man-changes.patch
 # rhbz#1040367
 Patch52: iproute2-2.6.32-rtnl_send-fix.patch
+# rhbz#997965
+Patch53: iproute2-3.17.0-delete.patch
+# rhbz#1034049
+Patch54: iproute2-2.6.31-1034049.patch
+# rhbz#1131650
+Patch55: iproute2-2.6.31-spoofchk.patch
+# rhbz#1060195
+Patch56: iproute2-2.6.32-stats.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1152951
+Patch57: iproute2-2.6.32-multipath.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1011817
+Patch58: iproute2-2.6.32-1011817.patch
 
 License: GPLv2+ and Public Domain
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -180,6 +192,13 @@ sed -i "s/_VERSION_/%{version}/" man/man8/ss.8
 %patch50 -p1
 %patch51 -p1
 %patch52 -p1
+%patch53 -p1
+%patch54 -p1
+%patch55 -p1
+%patch56 -p1
+%patch57 -p1
+%patch58 -p1
+
 # rhbz#974694
 sed -i 's/iproute-doc/%{name}-%{version}/' man/man8/lnstat.8
 
@@ -266,6 +285,45 @@ EOF
 %doc RELNOTES
 
 %changelog
+* Thu Mar 12 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-45
+- Resolves: #1177982 - Backport dynamic precision, human readable, and IEC
+  output to ip stats
+
+* Wed Mar 11 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-44
+- Resolves: #1177982 - Backport dynamic precision, human readable, and IEC
+  output to ip stats
+
+* Sun Mar 08 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-43
+- Resolves: #1152951 - Impossible to set up an IPv6 multipath route
+
+* Sun Mar 08 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-42
+- Resolves: #1011817 - bridge monitor file forgets to close a file
+
+* Wed Mar 04 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-41
+- Resolves: #1177982 - Backport dynamic precision, human readable, and IEC
+  output to ip stats
+
+* Wed Mar 04 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-40
+- Resolves: #1131650 - iproute: add support for spoofchk config
+
+* Sun Mar 01 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-39
+- Resolves: #1152951 - Impossible to set up an IPv6 multipath route
+
+* Fri Feb 20 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-38
+- Resolves: #1060195 - backport print_num() function as well
+
+* Mon Dec 15 2014 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-37
+- Resolves: #1060195 - Lack of 64-Bit Counters in /sbin/ip -s link show
+
+* Thu Dec 11 2014 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-36
+- Resolves: #1131650 - iproute: add support for spoofchk config
+
+* Tue Dec 09 2014 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-35
+- Resolves: #1034049 - ip -6 addrlabel return incorrect error message
+
+* Tue Dec 02 2014 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-34
+- Resolves: #997965 - ip route del deletes default route
+
 * Wed May 14 2014 Petr Šabata <contyk@redhat.com> - 2.6.32-33
 - Take a differt approach to fix the rtnl_send hang (#1040367)
 
