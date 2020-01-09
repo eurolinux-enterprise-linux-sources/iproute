@@ -5,7 +5,7 @@
 Summary: Advanced IP routing and network device configuration tools
 Name: iproute
 Version: 2.6.32
-Release: 45%{?dist}
+Release: 54%{?dist}
 Group: Applications/System
 # mistake in number of release it's really 2.6.32 but upstream released it as 2.6.31.tar
 Source: http://developer.osdl.org/dev/iproute2/download/iproute2-%{up_version}.tar.bz2
@@ -27,6 +27,7 @@ Patch13: iproute2-tc-priority.patch
 # rhbz#636943
 Patch14: iproute2-2.6.32-link_veth_segv.patch
 # rhbz#678986
+# rhbz#1276591
 Patch15: iproute2-2.6.32-secondary-flush.patch
 # rhbz#709652
 Patch16: iproute2-2.6.32-fix-gred-options-clearing.patch
@@ -106,6 +107,42 @@ Patch56: iproute2-2.6.32-stats.patch
 Patch57: iproute2-2.6.32-multipath.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1011817
 Patch58: iproute2-2.6.32-1011817.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=974693
+Patch59: iproute2-2.6.32-man-lnstat-rewrite-manpage.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1042799
+Patch60: iproute2-2.6.32-ipaddress-enable-details-option.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=684691
+Patch61: iproute-2.6.32-Fix-changing-tunnel-remote-and-local-address-to-any.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1094676
+Patch62: iproute-2.6.32-ip-handle-flush-with-table-2-31.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1261115
+Patch63: iproute-2.6.32-tc-fix-for-qdiscs-without-options.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1229355
+Patch64: iproute-2.6.32-ss-8-improvements-by-Jiri-Popelka-jpopelka-redhat.co.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1199867
+Patch65: iproute-2.6.32-route-RTAX_HOPLIMIT-related-fixes.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1265240
+Patch66: iproute2-2.6.32-ss-return-1-if-an-unrecognized-option-was-given.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1093726
+Patch67: iproute2-2.6.32-Add-tc-filter-man-pages-and-backport-multiple-man-pa.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1045032
+Patch68: iproute2-2.6.32-ip-address-fix-oneline-mode-for-interfaces-with-VF.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1268058
+Patch69: iproute2-2.6.32-ss-add-support-for-bytes_acked-bytes_received-segs_i.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1243413
+Patch70: iproute2-2.6.32-ip-rule-neither-prohibit-nor-reject-or-unreachable-f.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1277102
+Patch71: iproute2-2.6.32-neighbor-check-return-values.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1269814
+Patch72: iproute-2.6.32-add-bridge-master-device-support.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1289312
+Patch73: iproute2-2.6.32-prevent-the-read-ahead-of-proc-slabinfo-in-ss.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1298933
+Patch74: iproute-2.6.32-Fix-NULL-pointer-reference-when-using-basic-match.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1086512
+Patch75: iproute-2.6.32-Fix-for-Message-Truncated-errors.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1301148
+Patch76: iproute2-2.6.32-ss-add-more-TCP_INFO-components.patch
 
 License: GPLv2+ and Public Domain
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -198,6 +235,24 @@ sed -i "s/_VERSION_/%{version}/" man/man8/ss.8
 %patch56 -p1
 %patch57 -p1
 %patch58 -p1
+%patch59 -p1
+%patch60 -p1
+%patch61 -p1
+%patch62 -p1
+%patch63 -p1
+%patch64 -p1
+%patch65 -p1
+%patch66 -p1
+%patch67 -p1
+%patch68 -p1
+%patch69 -p1
+%patch70 -p1
+%patch71 -p1
+%patch72 -p1
+%patch73 -p1
+%patch74 -p1
+%patch75 -p1
+%patch76 -p1
 
 # rhbz#974694
 sed -i 's/iproute-doc/%{name}-%{version}/' man/man8/lnstat.8
@@ -285,6 +340,46 @@ EOF
 %doc RELNOTES
 
 %changelog
+* Mon Jan 25 2016 Phil Sutter - 2.6.32-54
+- Resolves: #1086512 - "ip link show" commands display Message Truncated
+- Resolves: #1301148 - [RFE] Monitoring per connection TCP retransmission
+
+* Tue Jan 19 2016 Phil Sutter - 2.6.32-53
+- Related: #1298933 - tc segfaults when it tries to show filters
+
+* Mon Jan 18 2016 Phil Sutter - 2.6.32-52
+- Resolves: #1298933 - tc segfaults when it tries to show filters
+
+* Thu Jan 07 2016 Phil Sutter - 2.6.32-51
+- Related: #1268058 - backport additional tcp_info dump support in ss tool
+
+* Sat Dec 12 2015 Phil Sutter - 2.6.32-50
+- Related: #1199867 - iproute could not show correct hoplimit info with value -1
+
+* Sun Dec 06 2015 Phil Sutter - 2.6.32-49
+- Resolves: #1289312 - ss should only read /proc/slabinfo when required
+
+* Thu Dec 03 2015 Phil Sutter - 2.6.32-48
+- Resolves: #1269814 - [6wind 6.8 Feat]: implement support for basic bridge IFA_INFO_DATA
+- Resolves: #1276591 - iproute: 'ip addr flush' failed to send flush request: Cannot assign requested address
+
+* Tue Nov 03 2015 Phil Sutter - 2.6.32-47
+- Resolves: #1277102 - ip neighbour segfaults if bad mac address is used
+- Resolves: #1243413 - ip rule help output contains action reject, but this action does not work
+- Resolves: #1268058 - backport additional tcp_info dump support in ss tool
+- Resolves: #1045032 - iproute2: "ip -o link" doesn't show devices entries in a single line when reporting SR-IOV devs.
+- Resolves: #1093726 - manpage for tc needs info on filters
+- Resolves: #1265240 - ss returns zero (ok) when invalid option is added
+
+* Thu Oct 01 2015 Phil Sutter - 2.6.32-46
+- Resolves: #974693 - lnstat manpage insufficient
+- Resolves: #1042799 - Inconsistent detailed link information between "ip link" and "ip monitor link"
+- Resolves: #684691 - can't change the remote/local address of tunnel interface to "any" in ipip mode
+- Resolves: #1094676 - iproute2 route table querying broken for table numbers >= 2147483648
+- Resolves: #1261115 - tc does not allow to attach pfifo_fast qdisc
+- Resolves: #1229355 - ss -an shows only tcp sockets
+- Resolves: #1199867 - iproute could not show correct hoplimit info with value -1
+
 * Thu Mar 12 2015 Pavel Šimerda <psimerda@redhat.com> - 2.6.32-45
 - Resolves: #1177982 - Backport dynamic precision, human readable, and IEC
   output to ip stats
