@@ -5,7 +5,7 @@
 Summary: Advanced IP routing and network device configuration tools
 Name: iproute
 Version: 2.6.32
-Release: 32%{?dist}
+Release: 33%{?dist}
 Group: Applications/System
 # mistake in number of release it's really 2.6.32 but upstream released it as 2.6.31.tar
 Source: http://developer.osdl.org/dev/iproute2/download/iproute2-%{up_version}.tar.bz2
@@ -92,6 +92,8 @@ Patch49: iproute2-3.6.0-iproute2-inform-user-when-a-neighbor-is-removed.patch
 Patch50: iproute2-3.7.0-ip_monitor_neigh_miss.patch
 # rhbz#929313
 Patch51: iproute2-2.6.32-bridge-fdb-additional-man-changes.patch
+# rhbz#1040367
+Patch52: iproute2-2.6.32-rtnl_send-fix.patch
 
 License: GPLv2+ and Public Domain
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -177,6 +179,7 @@ sed -i "s/_VERSION_/%{version}/" man/man8/ss.8
 %patch49 -p1
 %patch50 -p1
 %patch51 -p1
+%patch52 -p1
 # rhbz#974694
 sed -i 's/iproute-doc/%{name}-%{version}/' man/man8/lnstat.8
 
@@ -263,6 +266,9 @@ EOF
 %doc RELNOTES
 
 %changelog
+* Wed May 14 2014 Petr Šabata <contyk@redhat.com> - 2.6.32-33
+- Take a differt approach to fix the rtnl_send hang (#1040367)
+
 * Tue May 13 2014 Petr Šabata <contyk@redhat.com> - 2.6.32-32
 - Fix a floating point exception regression introduced with the
   incorrect fix of #859145 (#1045200)
