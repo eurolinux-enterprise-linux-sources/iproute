@@ -5,7 +5,7 @@
 Summary: Advanced IP routing and network device configuration tools
 Name: iproute
 Version: 2.6.32
-Release: 54%{?dist}
+Release: 57%{?dist}
 Group: Applications/System
 # mistake in number of release it's really 2.6.32 but upstream released it as 2.6.31.tar
 Source: http://developer.osdl.org/dev/iproute2/download/iproute2-%{up_version}.tar.bz2
@@ -143,6 +143,8 @@ Patch74: iproute-2.6.32-Fix-NULL-pointer-reference-when-using-basic-match.patch
 Patch75: iproute-2.6.32-Fix-for-Message-Truncated-errors.patch
 # https://bugzilla.redhat.com/show_bug.cgi?id=1301148
 Patch76: iproute2-2.6.32-ss-add-more-TCP_INFO-components.patch
+# https://bugzilla.redhat.com/show_bug.cgi?id=1476664
+Patch77: iproute2-2.6.32-ss-avoid-passing-negative-numbers-to-malloc.patch
 
 License: GPLv2+ and Public Domain
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
@@ -253,6 +255,7 @@ sed -i "s/_VERSION_/%{version}/" man/man8/ss.8
 %patch74 -p1
 %patch75 -p1
 %patch76 -p1
+%patch77 -p1
 
 # rhbz#974694
 sed -i 's/iproute-doc/%{name}-%{version}/' man/man8/lnstat.8
@@ -280,7 +283,8 @@ install -m 755 ip/ip ip/ifcfg ip/rtmon tc/tc bridge/bridge $RPM_BUILD_ROOT/sbin
 install -m 755 misc/ss misc/nstat misc/rtacct misc/lnstat misc/arpd $RPM_BUILD_ROOT%{_sbindir}
 # linux-atm not available in RHEL
 #install -m 755 tc/q_atm.so $RPM_BUILD_ROOT%{_libdir}/tc
-install -m 755 tc/m_xt.so $RPM_BUILD_ROOT%{_libdir}/tc
+# m_xt.so is incompatible to act_ipt.ko in RHEL6
+#install -m 755 tc/m_xt.so $RPM_BUILD_ROOT%{_libdir}/tc
 install -m 644 netem/normal.dist netem/pareto.dist netem/paretonormal.dist $RPM_BUILD_ROOT%{_datadir}/tc
 install -m 644 man/man8/*.8 $RPM_BUILD_ROOT/%{_mandir}/man8
 rm -r $RPM_BUILD_ROOT/%{_mandir}/man8/ss.8
@@ -322,8 +326,8 @@ EOF
 %{_sbindir}/*
 %dir %{_datadir}/tc
 %{_datadir}/tc/*
-%dir %{_libdir}/tc
-%{_libdir}/tc/*
+#%dir %{_libdir}/tc
+#%{_libdir}/tc/*
 %dir %{_sysconfdir}/sysconfig/cbq
 %config(noreplace) %{_sysconfdir}/sysconfig/cbq/*
 
@@ -340,6 +344,15 @@ EOF
 %doc RELNOTES
 
 %changelog
+* Wed Nov 22 2017 Phil Sutter - 2.6.32-57
+- Resolves: #1476664 - ss filter parsing bug causes crash
+
+* Wed Aug 10 2016 Phil Sutter - 2.6.32-56
+- Related: #1309224 - tc command with action ipt/xt -j ULOG can't be added on RHEL6
+
+* Wed Aug 10 2016 Phil Sutter - 2.6.32-55
+- Resolves: #1309224 - tc command with action ipt/xt -j ULOG can't be added on RHEL6
+
 * Mon Jan 25 2016 Phil Sutter - 2.6.32-54
 - Resolves: #1086512 - "ip link show" commands display Message Truncated
 - Resolves: #1301148 - [RFE] Monitoring per connection TCP retransmission
