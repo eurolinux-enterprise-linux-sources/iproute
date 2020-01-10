@@ -1,0 +1,61 @@
+From 42a457a97118379936cdeb20eef1d116e858d4c1 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 13:30:09 +0100
+Subject: [PATCH] utils: Move BIT macro to common header
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1642479
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641914
+Upstream Status: iproute2.git commit afdc119410efe
+
+commit afdc119410efe2a5e826c660446b1e4e1a72793d
+Author: Leon Romanovsky <leonro@mellanox.com>
+Date:   Sun Aug 20 12:58:21 2017 +0300
+
+    utils: Move BIT macro to common header
+
+    BIT() macro was implemented and used by devlink for now, but following
+    patches of rdmatool will reuse the same macro, so put it in common
+    header file.
+
+    Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+---
+ devlink/devlink.c | 2 +-
+ include/utils.h   | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/devlink/devlink.c b/devlink/devlink.c
+index 92e78c9c8d9f6..2000db81aabb0 100644
+--- a/devlink/devlink.c
++++ b/devlink/devlink.c
+@@ -25,6 +25,7 @@
+ #include "list.h"
+ #include "mnlg.h"
+ #include "json_writer.h"
++#include "utils.h"
+ 
+ #define ESWITCH_MODE_LEGACY "legacy"
+ #define ESWITCH_MODE_SWITCHDEV "switchdev"
+@@ -164,7 +165,6 @@ static void ifname_map_free(struct ifname_map *ifname_map)
+ 	free(ifname_map);
+ }
+ 
+-#define BIT(nr)                 (1UL << (nr))
+ #define DL_OPT_HANDLE		BIT(0)
+ #define DL_OPT_HANDLEP		BIT(1)
+ #define DL_OPT_PORT_TYPE	BIT(2)
+diff --git a/include/utils.h b/include/utils.h
+index 8c12e1e2a60c2..d707a9dacdb85 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -208,6 +208,8 @@ static inline void __jiffies_to_tv(struct timeval *tv, unsigned long jiffies)
+ int print_timestamp(FILE *fp);
+ void print_nlmsg_timestamp(FILE *fp, const struct nlmsghdr *n);
+ 
++#define BIT(nr)                 (1UL << (nr))
++
+ #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+ 
+ #define BUILD_BUG_ON(cond) ((void)sizeof(char[1 - 2 * !!(cond)]))
+-- 
+2.20.1
+

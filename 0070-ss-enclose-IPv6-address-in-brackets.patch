@@ -1,0 +1,62 @@
+From 765baea7751f7140571dfb0285b1fca974b3450b Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 18:03:01 +0200
+Subject: [PATCH] ss: enclose IPv6 address in brackets
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1588122
+Upstream Status: iproute2.git commit aba9c23a6e1cb
+
+commit aba9c23a6e1cb134840c998df14888dca469a485
+Author: Stephen Hemminger <stephen@networkplumber.org>
+Date:   Fri Aug 4 12:02:41 2017 -0700
+
+    ss: enclose IPv6 address in brackets
+
+    Based on patch by Lehner Florian <dev@der-flo.net>
+
+    Adds support for RFC2732 IPv6 address format with brackets.
+
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ misc/ss.c | 25 +++++++++++++++++++------
+ 1 file changed, 19 insertions(+), 6 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index c0cb33e96d9ec..86defc71fabc4 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -1093,12 +1093,25 @@ static void inet_addr_print(const inet_prefix *a, int port, unsigned int ifindex
+ 			ap = format_host(AF_INET, 4, a->data);
+ 		}
+ 	} else {
+-		ap = format_host(a->family, 16, a->data);
+-		est_len = strlen(ap);
+-		if (est_len <= addr_width)
+-			est_len = addr_width;
+-		else
+-			est_len = addr_width + ((est_len-addr_width+3)/4)*4;
++		if (!memcmp(a->data, &in6addr_any, sizeof(in6addr_any))) {
++			buf[0] = '*';
++			buf[1] = 0;
++		} else {
++			ap = format_host(a->family, 16, a->data);
++
++			/* Numeric IPv6 addresses should be bracketed */
++			if (strchr(ap, ':')) {
++				snprintf(buf, sizeof(buf),
++					 "[%s]", ap);
++				ap = buf;
++			}
++
++			est_len = strlen(ap);
++			if (est_len <= addr_width)
++				est_len = addr_width;
++			else
++				est_len = addr_width + ((est_len-addr_width+3)/4)*4;
++		}
+ 	}
+ 
+ 	if (ifindex) {
+-- 
+2.20.1
+

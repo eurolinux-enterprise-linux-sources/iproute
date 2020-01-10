@@ -1,0 +1,90 @@
+From a7f1b85b6838bdab705aef188bb0c86626bc3391 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 13:31:02 +0100
+Subject: [PATCH] rdma: Add MR resource tracking information
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1642479
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641914
+Upstream Status: iproute2.git commit 8958a15c040e0
+Conflicts: remove rdma chunks due to missing files
+
+commit 8958a15c040e05f4f2c6f3946322202fdb875348
+Author: Steve Wise <swise@opengridcomputing.com>
+Date:   Thu Mar 29 09:10:41 2018 -0700
+
+    rdma: Add MR resource tracking information
+
+    Sample output:
+
+    Without CAP_NET_ADMIN:
+
+    $ rdma resource show mr mrlen 65536
+    dev mlx4_0 mrlen 65536 pid 0 comm [nvme_rdma]
+    dev cxgb4_0 mrlen 65536 pid 0 comm [nvme_rdma]
+
+    With CAP_NET_ADMIN:
+
+    # rdma resource show mr mrlen 65536
+    dev mlx4_0 rkey 0x12702 lkey 0x12702 iova 0x85724a000 mrlen 65536 pid 0 comm [nvme_rdma]
+    dev cxgb4_0 rkey 0x68fe4e9 lkey 0x68fe4e9 iova 0x835b91000 mrlen 65536 pid 0 comm [nvme_rdma]
+
+    Signed-off-by: Steve Wise <swise@opengridcomputing.com>
+    Reviewed-by: Leon Romanovsky <leonro@mellanox.com>
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+---
+ include/json_writer.h |  2 ++
+ lib/json_writer.c     | 11 +++++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/include/json_writer.h b/include/json_writer.h
+index 1516aafba59df..34f2ccc2f5423 100644
+--- a/include/json_writer.h
++++ b/include/json_writer.h
+@@ -39,6 +39,7 @@ void jsonw_bool(json_writer_t *self, bool value);
+ void jsonw_float(json_writer_t *self, double number);
+ void jsonw_float_fmt(json_writer_t *self, const char *fmt, double num);
+ void jsonw_uint(json_writer_t *self, uint64_t number);
++void jsonw_xint(json_writer_t *self, uint64_t number);
+ void jsonw_hu(json_writer_t *self, unsigned short number);
+ void jsonw_int(json_writer_t *self, int64_t number);
+ void jsonw_null(json_writer_t *self);
+@@ -49,6 +50,7 @@ void jsonw_string_field(json_writer_t *self, const char *prop, const char *val);
+ void jsonw_bool_field(json_writer_t *self, const char *prop, bool value);
+ void jsonw_float_field(json_writer_t *self, const char *prop, double num);
+ void jsonw_uint_field(json_writer_t *self, const char *prop, uint64_t num);
++void jsonw_xint_field(json_writer_t *self, const char *prop, uint64_t num);
+ void jsonw_hu_field(json_writer_t *self, const char *prop, unsigned short num);
+ void jsonw_int_field(json_writer_t *self, const char *prop, int64_t num);
+ void jsonw_null_field(json_writer_t *self, const char *prop);
+diff --git a/lib/json_writer.c b/lib/json_writer.c
+index 6b77d288cce2b..6aaa6b4170711 100644
+--- a/lib/json_writer.c
++++ b/lib/json_writer.c
+@@ -226,6 +226,11 @@ void jsonw_uint(json_writer_t *self, uint64_t num)
+ 	jsonw_printf(self, "%"PRIu64, num);
+ }
+ 
++void jsonw_xint(json_writer_t *self, uint64_t num)
++{
++	jsonw_printf(self, "%"PRIx64, num);
++}
++
+ void jsonw_lluint(json_writer_t *self, unsigned long long int num)
+ {
+ 	jsonw_printf(self, "%llu", num);
+@@ -272,6 +277,12 @@ void jsonw_uint_field(json_writer_t *self, const char *prop, uint64_t num)
+ 	jsonw_uint(self, num);
+ }
+ 
++void jsonw_xint_field(json_writer_t *self, const char *prop, uint64_t num)
++{
++	jsonw_name(self, prop);
++	jsonw_xint(self, num);
++}
++
+ void jsonw_hu_field(json_writer_t *self, const char *prop, unsigned short num)
+ {
+ 	jsonw_name(self, prop);
+-- 
+2.20.1
+

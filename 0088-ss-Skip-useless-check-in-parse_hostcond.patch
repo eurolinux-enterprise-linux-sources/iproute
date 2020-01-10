@@ -1,0 +1,39 @@
+From 4b2f0a5a479f2714b8b44932ba961ba8cf07e18e Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ss: Skip useless check in parse_hostcond()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 44448a90eab34
+
+commit 44448a90eab34713af019356926828720c67a268
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:29 2017 +0200
+
+    ss: Skip useless check in parse_hostcond()
+
+    The passed 'addr' parameter is dereferenced by caller before and in
+    parse_hostcond() multiple times before this check, so assume it is
+    always true.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index c97f05a4c7033..38f4017e4a8c8 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -1747,7 +1747,7 @@ void *parse_hostcond(char *addr, bool is_port)
+ 			}
+ 		}
+ 	}
+-	if (!is_port && addr && *addr && *addr != '*') {
++	if (!is_port && *addr && *addr != '*') {
+ 		if (get_prefix_1(&a.addr, addr, fam)) {
+ 			if (get_dns_host(&a, addr, fam)) {
+ 				fprintf(stderr, "Error: an inet prefix is expected rather than \"%s\".\n", addr);
+-- 
+2.20.1
+

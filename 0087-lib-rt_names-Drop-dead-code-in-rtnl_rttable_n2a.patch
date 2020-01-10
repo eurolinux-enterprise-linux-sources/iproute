@@ -1,0 +1,40 @@
+From cd4f6a9976a969d4981b3b3d09b60ed311f3e9a5 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] lib/rt_names: Drop dead code in rtnl_rttable_n2a()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit b3c5f84493d33
+
+commit b3c5f84493d3399a546566475203207aa5b64d54
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:28 2017 +0200
+
+    lib/rt_names: Drop dead code in rtnl_rttable_n2a()
+
+    Since 'id' is 32bit unsigned, it can never exceed RT_TABLE_MAX (which is
+    defined to 0xFFFFFFFF). Therefore drop that never matching conditional.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ lib/rt_names.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/lib/rt_names.c b/lib/rt_names.c
+index 04c15ff5b15f8..e5efd78e6f810 100644
+--- a/lib/rt_names.c
++++ b/lib/rt_names.c
+@@ -410,10 +410,6 @@ const char *rtnl_rttable_n2a(__u32 id, char *buf, int len)
+ {
+ 	struct rtnl_hash_entry *entry;
+ 
+-	if (id > RT_TABLE_MAX) {
+-		snprintf(buf, len, "%u", id);
+-		return buf;
+-	}
+ 	if (!rtnl_rttable_init)
+ 		rtnl_rttable_initialize();
+ 	entry = rtnl_rttable_hash[id & 255];
+-- 
+2.20.1
+

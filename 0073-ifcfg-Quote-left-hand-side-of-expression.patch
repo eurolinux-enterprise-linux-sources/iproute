@@ -1,0 +1,38 @@
+From 955ce06f1f4be5a8733e5829e3c8cadf9fc68c40 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:05:37 +0200
+Subject: [PATCH] ifcfg: Quote left-hand side of [ ] expression
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 1e3197e0fdbf2
+
+commit 1e3197e0fdbf299fe24cdba7c0d613317ed82063
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:32 2017 +0200
+
+    ifcfg: Quote left-hand side of [ ] expression
+
+    This prevents word-splitting and therefore leads to more accurate error
+    message in case 'grep -c' prints something other than a number.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/ifcfg | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/ifcfg b/ip/ifcfg
+index 083d9df36742f..30a2dc49816cd 100644
+--- a/ip/ifcfg
++++ b/ip/ifcfg
+@@ -131,7 +131,7 @@ noarp=$?
+ 
+ ip route add unreachable 224.0.0.0/24 >& /dev/null
+ ip route add unreachable 255.255.255.255 >& /dev/null
+-if [ `ip link ls $dev | grep -c MULTICAST` -ge 1 ]; then
++if [ "`ip link ls $dev | grep -c MULTICAST`" -ge 1 ]; then
+   ip route add 224.0.0.0/4 dev $dev scope global >& /dev/null
+ fi
+ 
+-- 
+2.20.1
+

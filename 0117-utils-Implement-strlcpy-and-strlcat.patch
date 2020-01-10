@@ -1,0 +1,65 @@
+From 3bcdea42e7402e79a914fe3cbefdcc1caa89464c Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] utils: Implement strlcpy() and strlcat()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 8d15e012a3227
+
+commit 8d15e012a3227d79295cd95582bb6d8a6f0bdc92
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Sep 1 18:52:51 2017 +0200
+
+    utils: Implement strlcpy() and strlcat()
+
+    By making use of strncpy(), both implementations are really simple so
+    there is no need to add libbsd as additional dependency.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ include/utils.h |  3 +++
+ lib/utils.c     | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/include/utils.h b/include/utils.h
+index d707a9dacdb85..d596a6fc10574 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -264,4 +264,7 @@ int make_path(const char *path, mode_t mode);
+ char *find_cgroup2_mount(void);
+ int get_command_name(const char *pid, char *comm, size_t len);
+ 
++size_t strlcpy(char *dst, const char *src, size_t size);
++size_t strlcat(char *dst, const char *src, size_t size);
++
+ #endif /* __UTILS_H__ */
+diff --git a/lib/utils.c b/lib/utils.c
+index fc9c575ba0c7d..c9ba2f332c2a7 100644
+--- a/lib/utils.c
++++ b/lib/utils.c
+@@ -1228,3 +1228,22 @@ int get_real_family(int rtm_type, int rtm_family)
+ 
+ 	return rtm_family;
+ }
++
++size_t strlcpy(char *dst, const char *src, size_t size)
++{
++	if (size) {
++		strncpy(dst, src, size - 1);
++		dst[size - 1] = '\0';
++	}
++	return strlen(src);
++}
++
++size_t strlcat(char *dst, const char *src, size_t size)
++{
++	size_t dlen = strlen(dst);
++
++	if (dlen > size)
++		return dlen + strlen(src);
++
++	return dlen + strlcpy(dst + dlen, src, size - dlen);
++}
+-- 
+2.20.1
+

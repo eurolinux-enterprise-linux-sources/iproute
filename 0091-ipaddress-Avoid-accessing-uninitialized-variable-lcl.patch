@@ -1,0 +1,38 @@
+From a7150dc1d46b73f65bfedd728aeca1dcf5ec20eb Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] ipaddress: Avoid accessing uninitialized variable lcl
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit d044ea3e784d1
+
+commit d044ea3e784d1a4f0a61f306b86ce95c9a26b0b5
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 11:26:59 2017 +0200
+
+    ipaddress: Avoid accessing uninitialized variable lcl
+
+    If no address was given, ipaddr_modify() accesses uninitialized data
+    when assigning to req.ifa.ifa_prefixlen.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/ipaddress.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index bed2d3801809b..2c27da3a1f079 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -1887,7 +1887,7 @@ static int ipaddr_modify(int cmd, int flags, int argc, char **argv)
+ 	char  *lcl_arg = NULL;
+ 	char  *valid_lftp = NULL;
+ 	char  *preferred_lftp = NULL;
+-	inet_prefix lcl;
++	inet_prefix lcl = {};
+ 	inet_prefix peer;
+ 	int local_len = 0;
+ 	int peer_len = 0;
+-- 
+2.20.1
+

@@ -1,0 +1,41 @@
+From 46ce82dd840a158c8fe80842ac808b1df425e216 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:10:31 +0200
+Subject: [PATCH] tc: gact: fix control action parsing
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit 18f05d06016d9
+Conflicts: context change due to out-of-order cherry-pick of
+           commit 73aa988868e7e ("tc/m_gact: Drop dead code")
+
+commit 18f05d06016d9492c87fd105d831de0d6d858f43
+Author: Jiri Pirko <jiri@mellanox.com>
+Date:   Mon Jun 5 16:22:03 2017 +0200
+
+    tc: gact: fix control action parsing
+
+    parse_action_control helper does advancing of the arg inside. So don't
+    do it outside.
+
+    Fixes: e67aba559581 ("tc: actions: add helpers to parse and print control actions")
+    Signed-off-by: Jiri Pirko <jiri@mellanox.com>
+---
+ tc/m_gact.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/tc/m_gact.c b/tc/m_gact.c
+index c04c00bbded3c..73346d4e9333b 100644
+--- a/tc/m_gact.c
++++ b/tc/m_gact.c
+@@ -113,8 +113,6 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
+ 			if (parse_action_control(&argc, &argv,
+ 						 &pp.paction, false) == -1)
+ 				usage();
+-			argc--;
+-			argv++;
+ 			if (get_u16(&pp.pval, *argv, 10)) {
+ 				fprintf(stderr, "Illegal probability val 0x%x\n", pp.pval);
+ 				return -1;
+-- 
+2.20.1
+

@@ -1,0 +1,35 @@
+From 4e55e568493084c458ef96f10a2a3dab93e8464a Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:05:38 +0200
+Subject: [PATCH] iproute_lwtunnel: Argument to strerror must be positive
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 58a15e6c7e7cb
+
+commit 58a15e6c7e7cb4c0d25e6bb3762ac2b1c94ff523
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:31 2017 +0200
+
+    iproute_lwtunnel: Argument to strerror must be positive
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/iproute_lwtunnel.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/iproute_lwtunnel.c b/ip/iproute_lwtunnel.c
+index b6f08f073ef02..92ea2c87787ec 100644
+--- a/ip/iproute_lwtunnel.c
++++ b/ip/iproute_lwtunnel.c
+@@ -480,7 +480,7 @@ static int lwt_parse_bpf(struct rtattr *rta, size_t len,
+ 	err = bpf_parse_common(bpf_type, &cfg, &bpf_cb_ops, &x);
+ 	if (err < 0) {
+ 		fprintf(stderr, "Failed to parse eBPF program: %s\n",
+-			strerror(err));
++			strerror(-err));
+ 		return -1;
+ 	}
+ 	rta_nest_end(rta, nest);
+-- 
+2.20.1
+

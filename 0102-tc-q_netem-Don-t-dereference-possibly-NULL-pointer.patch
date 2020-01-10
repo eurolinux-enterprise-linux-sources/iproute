@@ -1,0 +1,46 @@
+From a7329f9d8681bdbd2d8257b152ae6b4959232e67 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] tc/q_netem: Don't dereference possibly NULL pointer
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit a754de3ccd937
+
+commit a754de3ccd937500940c6fcd0ad043855f56862d
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:46:32 2017 +0200
+
+    tc/q_netem: Don't dereference possibly NULL pointer
+
+    Assuming 'opt' might be NULL, move the call to RTA_PAYLOAD to after the
+    check since it dereferences its parameter.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/q_netem.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tc/q_netem.c b/tc/q_netem.c
+index 0975ae111de97..5a9e747411e85 100644
+--- a/tc/q_netem.c
++++ b/tc/q_netem.c
+@@ -538,7 +538,7 @@ static int netem_print_opt(struct qdisc_util *qu, FILE *f, struct rtattr *opt)
+ 	int *ecn = NULL;
+ 	struct tc_netem_qopt qopt;
+ 	const struct tc_netem_rate *rate = NULL;
+-	int len = RTA_PAYLOAD(opt) - sizeof(qopt);
++	int len;
+ 	__u64 rate64 = 0;
+ 
+ 	SPRINT_BUF(b1);
+@@ -546,6 +546,7 @@ static int netem_print_opt(struct qdisc_util *qu, FILE *f, struct rtattr *opt)
+ 	if (opt == NULL)
+ 		return 0;
+ 
++	len = RTA_PAYLOAD(opt) - sizeof(qopt);
+ 	if (len < 0) {
+ 		fprintf(stderr, "options size error\n");
+ 		return -1;
+-- 
+2.20.1
+

@@ -1,0 +1,40 @@
+From ed508c9ee5991655039d2b080191b1c70680b5c8 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:09:12 +0200
+Subject: [PATCH] lnstat_util: Make sure buffer is NUL-terminated
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit bc4a57b87990b
+
+commit bc4a57b87990b30c85fdf0efbc1f8f219466daf4
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Sep 1 18:52:56 2017 +0200
+
+    lnstat_util: Make sure buffer is NUL-terminated
+
+    Can't use strlcpy() here since lnstat is not linked against libutil.
+
+    While being at it, fix coding style in that chunk as well.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/lnstat_util.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/lnstat_util.c b/misc/lnstat_util.c
+index ec19238c24b94..c2dc42ec1ff12 100644
+--- a/misc/lnstat_util.c
++++ b/misc/lnstat_util.c
+@@ -150,7 +150,8 @@ static int lnstat_scan_compat_rtstat_fields(struct lnstat_file *lf)
+ {
+ 	char buf[FGETS_BUF_SIZE];
+ 
+-	strncpy(buf, RTSTAT_COMPAT_LINE, sizeof(buf)-1);
++	strncpy(buf, RTSTAT_COMPAT_LINE, sizeof(buf) - 1);
++	buf[sizeof(buf) - 1] = '\0';
+ 
+ 	return __lnstat_scan_fields(lf, buf);
+ }
+-- 
+2.20.1
+

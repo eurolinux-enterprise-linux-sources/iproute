@@ -1,0 +1,148 @@
+From 7521695ca299ceb723dc6b17f304b91300b3b16c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 6 Feb 2019 14:51:57 +0100
+Subject: [PATCH] tc/act_tunnel_key: Enable setup of tos and ttl
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641909
+Upstream Status: iproute2.git commit 9f89b0cc0eda2
+Conflicts:
+* Context change due to missing commits
+  59eb271d1d259 ("tc: m_tunnel_key: add csum/nocsum option") and
+  6217917a38268 ("tc: m_tunnel_key: Add tunnel option support to act_tunnel_key").
+* Adjusted tunnel_key_print_tos_ttl() to missing commit 8feb516bfcdd9
+  ("tc: jsonify tunnel_key action").
+
+commit 9f89b0cc0eda2ef52d8850b0610f3e2e09fd7c1c
+Author: Or Gerlitz <ogerlitz@mellanox.com>
+Date:   Thu Jul 19 14:02:14 2018 +0300
+
+    tc/act_tunnel_key: Enable setup of tos and ttl
+
+    Allow to set tos and ttl for the tunnel.
+
+    For example, here's encap rule that sets tos to the tunnel:
+
+    tc filter add dev eth0_0 protocol ip parent ffff: prio 10 flower \
+       src_mac e4:11:22:33:44:50 dst_mac e4:11:22:33:44:70 \
+       action tunnel_key set src_ip 192.168.10.1 dst_ip 192.168.10.2 id 100 dst_port 4789 tos 0x30 \
+       action mirred egress redirect dev vxlan_sys_4789
+
+    Signed-off-by: Or Gerlitz <ogerlitz@mellanox.com>
+    Reviewed-by: Roi Dayan <roid@mellanox.com>
+    Acked-by: Jiri Pirko <jiri@mellanox.com>
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+---
+ man/man8/tc-tunnel_key.8 |  8 ++++++++
+ tc/m_tunnel_key.c        | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+)
+
+diff --git a/man/man8/tc-tunnel_key.8 b/man/man8/tc-tunnel_key.8
+index 52fa585..5e93c59 100644
+--- a/man/man8/tc-tunnel_key.8
++++ b/man/man8/tc-tunnel_key.8
+@@ -16,6 +16,8 @@ tunnel_key - Tunnel metadata manipulation
+ .IR ADDRESS
+ .BI id " KEY_ID"
+ .BI dst_port " UDP_PORT"
++.BI tos " TOS"
++.BI ttl " TTL"
+ 
+ .SH DESCRIPTION
+ The
+@@ -77,6 +79,12 @@ Outer header destination IP address (IPv4 or IPv6)
+ .TP
+ .B dst_port
+ Outer header destination UDP port
++.TP
++.B tos
++Outer header TOS
++.TP
++.B ttl
++Outer header TTL
+ .RE
+ .SH EXAMPLES
+ The following example encapsulates incoming ICMP packets on eth0 into a vxlan
+diff --git a/tc/m_tunnel_key.c b/tc/m_tunnel_key.c
+index acbcfc1..60fd1c4 100644
+--- a/tc/m_tunnel_key.c
++++ b/tc/m_tunnel_key.c
+@@ -80,6 +80,22 @@ static int tunnel_key_parse_dst_port(char *str, int type, struct nlmsghdr *n)
+ 	return 0;
+ }
+ 
++static int tunnel_key_parse_tos_ttl(char *str, int type, struct nlmsghdr *n)
++{
++	int ret;
++	__u8 val;
++
++	ret = get_u8(&val, str, 10);
++	if (ret)
++		ret = get_u8(&val, str, 16);
++	if (ret)
++		return -1;
++
++	addattr8(n, MAX_MSG, type, val);
++
++	return 0;
++}
++
+ static int parse_tunnel_key(struct action_util *a, int *argc_p, char ***argv_p,
+ 			    int tca_id, struct nlmsghdr *n)
+ {
+@@ -154,6 +170,22 @@ static int parse_tunnel_key(struct action_util *a, int *argc_p, char ***argv_p,
+ 				fprintf(stderr, "Illegal \"dst port\"\n");
+ 				return -1;
+ 			}
++		} else if (matches(*argv, "tos") == 0) {
++			NEXT_ARG();
++			ret = tunnel_key_parse_tos_ttl(*argv,
++							TCA_TUNNEL_KEY_ENC_TOS, n);
++			if (ret < 0) {
++				fprintf(stderr, "Illegal \"tos\"\n");
++				return -1;
++			}
++		} else if (matches(*argv, "ttl") == 0) {
++			NEXT_ARG();
++			ret = tunnel_key_parse_tos_ttl(*argv,
++							TCA_TUNNEL_KEY_ENC_TTL, n);
++			if (ret < 0) {
++				fprintf(stderr, "Illegal \"ttl\"\n");
++				return -1;
++			}
+ 		} else if (matches(*argv, "help") == 0) {
+ 			usage();
+ 		} else {
+@@ -231,6 +263,19 @@ static void tunnel_key_print_dst_port(FILE *f, char *name,
+ 	fprintf(f, "\n\t%s %d", name, rta_getattr_be16(attr));
+ }
+ 
++static void tunnel_key_print_tos_ttl(FILE *f, char *name,
++				     struct rtattr *attr)
++{
++	if (!attr)
++		return;
++
++	if (matches(name, "tos") == 0 && rta_getattr_u8(attr) != 0) {
++		fprintf(f, "\n\t%s 0x%x", name, rta_getattr_u8(attr));
++	} else if (matches(name, "ttl") == 0 && rta_getattr_u8(attr) != 0) {
++		fprintf(f, "\n\t%s %u", name, rta_getattr_u8(attr));
++	}
++}
++
+ static int print_tunnel_key(struct action_util *au, FILE *f, struct rtattr *arg)
+ {
+ 	struct rtattr *tb[TCA_TUNNEL_KEY_MAX + 1];
+@@ -267,6 +312,10 @@ static int print_tunnel_key(struct action_util *au, FILE *f, struct rtattr *arg)
+ 					tb[TCA_TUNNEL_KEY_ENC_KEY_ID]);
+ 		tunnel_key_print_dst_port(f, "dst_port",
+ 					  tb[TCA_TUNNEL_KEY_ENC_DST_PORT]);
++		tunnel_key_print_tos_ttl(f, "tos",
++					  tb[TCA_TUNNEL_KEY_ENC_TOS]);
++		tunnel_key_print_tos_ttl(f, "ttl",
++					  tb[TCA_TUNNEL_KEY_ENC_TTL]);
+ 		break;
+ 	}
+ 	fprintf(f, " %s", action_n2a(parm->action));
+-- 
+1.8.3.1
+

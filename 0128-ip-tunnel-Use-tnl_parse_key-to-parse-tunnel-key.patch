@@ -1,0 +1,339 @@
+From 8f2338a51859158b8699e0736f84ab1e42a3da97 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:05:04 +0200
+Subject: [PATCH] ip/tunnel: Use tnl_parse_key() to parse tunnel key
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit 1f44b93744f11
+Conflicts: context change due to missing commit 2a80154fde40b
+           ("vti6: fix local/remote any addr handling")
+
+commit 1f44b93744f11f2a8249e3c13751ab7debebaa5f
+Author: Serhey Popovych <serhe.popovych@gmail.com>
+Date:   Mon Dec 18 19:48:03 2017 +0200
+
+    ip/tunnel: Use tnl_parse_key() to parse tunnel key
+
+    It is added with
+    commit a7ed1520ee96 ("ip/tunnel: introduce tnl_parse_key()")
+    to avoid code duplication in ip6?tunnel.c.
+
+    Reuse it for gre/gre6 and vti/vti6 tunnel rtnl
+    configuration interface with the same purpose
+    it is used in tunnel ioctl interface in ip6?tunnel.c.
+
+    While there change type of key variables from
+    unsigned integer to __be32 to reflect nature of the
+    value they store and place error message in
+    tnl_parse_key() on a single line to make single
+    call to fprintf().
+
+    Signed-off-by: Serhey Popovych <serhe.popovych@gmail.com>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ ip/link_gre.c  | 45 +++++----------------------------------------
+ ip/link_gre6.c | 45 +++++----------------------------------------
+ ip/link_vti.c  | 45 +++++----------------------------------------
+ ip/link_vti6.c | 45 +++++----------------------------------------
+ ip/tunnel.c    |  5 +++--
+ 5 files changed, 23 insertions(+), 162 deletions(-)
+
+diff --git a/ip/link_gre.c b/ip/link_gre.c
+index ced993692e6f6..1376d2e3af7de 100644
+--- a/ip/link_gre.c
++++ b/ip/link_gre.c
+@@ -77,8 +77,8 @@ static int gre_parse_opt(struct link_util *lu, int argc, char **argv,
+ 	struct rtattr *greinfo[IFLA_GRE_MAX + 1];
+ 	__u16 iflags = 0;
+ 	__u16 oflags = 0;
+-	unsigned int ikey = 0;
+-	unsigned int okey = 0;
++	__be32 ikey = 0;
++	__be32 okey = 0;
+ 	unsigned int saddr = 0;
+ 	unsigned int daddr = 0;
+ 	unsigned int link = 0;
+@@ -167,53 +167,18 @@ get_failed:
+ 
+ 	while (argc > 0) {
+ 		if (!matches(*argv, "key")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+ 			iflags |= GRE_KEY;
+ 			oflags |= GRE_KEY;
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr,
+-						"Invalid value for \"key\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-
+-			ikey = okey = uval;
++			ikey = okey = tnl_parse_key("key", *argv);
+ 		} else if (!matches(*argv, "ikey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+ 			iflags |= GRE_KEY;
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value for \"ikey\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			ikey = uval;
++			ikey = tnl_parse_key("ikey", *argv);
+ 		} else if (!matches(*argv, "okey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+ 			oflags |= GRE_KEY;
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value for \"okey\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			okey = uval;
++			okey = tnl_parse_key("okey", *argv);
+ 		} else if (!matches(*argv, "seq")) {
+ 			iflags |= GRE_SEQ;
+ 			oflags |= GRE_SEQ;
+diff --git a/ip/link_gre6.c b/ip/link_gre6.c
+index a9d18ee954641..22e6e44aae29b 100644
+--- a/ip/link_gre6.c
++++ b/ip/link_gre6.c
+@@ -89,8 +89,8 @@ static int gre_parse_opt(struct link_util *lu, int argc, char **argv,
+ 	struct rtattr *greinfo[IFLA_GRE_MAX + 1];
+ 	__u16 iflags = 0;
+ 	__u16 oflags = 0;
+-	unsigned int ikey = 0;
+-	unsigned int okey = 0;
++	__be32 ikey = 0;
++	__be32 okey = 0;
+ 	struct in6_addr raddr = IN6ADDR_ANY_INIT;
+ 	struct in6_addr laddr = IN6ADDR_ANY_INIT;
+ 	unsigned int link = 0;
+@@ -181,53 +181,18 @@ get_failed:
+ 
+ 	while (argc > 0) {
+ 		if (!matches(*argv, "key")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+ 			iflags |= GRE_KEY;
+ 			oflags |= GRE_KEY;
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr,
+-						"Invalid value for \"key\"\n");
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-
+-			ikey = okey = uval;
++			ikey = okey = tnl_parse_key("key", *argv);
+ 		} else if (!matches(*argv, "ikey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+ 			iflags |= GRE_KEY;
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value of \"ikey\"\n");
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			ikey = uval;
++			ikey = tnl_parse_key("ikey", *argv);
+ 		} else if (!matches(*argv, "okey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+ 			oflags |= GRE_KEY;
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value of \"okey\"\n");
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			okey = uval;
++			okey = tnl_parse_key("okey", *argv);
+ 		} else if (!matches(*argv, "seq")) {
+ 			iflags |= GRE_SEQ;
+ 			oflags |= GRE_SEQ;
+diff --git a/ip/link_vti.c b/ip/link_vti.c
+index d2aacbe78ded1..6e4234170bb50 100644
+--- a/ip/link_vti.c
++++ b/ip/link_vti.c
+@@ -62,8 +62,8 @@ static int vti_parse_opt(struct link_util *lu, int argc, char **argv,
+ 	struct rtattr *tb[IFLA_MAX + 1];
+ 	struct rtattr *linkinfo[IFLA_INFO_MAX+1];
+ 	struct rtattr *vtiinfo[IFLA_VTI_MAX + 1];
+-	unsigned int ikey = 0;
+-	unsigned int okey = 0;
++	__be32 ikey = 0;
++	__be32 okey = 0;
+ 	unsigned int saddr = 0;
+ 	unsigned int daddr = 0;
+ 	unsigned int link = 0;
+@@ -116,49 +116,14 @@ get_failed:
+ 
+ 	while (argc > 0) {
+ 		if (!matches(*argv, "key")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr,
+-						"Invalid value for \"key\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-
+-			ikey = okey = uval;
++			ikey = okey = tnl_parse_key("key", *argv);
+ 		} else if (!matches(*argv, "ikey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value for \"ikey\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			ikey = uval;
++			ikey = tnl_parse_key("ikey", *argv);
+ 		} else if (!matches(*argv, "okey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value for \"okey\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			okey = uval;
++			okey = tnl_parse_key("okey", *argv);
+ 		} else if (!matches(*argv, "remote")) {
+ 			NEXT_ARG();
+ 			if (!strcmp(*argv, "any")) {
+diff --git a/ip/link_vti6.c b/ip/link_vti6.c
+index aedfbeaeea0e1..e246cedbcb7a7 100644
+--- a/ip/link_vti6.c
++++ b/ip/link_vti6.c
+@@ -59,8 +59,8 @@ static int vti6_parse_opt(struct link_util *lu, int argc, char **argv,
+ 	struct rtattr *vtiinfo[IFLA_VTI_MAX + 1];
+ 	struct in6_addr saddr;
+ 	struct in6_addr daddr;
+-	unsigned int ikey = 0;
+-	unsigned int okey = 0;
++	__be32 ikey = 0;
++	__be32 okey = 0;
+ 	unsigned int link = 0;
+ 	int len;
+ 
+@@ -111,49 +111,14 @@ get_failed:
+ 
+ 	while (argc > 0) {
+ 		if (!matches(*argv, "key")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr,
+-						"Invalid value for \"key\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-
+-			ikey = okey = uval;
++			ikey = okey = tnl_parse_key("key", *argv);
+ 		} else if (!matches(*argv, "ikey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value for \"ikey\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			ikey = uval;
++			ikey = tnl_parse_key("ikey", *argv);
+ 		} else if (!matches(*argv, "okey")) {
+-			unsigned int uval;
+-
+ 			NEXT_ARG();
+-			if (strchr(*argv, '.'))
+-				uval = get_addr32(*argv);
+-			else {
+-				if (get_unsigned(&uval, *argv, 0) < 0) {
+-					fprintf(stderr, "invalid value for \"okey\": \"%s\"; it should be an unsigned integer\n", *argv);
+-					exit(-1);
+-				}
+-				uval = htonl(uval);
+-			}
+-			okey = uval;
++			okey = tnl_parse_key("okey", *argv);
+ 		} else if (!matches(*argv, "remote")) {
+ 			NEXT_ARG();
+ 			if (!strcmp(*argv, "any")) {
+diff --git a/ip/tunnel.c b/ip/tunnel.c
+index 7956d71aa7334..3967d5df3ca1c 100644
+--- a/ip/tunnel.c
++++ b/ip/tunnel.c
+@@ -189,8 +189,9 @@ __be32 tnl_parse_key(const char *name, const char *key)
+ 		return get_addr32(key);
+ 
+ 	if (get_unsigned(&uval, key, 0) < 0) {
+-		fprintf(stderr, "invalid value for \"%s\": \"%s\";", name, key);
+-		fprintf(stderr, " it should be an unsigned integer\n");
++		fprintf(stderr,
++			"invalid value for \"%s\": \"%s\"; it should be an unsigned integer\n",
++			name, key);
+ 		exit(-1);
+ 	}
+ 	return htonl(uval);
+-- 
+2.20.1
+

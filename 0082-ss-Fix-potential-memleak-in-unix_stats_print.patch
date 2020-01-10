@@ -1,0 +1,39 @@
+From 125c0e845acd690c9dce5702413294304a328fd1 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ss: Fix potential memleak in unix_stats_print()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 46131577cf1ba
+
+commit 46131577cf1ba37198c82e1ce89c9bbca2153ef4
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:30 2017 +0200
+
+    ss: Fix potential memleak in unix_stats_print()
+
+    Fixes: 2d0e538f3e1cd ("ss: Drop list traversal from unix_stats_print()")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index eb46e0c4b95fb..c97f05a4c7033 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -3258,8 +3258,10 @@ static int unix_show(struct filter *f)
+ 
+ 		if (name[0]) {
+ 			u->name = strdup(name);
+-			if (!u->name)
++			if (!u->name) {
++				free(u);
+ 				break;
++			}
+ 		}
+ 
+ 		if (u->rport) {
+-- 
+2.20.1
+

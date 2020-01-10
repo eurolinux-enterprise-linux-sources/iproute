@@ -1,0 +1,38 @@
+From b6de96b49af2751003d67ed4edbf91fd25cee19c Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 11:52:31 +0100
+Subject: [PATCH] man: ip-route.8: ssthresh parameter is NUMBER
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1593628
+Upstream Status: iproute2.git commit 79f49f58aaefe
+
+commit 79f49f58aaefe11f677c8e072557b834a19f47f3
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 22 15:00:38 2018 +0100
+
+    man: ip-route.8: ssthresh parameter is NUMBER
+
+    Synopsis section was inconsistent with regards to help text and later
+    description of ssthresh parameter.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ man/man8/ip-route.8.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/ip-route.8.in b/man/man8/ip-route.8.in
+index d9a547748c017..0616cf01740f3 100644
+--- a/man/man8/ip-route.8.in
++++ b/man/man8/ip-route.8.in
+@@ -120,7 +120,7 @@ replace " } "
+ .B  cwnd
+ .IR NUMBER " ] [ "
+ .B  ssthresh
+-.IR REALM " ] [ "
++.IR NUMBER " ] [ "
+ .B  realms
+ .IR REALM " ] [ "
+ .B  rto_min
+-- 
+2.20.1
+

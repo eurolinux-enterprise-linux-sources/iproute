@@ -1,0 +1,36 @@
+From f92edf9b3d088bf8a5619073de43b2f693590be8 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] ss: Make sure scanned index value to unix_state_map is sane
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 0aa03350c00d7
+
+commit 0aa03350c00d70edbbdab0662a2d8262be2bb68d
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:41:27 2017 +0200
+
+    ss: Make sure scanned index value to unix_state_map is sane
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index 2a981d8b06918..fdb00a9f3f696 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -3236,7 +3236,8 @@ static int unix_show(struct filter *f)
+ 
+ 		if (flags & (1 << 16)) {
+ 			u->state = SS_LISTEN;
+-		} else {
++		} else if (u->state > 0 &&
++			   u->state <= ARRAY_SIZE(unix_state_map)) {
+ 			u->state = unix_state_map[u->state-1];
+ 			if (u->type == SOCK_DGRAM && u->state == SS_CLOSE && u->rport)
+ 				u->state = SS_ESTABLISHED;
+-- 
+2.20.1
+

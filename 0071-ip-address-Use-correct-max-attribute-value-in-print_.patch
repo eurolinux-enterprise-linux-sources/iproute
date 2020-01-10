@@ -1,0 +1,40 @@
+From 861fe3293afa0907f9883df005e7a09a5f4b710b Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 18:14:04 +0200
+Subject: [PATCH] ip-address: Use correct max attribute value in
+ print_vf_stats64()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1679749
+Upstream Status: iproute2.git commit d7cf2416fc3a0
+
+commit d7cf2416fc3a08b411beffb93a9e118f6593892d
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Feb 21 19:37:51 2019 +0100
+
+    ip-address: Use correct max attribute value in print_vf_stats64()
+
+    IFLA_VF_MAX is larger than the highest valid index in vf array.
+
+    Fixes: a1b99717c7cd7 ("Add displaying VF traffic statistics")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ ip/ipaddress.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index 44111a27501a9..bed2d3801809b 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -467,7 +467,7 @@ static void print_vf_stats64(FILE *fp, struct rtattr *vfstats)
+ 		return;
+ 	}
+ 
+-	parse_rtattr_nested(vf, IFLA_VF_MAX, vfstats);
++	parse_rtattr_nested(vf, IFLA_VF_STATS_MAX, vfstats);
+ 
+ 	/* RX stats */
+ 	fprintf(fp, "%s", _SL_);
+-- 
+2.20.1
+

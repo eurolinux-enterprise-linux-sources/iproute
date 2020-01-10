@@ -1,0 +1,88 @@
+From f43f500151a6261e24d89674b0a44f2d84c9e207 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 6 Feb 2019 14:21:09 +0100
+Subject: [PATCH] tc: m_tunnel_key: Allow key-less tunnels
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1658506
+Upstream Status: iproute2.git commit dc0332b1e8e4a
+Conflicts: Context change due to missing commit 59eb271d1d259
+           ("tc: m_tunnel_key: add csum/nocsum option").
+
+commit dc0332b1e8e4ab8771562128993d512986f856e2
+Author: Adi Nissim <adin@mellanox.com>
+Date:   Thu Jan 10 15:03:50 2019 +0200
+
+    tc: m_tunnel_key: Allow key-less tunnels
+
+    Change the id parameter of the tunnel_key set action from mandatory to
+    optional.
+
+    Some tunneling protocols (e.g. GRE) specify the id as an optional field.
+
+    Signed-off-by: Adi Nissim <adin@mellanox.com>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ man/man8/tc-tunnel_key.8 | 4 ++--
+ tc/m_tunnel_key.c        | 6 ++----
+ 2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/man/man8/tc-tunnel_key.8 b/man/man8/tc-tunnel_key.8
+index 2e56973..52fa585 100644
+--- a/man/man8/tc-tunnel_key.8
++++ b/man/man8/tc-tunnel_key.8
+@@ -56,12 +56,12 @@ above).
+ .TP
+ .B set
+ Set tunnel metadata to be used by the IP tunnel device. Requires
+-.B id
+-,
+ .B src_ip
+ and
+ .B dst_ip
+ options.
++.B id
++,
+ .B dst_port
+ is optional.
+ .RS
+diff --git a/tc/m_tunnel_key.c b/tc/m_tunnel_key.c
+index 5222c25..acbcfc1 100644
+--- a/tc/m_tunnel_key.c
++++ b/tc/m_tunnel_key.c
+@@ -25,7 +25,7 @@ static void explain(void)
+ 	fprintf(stderr, "       tunnel_key set <TUNNEL_KEY>\n");
+ 	fprintf(stderr,
+ 		"Where TUNNEL_KEY is a combination of:\n"
+-		"id <TUNNELID> (mandatory)\n"
++		"id <TUNNELID>\n"
+ 		"src_ip <IP> (mandatory)\n"
+ 		"dst_ip <IP> (mandatory)\n"
+ 		"dst_port <UDP_PORT>\n");
+@@ -91,7 +91,6 @@ static int parse_tunnel_key(struct action_util *a, int *argc_p, char ***argv_p,
+ 	int ret;
+ 	int has_src_ip = 0;
+ 	int has_dst_ip = 0;
+-	int has_key_id = 0;
+ 
+ 	if (matches(*argv, "tunnel_key") != 0)
+ 		return -1;
+@@ -147,7 +146,6 @@ static int parse_tunnel_key(struct action_util *a, int *argc_p, char ***argv_p,
+ 				fprintf(stderr, "Illegal \"id\"\n");
+ 				return -1;
+ 			}
+-			has_key_id = 1;
+ 		} else if (matches(*argv, "dst_port") == 0) {
+ 			NEXT_ARG();
+ 			ret = tunnel_key_parse_dst_port(*argv,
+@@ -180,7 +178,7 @@ static int parse_tunnel_key(struct action_util *a, int *argc_p, char ***argv_p,
+ 	}
+ 
+ 	if (action == TCA_TUNNEL_KEY_ACT_SET &&
+-	    (!has_src_ip || !has_dst_ip || !has_key_id)) {
++	    (!has_src_ip || !has_dst_ip)) {
+ 		fprintf(stderr, "set needs tunnel_key parameters\n");
+ 		explain();
+ 		return -1;
+-- 
+1.8.3.1
+

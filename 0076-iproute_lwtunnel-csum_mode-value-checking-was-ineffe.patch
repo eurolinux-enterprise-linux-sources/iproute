@@ -1,0 +1,61 @@
+From db11067fb37cc3a77cc70fb9233a454102c4854c Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:05:38 +0200
+Subject: [PATCH] iproute_lwtunnel: csum_mode value checking was ineffective
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 08806fb0191e9
+Conflicts: adjust rta_addattr8() call to handle return value
+
+commit 08806fb0191e9ee8769507dc93b722fd021feb34
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:30 2017 +0200
+
+    iproute_lwtunnel: csum_mode value checking was ineffective
+
+    ila_csum_name2mode() returning -1 on error but being declared as
+    returning __u8 doesn't make much sense. Change the code to correctly
+    detect this issue. Checking for __u8 overruns shouldn't be necessary
+    though since ila_csum_name2mode() return values are well-defined.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/iproute_lwtunnel.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/ip/iproute_lwtunnel.c b/ip/iproute_lwtunnel.c
+index 92ea2c87787ec..5da3a1b488cbd 100644
+--- a/ip/iproute_lwtunnel.c
++++ b/ip/iproute_lwtunnel.c
+@@ -125,7 +125,7 @@ static char *ila_csum_mode2name(__u8 csum_mode)
+ 	}
+ }
+ 
+-static __u8 ila_csum_name2mode(char *name)
++static int ila_csum_name2mode(char *name)
+ {
+ 	if (strcmp(name, "adj-transport") == 0)
+ 		return ILA_CSUM_ADJUST_TRANSPORT;
+@@ -348,7 +348,7 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
+ 
+ 	while (argc > 0) {
+ 		if (strcmp(*argv, "csum-mode") == 0) {
+-			__u8 csum_mode;
++			int csum_mode;
+ 
+ 			NEXT_ARG();
+ 
+@@ -357,8 +357,8 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
+ 				invarg("\"csum-mode\" value is invalid\n",
+ 				       *argv);
+ 
+-			ret = rta_addattr8(rta, len, ILA_ATTR_CSUM_MODE,
+-					   (__u8)csum_mode);
++			ret = rta_addattr8(rta, 1024, ILA_ATTR_CSUM_MODE,
++				     (__u8)csum_mode);
+ 
+ 			argc--; argv++;
+ 		} else {
+-- 
+2.20.1
+

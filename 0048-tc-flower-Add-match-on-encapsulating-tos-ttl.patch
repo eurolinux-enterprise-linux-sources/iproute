@@ -1,0 +1,129 @@
+From 738c49477eb843b37cb799115e5b562303bfcd9e Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 6 Feb 2019 14:51:12 +0100
+Subject: [PATCH] tc/flower: Add match on encapsulating tos/ttl
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641909
+Upstream Status: iproute2.git commit 761ec9e29ff86
+Conflicts: Adjusted code to missing commit e28b88a464c49
+           ("tc: jsonify flower filter").
+
+commit 761ec9e29ff867452057f59dc6ca430688b409ea
+Author: Or Gerlitz <ogerlitz@mellanox.com>
+Date:   Thu Jul 19 14:02:15 2018 +0300
+
+    tc/flower: Add match on encapsulating tos/ttl
+
+    Add matching on tos/ttl of the IP tunnel headers.
+
+    For example, here's decap rule that matches on the tunnel tos:
+
+    tc filter add dev vxlan_sys_4789 protocol ip parent ffff: prio 10 flower \
+       enc_src_ip 192.168.10.2 enc_dst_ip 192.168.10.1 enc_key_id 100 enc_dst_port 4789 enc_tos 0x30 \
+       src_mac e4:11:22:33:44:70 dst_mac e4:11:22:33:44:50  \
+       action tunnel_key unset \
+       action mirred egress redirect dev eth0_0
+
+    Signed-off-by: Or Gerlitz <ogerlitz@mellanox.com>
+    Reviewed-by: Roi Dayan <roid@mellanox.com>
+    Acked-by: Jiri Pirko <jiri@mellanox.com>
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+---
+ man/man8/tc-flower.8 | 14 +++++++++++++-
+ tc/f_flower.c        | 27 +++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/man/man8/tc-flower.8 b/man/man8/tc-flower.8
+index be46f02..af19708 100644
+--- a/man/man8/tc-flower.8
++++ b/man/man8/tc-flower.8
+@@ -57,6 +57,10 @@ flower \- flow based traffic control filter
+ .IR ipv4_address " | " ipv6_address " } | "
+ .B enc_dst_port
+ .IR port_number " | "
++.B enc_tos
++.IR TOS " | "
++.B enc_ttl
++.IR TTL " | "
+ .BR ip_flags
+ .IR IP_FLAGS
+ .SH DESCRIPTION
+@@ -207,6 +211,10 @@ bits is assumed.
+ .BI enc_src_ip " PREFIX"
+ .TQ
+ .BI enc_dst_port " NUMBER"
++.TQ
++.BI enc_tos " NUMBER"
++.TQ
++.BI enc_ttl " NUMBER"
+ Match on IP tunnel metadata. Key id
+ .I NUMBER
+ is a 32 bit tunnel key id (e.g. VNI for VXLAN tunnel).
+@@ -215,7 +223,11 @@ must be a valid IPv4 or IPv6 address optionally followed by a slash and the
+ prefix length. If the prefix is missing, \fBtc\fR assumes a full-length
+ host match.  Dst port
+ .I NUMBER
+-is a 16 bit UDP dst port.
++is a 16 bit UDP dst port. Tos
++.I NUMBER
++is an 8 bit tos (dscp+ecn) value, ttl
++.I NUMBER
++is an 8 bit time-to-live value.
+ .TP
+ .BI ip_flags " IP_FLAGS"
+ .I IP_FLAGS
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index 5be693a..5f5236c 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -70,6 +70,8 @@ static void explain(void)
+ 		"                       enc_dst_ip [ IPV4-ADDR | IPV6-ADDR ] |\n"
+ 		"                       enc_src_ip [ IPV4-ADDR | IPV6-ADDR ] |\n"
+ 		"                       enc_key_id [ KEY-ID ] |\n"
++		"                       enc_tos MASKED-IP_TOS |\n"
++		"                       enc_ttl MASKED-IP_TTL |\n"
+ 		"                       ip_flags IP-FLAGS | \n"
+ 		"                       enc_dst_port [ port_number ] }\n"
+ 		"       FILTERID := X:Y:Z\n"
+@@ -883,6 +885,26 @@ static int flower_parse_opt(struct filter_util *qu, char *handle,
+ 				fprintf(stderr, "Illegal \"enc_dst_port\"\n");
+ 				return -1;
+ 			}
++		} else if (matches(*argv, "enc_tos") == 0) {
++			NEXT_ARG();
++			ret = flower_parse_ip_tos_ttl(*argv,
++						      TCA_FLOWER_KEY_ENC_IP_TOS,
++						      TCA_FLOWER_KEY_ENC_IP_TOS_MASK,
++						      n);
++			if (ret < 0) {
++				fprintf(stderr, "Illegal \"enc_tos\"\n");
++				return -1;
++			}
++		} else if (matches(*argv, "enc_ttl") == 0) {
++			NEXT_ARG();
++			ret = flower_parse_ip_tos_ttl(*argv,
++						      TCA_FLOWER_KEY_ENC_IP_TTL,
++						      TCA_FLOWER_KEY_ENC_IP_TTL_MASK,
++						      n);
++			if (ret < 0) {
++				fprintf(stderr, "Illegal \"enc_ttl\"\n");
++				return -1;
++			}
+ 		} else if (matches(*argv, "action") == 0) {
+ 			NEXT_ARG();
+ 			ret = parse_action(&argc, &argv, TCA_FLOWER_ACT, n);
+@@ -1296,6 +1318,11 @@ static int flower_print_opt(struct filter_util *qu, FILE *f,
+ 	flower_print_port(f, "enc_dst_port",
+ 			  tb[TCA_FLOWER_KEY_ENC_UDP_DST_PORT]);
+ 
++	flower_print_ip_attr(f, "enc_tos", tb[TCA_FLOWER_KEY_ENC_IP_TOS],
++			    tb[TCA_FLOWER_KEY_ENC_IP_TOS_MASK]);
++	flower_print_ip_attr(f, "enc_ttl", tb[TCA_FLOWER_KEY_ENC_IP_TTL],
++			    tb[TCA_FLOWER_KEY_ENC_IP_TTL_MASK]);
++
+ 	flower_print_matching_flags(f, "ip_flags",
+ 				    FLOWER_IP_FLAGS,
+ 				    tb[TCA_FLOWER_KEY_FLAGS],
+-- 
+1.8.3.1
+

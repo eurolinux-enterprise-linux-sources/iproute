@@ -1,0 +1,137 @@
+From c74a0bcb2e9c88b2ee166afc08574141a6a288b8 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 13:30:43 +0100
+Subject: [PATCH] lib: make resolve_hosts variable common
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1642479
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641914
+Upstream Status: iproute2.git commit 6648853975332
+
+commit 6648853975332e5f34d03a1e2a6e09f5e1742099
+Author: Ivan Vecera <ivecera@redhat.com>
+Date:   Fri Nov 10 07:20:13 2017 +0100
+
+    lib: make resolve_hosts variable common
+
+    Any iproute utility that uses any function from lib/utils.c needs
+    to declare its own resolve_hosts variable instance although it does
+    not need/use hostname resolving functionality (currently only 'ip'
+    and 'ss' commands uses this).
+    The patch declares single common instance of resolve_hosts directly
+    in utils.c so the existing ones can be removed (the same approach
+    that is used for timestamp_short).
+
+    Cc: Jiri Pirko <jiri@mellanox.com>
+    Cc: Arkadi Sharshevsky <arkadis@mellanox.com>
+    Signed-off-by: Ivan Vecera <ivecera@redhat.com>
+---
+ bridge/bridge.c | 1 -
+ genl/genl.c     | 1 -
+ ip/ip.c         | 1 -
+ ip/rtmon.c      | 1 -
+ lib/utils.c     | 1 +
+ misc/arpd.c     | 2 --
+ misc/ss.c       | 1 -
+ tc/tc.c         | 1 -
+ 8 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/bridge/bridge.c b/bridge/bridge.c
+index 5ff038d672ad2..6658cb8fd801d 100644
+--- a/bridge/bridge.c
++++ b/bridge/bridge.c
+@@ -18,7 +18,6 @@
+ 
+ struct rtnl_handle rth = { .fd = -1 };
+ int preferred_family = AF_UNSPEC;
+-int resolve_hosts;
+ int oneline;
+ int show_stats;
+ int show_details;
+diff --git a/genl/genl.c b/genl/genl.c
+index 747074b029a7b..7e4a208d449f2 100644
+--- a/genl/genl.c
++++ b/genl/genl.c
+@@ -30,7 +30,6 @@
+ int show_stats = 0;
+ int show_details = 0;
+ int show_raw = 0;
+-int resolve_hosts = 0;
+ 
+ static void *BODY;
+ static struct genl_util * genl_list;
+diff --git a/ip/ip.c b/ip/ip.c
+index 07050b07592ac..0c0ad1bde7cb6 100644
+--- a/ip/ip.c
++++ b/ip/ip.c
+@@ -30,7 +30,6 @@ int human_readable;
+ int use_iec;
+ int show_stats;
+ int show_details;
+-int resolve_hosts;
+ int oneline;
+ int brief;
+ int timestamp;
+diff --git a/ip/rtmon.c b/ip/rtmon.c
+index 1c2981f79d3d1..94baa38e3b7cb 100644
+--- a/ip/rtmon.c
++++ b/ip/rtmon.c
+@@ -25,7 +25,6 @@
+ #include "utils.h"
+ #include "libnetlink.h"
+ 
+-int resolve_hosts;
+ static int init_phase = 1;
+ 
+ static void write_stamp(FILE *fp)
+diff --git a/lib/utils.c b/lib/utils.c
+index 9f55391d3c1ea..fc9c575ba0c7d 100644
+--- a/lib/utils.c
++++ b/lib/utils.c
+@@ -35,6 +35,7 @@
+ #include "utils.h"
+ #include "namespace.h"
+ 
++int resolve_hosts;
+ int timestamp_short;
+ 
+ int get_hex(char c)
+diff --git a/misc/arpd.c b/misc/arpd.c
+index bfab44544ee1d..c9d86475e5995 100644
+--- a/misc/arpd.c
++++ b/misc/arpd.c
+@@ -38,8 +38,6 @@
+ #include "utils.h"
+ #include "rt_names.h"
+ 
+-int resolve_hosts;
+-
+ DB	*dbase;
+ char	*dbname = "/var/lib/arpd/arpd.db";
+ 
+diff --git a/misc/ss.c b/misc/ss.c
+index e92266539e6b5..c0cb33e96d9ec 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -89,7 +89,6 @@ static int security_get_initial_context(char *name,  char **context)
+ }
+ #endif
+ 
+-int resolve_hosts;
+ int resolve_services = 1;
+ int preferred_family = AF_UNSPEC;
+ int show_options;
+diff --git a/tc/tc.c b/tc/tc.c
+index 360c9f11c235b..11a364fabbbea 100644
+--- a/tc/tc.c
++++ b/tc/tc.c
+@@ -39,7 +39,6 @@ int show_graph;
+ int timestamp;
+ 
+ int batch_mode;
+-int resolve_hosts;
+ int use_iec;
+ int force;
+ int ok;
+-- 
+2.20.1
+

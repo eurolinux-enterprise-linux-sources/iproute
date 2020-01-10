@@ -1,0 +1,97 @@
+From 8efbb8de949eedd4341d075175f932245a9f142c Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:11:03 +0200
+Subject: [PATCH] tc: don't print error message on miss when parsing action
+ with default
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit c794b7b179026
+
+commit c794b7b17902627b19ddc00699d89ea7b6b1edf7
+Author: Jiri Pirko <jiri@mellanox.com>
+Date:   Thu Jun 15 14:10:51 2017 +0200
+
+    tc: don't print error message on miss when parsing action with default
+
+    In case default control action parsing takes place, it is ok to miss.
+    So don't print error message.
+
+    Fixes: e67aba559581 ("tc: actions: add helpers to parse and print control actions")
+    Reported-by: Jiri Benc <jbenc@redhat.com>
+    Signed-off-by: Jiri Pirko <jiri@mellanox.com>
+    Tested-by: Jiri Benc <jbenc@redhat.com>
+---
+ tc/tc_util.c | 36 ++++++++++++++++++++++--------------
+ 1 file changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/tc/tc_util.c b/tc/tc_util.c
+index 194185a0fa1d8..cdc23477ada53 100644
+--- a/tc/tc_util.c
++++ b/tc/tc_util.c
+@@ -477,18 +477,8 @@ static int action_a2n(char *arg, int *result, bool allow_num)
+ 	return 0;
+ }
+ 
+-/* Parse action control including possible options.
+- *
+- * Parameters:
+- * @argc_p - pointer to argc to parse
+- * @argv_p - pointer to argv to parse
+- * @result_p - pointer to output variable
+- * @allow_num - whether action may be in numeric format already
+- *
+- * In error case, returns -1 and does not touch @result_1p. Otherwise returns 0.
+- */
+-int parse_action_control(int *argc_p, char ***argv_p,
+-			 int *result_p, bool allow_num)
++static int __parse_action_control(int *argc_p, char ***argv_p, int *result_p,
++				  bool allow_num, bool ignore_a2n_miss)
+ {
+ 	int argc = *argc_p;
+ 	char **argv = *argv_p;
+@@ -497,7 +487,8 @@ int parse_action_control(int *argc_p, char ***argv_p,
+ 	if (!argc)
+ 		return -1;
+ 	if (action_a2n(*argv, &result, allow_num) == -1) {
+-		fprintf(stderr, "Bad action type %s\n", *argv);
++		if (!ignore_a2n_miss)
++			fprintf(stderr, "Bad action type %s\n", *argv);
+ 		return -1;
+ 	}
+ 	if (result == TC_ACT_GOTO_CHAIN) {
+@@ -523,6 +514,23 @@ int parse_action_control(int *argc_p, char ***argv_p,
+ 	return 0;
+ }
+ 
++/* Parse action control including possible options.
++ *
++ * Parameters:
++ * @argc_p - pointer to argc to parse
++ * @argv_p - pointer to argv to parse
++ * @result_p - pointer to output variable
++ * @allow_num - whether action may be in numeric format already
++ *
++ * In error case, returns -1 and does not touch @result_1p. Otherwise returns 0.
++ */
++int parse_action_control(int *argc_p, char ***argv_p,
++			 int *result_p, bool allow_num)
++{
++	return __parse_action_control(argc_p, argv_p, result_p,
++				      allow_num, false);
++}
++
+ /* Parse action control including possible options.
+  *
+  * Parameters:
+@@ -538,7 +546,7 @@ void parse_action_control_dflt(int *argc_p, char ***argv_p,
+ 			       int *result_p, bool allow_num,
+ 			       int default_result)
+ {
+-	if (parse_action_control(argc_p, argv_p, result_p, allow_num))
++	if (__parse_action_control(argc_p, argv_p, result_p, allow_num, true))
+ 		*result_p = default_result;
+ }
+ 
+-- 
+2.20.1
+

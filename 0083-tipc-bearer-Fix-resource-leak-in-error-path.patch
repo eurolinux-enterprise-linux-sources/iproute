@@ -1,0 +1,43 @@
+From b6bf156c4d4abab8176112e48a595c3e7bb7f825 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] tipc/bearer: Fix resource leak in error path
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit be55416addf76
+
+commit be55416addf76e76836af6a4dd94b19c4186e1b2
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:31 2017 +0200
+
+    tipc/bearer: Fix resource leak in error path
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tipc/bearer.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tipc/bearer.c b/tipc/bearer.c
+index 810344f672af1..c3d4491f8f6ef 100644
+--- a/tipc/bearer.c
++++ b/tipc/bearer.c
+@@ -163,6 +163,7 @@ static int nl_add_udp_enable_opts(struct nlmsghdr *nlh, struct opt *opts,
+ 	if (!remip) {
+ 		if (generate_multicast(loc->ai_family, buf, sizeof(buf))) {
+ 			fprintf(stderr, "Failed to generate multicast address\n");
++			freeaddrinfo(loc);
+ 			return -EINVAL;
+ 		}
+ 		remip = buf;
+@@ -177,6 +178,8 @@ static int nl_add_udp_enable_opts(struct nlmsghdr *nlh, struct opt *opts,
+ 
+ 	if (rem->ai_family != loc->ai_family) {
+ 		fprintf(stderr, "UDP local and remote AF mismatch\n");
++		freeaddrinfo(rem);
++		freeaddrinfo(loc);
+ 		return -EINVAL;
+ 	}
+ 
+-- 
+2.20.1
+

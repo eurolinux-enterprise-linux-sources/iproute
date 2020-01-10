@@ -1,0 +1,48 @@
+From 6ab89ff96d59c90cd6227399a065d52cc38e0ee7 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] lib/ll_map: Choose size of new cache items at run-time
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 4b9e91782269f
+
+commit 4b9e91782269fc871d158ed4f11bfcfe4e3b8bf7
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:51:50 2017 +0200
+
+    lib/ll_map: Choose size of new cache items at run-time
+
+    Instead of having a fixed buffer of 16 bytes for the interface name,
+    tailor size of new ll_cache entry using the interface name's actual
+    length. This also makes sure the following call to strcpy() is safe.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ lib/ll_map.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/ll_map.c b/lib/ll_map.c
+index 4e4556c9ac80b..70684b02042b6 100644
+--- a/lib/ll_map.c
++++ b/lib/ll_map.c
+@@ -30,7 +30,7 @@ struct ll_cache {
+ 	unsigned	flags;
+ 	unsigned 	index;
+ 	unsigned short	type;
+-	char		name[IFNAMSIZ];
++	char		name[];
+ };
+ 
+ #define IDXMAP_SIZE	1024
+@@ -120,7 +120,7 @@ int ll_remember_index(const struct sockaddr_nl *who,
+ 		return 0;
+ 	}
+ 
+-	im = malloc(sizeof(*im));
++	im = malloc(sizeof(*im) + strlen(ifname) + 1);
+ 	if (im == NULL)
+ 		return 0;
+ 	im->index = ifi->ifi_index;
+-- 
+2.20.1
+

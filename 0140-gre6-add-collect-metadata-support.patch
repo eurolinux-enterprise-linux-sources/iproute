@@ -1,0 +1,160 @@
+From b9961cdb54c22fa1b3f1eac5446a008fde7532e6 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:13:31 +0200
+Subject: [PATCH] gre6: add collect metadata support
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit 6231c5bec6d25
+Conflicts:
+* Context change due to missing commit
+  ad4b1425c3182 ("iplink: Expose IFLA_*_FWMARK attributes for supported link types")
+* Adjusted gre_print_opt() to missing commit 6856fb65484ba
+  ("ip: link_gre6.c: add json output support")
+
+commit 6231c5bec6d256f7861f39d3a578f5259f274cc4
+Author: William Tu <u9012063@gmail.com>
+Date:   Tue Dec 12 18:22:52 2017 -0800
+
+    gre6: add collect metadata support
+
+    The patch adds 'external' option to support collect metadata
+    gre6 tunnel.  The 'external' keyword is already used to set the
+    device into collect metadata mode such as vxlan, geneve, ipip,
+    etc.  This patch extends support for ipv6 gre and gretap.
+    Example of L3 and L2 gre device:
+    bash:~# ip link add dev ip6gre123 type ip6gre external
+    bash:~# ip link add dev ip6gretap123 type ip6gretap external
+
+    Signed-off-by: William Tu <u9012063@gmail.com>
+    Cc: Daniel Borkmann <daniel@iogearbox.net>
+---
+ ip/link_gre6.c        | 49 ++++++++++++++++++++++++++++---------------
+ man/man8/ip-link.8.in | 17 +++++++++++++++
+ 2 files changed, 49 insertions(+), 17 deletions(-)
+
+diff --git a/ip/link_gre6.c b/ip/link_gre6.c
+index 127e51de4ab73..ea42fb1a9f664 100644
+--- a/ip/link_gre6.c
++++ b/ip/link_gre6.c
+@@ -102,6 +102,7 @@ static int gre_parse_opt(struct link_util *lu, int argc, char **argv,
+ 	__u16 encapflags = TUNNEL_ENCAP_FLAG_CSUM6;
+ 	__u16 encapsport = 0;
+ 	__u16 encapdport = 0;
++	__u8 metadata = 0;
+ 	int len;
+ 
+ 	if (!(n->nlmsg_flags & NLM_F_CREATE)) {
+@@ -173,6 +174,9 @@ get_failed:
+ 		if (greinfo[IFLA_GRE_ENCAP_SPORT])
+ 			encapsport = rta_getattr_u16(greinfo[IFLA_GRE_ENCAP_SPORT]);
+ 
++		if (greinfo[IFLA_GRE_COLLECT_METADATA])
++			metadata = 1;
++
+ 		if (greinfo[IFLA_GRE_ENCAP_DPORT])
+ 			encapdport = rta_getattr_u16(greinfo[IFLA_GRE_ENCAP_DPORT]);
+ 
+@@ -333,6 +337,8 @@ get_failed:
+ 			encapflags |= TUNNEL_ENCAP_FLAG_REMCSUM;
+ 		} else if (strcmp(*argv, "noencap-remcsum") == 0) {
+ 			encapflags &= ~TUNNEL_ENCAP_FLAG_REMCSUM;
++		} else if (strcmp(*argv, "external") == 0) {
++			metadata = 1;
+ 		} else if (strcmp(*argv, "encaplimit") == 0) {
+ 			NEXT_ARG();
+ 			if (strcmp(*argv, "none") == 0) {
+@@ -350,23 +356,27 @@ get_failed:
+ 		argc--; argv++;
+ 	}
+ 
+-	addattr32(n, 1024, IFLA_GRE_IKEY, ikey);
+-	addattr32(n, 1024, IFLA_GRE_OKEY, okey);
+-	addattr_l(n, 1024, IFLA_GRE_IFLAGS, &iflags, 2);
+-	addattr_l(n, 1024, IFLA_GRE_OFLAGS, &oflags, 2);
+-	addattr_l(n, 1024, IFLA_GRE_LOCAL, &laddr, sizeof(laddr));
+-	addattr_l(n, 1024, IFLA_GRE_REMOTE, &raddr, sizeof(raddr));
+-	if (link)
+-		addattr32(n, 1024, IFLA_GRE_LINK, link);
+-	addattr_l(n, 1024, IFLA_GRE_TTL, &hop_limit, 1);
+-	addattr_l(n, 1024, IFLA_GRE_ENCAP_LIMIT, &encap_limit, 1);
+-	addattr_l(n, 1024, IFLA_GRE_FLOWINFO, &flowinfo, 4);
+-	addattr32(n, 1024, IFLA_GRE_FLAGS, flags);
+-
+-	addattr16(n, 1024, IFLA_GRE_ENCAP_TYPE, encaptype);
+-	addattr16(n, 1024, IFLA_GRE_ENCAP_FLAGS, encapflags);
+-	addattr16(n, 1024, IFLA_GRE_ENCAP_SPORT, htons(encapsport));
+-	addattr16(n, 1024, IFLA_GRE_ENCAP_DPORT, htons(encapdport));
++	if (!metadata) {
++		addattr32(n, 1024, IFLA_GRE_IKEY, ikey);
++		addattr32(n, 1024, IFLA_GRE_OKEY, okey);
++		addattr_l(n, 1024, IFLA_GRE_IFLAGS, &iflags, 2);
++		addattr_l(n, 1024, IFLA_GRE_OFLAGS, &oflags, 2);
++		addattr_l(n, 1024, IFLA_GRE_LOCAL, &laddr, sizeof(laddr));
++		addattr_l(n, 1024, IFLA_GRE_REMOTE, &raddr, sizeof(raddr));
++		if (link)
++			addattr32(n, 1024, IFLA_GRE_LINK, link);
++		addattr_l(n, 1024, IFLA_GRE_TTL, &hop_limit, 1);
++		addattr_l(n, 1024, IFLA_GRE_ENCAP_LIMIT, &encap_limit, 1);
++		addattr_l(n, 1024, IFLA_GRE_FLOWINFO, &flowinfo, 4);
++		addattr32(n, 1024, IFLA_GRE_FLAGS, flags);
++
++		addattr16(n, 1024, IFLA_GRE_ENCAP_TYPE, encaptype);
++		addattr16(n, 1024, IFLA_GRE_ENCAP_FLAGS, encapflags);
++		addattr16(n, 1024, IFLA_GRE_ENCAP_SPORT, htons(encapsport));
++		addattr16(n, 1024, IFLA_GRE_ENCAP_DPORT, htons(encapdport));
++	} else {
++		addattr_l(n, 1024, IFLA_GRE_COLLECT_METADATA, NULL, 0);
++	}
+ 
+ 	return 0;
+ }
+@@ -385,6 +395,11 @@ static void gre_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 	if (!tb)
+ 		return;
+ 
++	if (tb[IFLA_GRE_COLLECT_METADATA]) {
++		fprintf(f, "external");
++		return;
++	}
++
+ 	if (tb[IFLA_GRE_FLAGS])
+ 		flags = rta_getattr_u32(tb[IFLA_GRE_FLAGS]);
+ 
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index 8be5d5e1e9fd6..612bd8ce92696 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -877,6 +877,8 @@ the following additional arguments are supported:
+ .BI "dscp inherit"
+ ] [
+ .BI dev " PHYS_DEV "
++] [
++.RB external
+ ]
+ 
+ .in +8
+@@ -958,6 +960,21 @@ or
+ .IR 00 ".." ff
+ when tunneling non-IP packets. The default value is 00.
+ 
++.sp
++.RB external
++- make this tunnel externally controlled (or not, which is the default).
++In the kernel, this is referred to as collect metadata mode.  This flag is
++mutually exclusive with the
++.BR remote ,
++.BR local ,
++.BR seq ,
++.BR key,
++.BR csum,
++.BR hoplimit,
++.BR encaplimit,
++.BR flowlabel " and " tclass
++options.
++
+ .in -8
+ 
+ .TP
+-- 
+2.20.1
+

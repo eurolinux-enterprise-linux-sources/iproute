@@ -1,0 +1,37 @@
+From 42b9cc605f54f2a3ad75a29b5f2fc308bfe5fc61 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:09:12 +0200
+Subject: [PATCH] tc_util: No need to terminate an snprintf'ed buffer
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 9376314b49a47
+
+commit 9376314b49a47eb42ade3fc0d41cb51438f8dbc6
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Sep 1 18:52:55 2017 +0200
+
+    tc_util: No need to terminate an snprintf'ed buffer
+
+    snprintf() won't leave the buffer unterminated, so manually terminating
+    is not necessary here.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/tc_util.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/tc/tc_util.c b/tc/tc_util.c
+index 24ca1f1c1c040..296825ae174e0 100644
+--- a/tc/tc_util.c
++++ b/tc/tc_util.c
+@@ -430,7 +430,6 @@ const char *action_n2a(int action)
+ 		return "stolen";
+ 	default:
+ 		snprintf(buf, 64, "%d", action);
+-		buf[63] = '\0';
+ 		return buf;
+ 	}
+ }
+-- 
+2.20.1
+

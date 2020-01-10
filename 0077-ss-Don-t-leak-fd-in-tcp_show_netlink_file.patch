@@ -1,0 +1,107 @@
+From fa8b9f8fa8a6762bb0151e65a11eca9dca7aca83 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ss: Don't leak fd in tcp_show_netlink_file()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 4b45ae221e949
+
+commit 4b45ae221e949b604d968a10d5d996c7c7cec1a6
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:30 2017 +0200
+
+    ss: Don't leak fd in tcp_show_netlink_file()
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 32 ++++++++++++++++++++------------
+ 1 file changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index 86defc71fabc4..eb46e0c4b95fb 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -2764,41 +2764,44 @@ static int tcp_show_netlink_file(struct filter *f)
+ {
+ 	FILE	*fp;
+ 	char	buf[16384];
++	int	err = -1;
+ 
+ 	if ((fp = fopen(getenv("TCPDIAG_FILE"), "r")) == NULL) {
+ 		perror("fopen($TCPDIAG_FILE)");
+-		return -1;
++		return err;
+ 	}
+ 
+ 	while (1) {
+-		int status, err;
++		int status, err2;
+ 		struct nlmsghdr *h = (struct nlmsghdr *)buf;
+ 		struct sockstat s = {};
+ 
+ 		status = fread(buf, 1, sizeof(*h), fp);
+ 		if (status < 0) {
+ 			perror("Reading header from $TCPDIAG_FILE");
+-			return -1;
++			break;
+ 		}
+ 		if (status != sizeof(*h)) {
+ 			perror("Unexpected EOF reading $TCPDIAG_FILE");
+-			return -1;
++			break;
+ 		}
+ 
+ 		status = fread(h+1, 1, NLMSG_ALIGN(h->nlmsg_len-sizeof(*h)), fp);
+ 
+ 		if (status < 0) {
+ 			perror("Reading $TCPDIAG_FILE");
+-			return -1;
++			break;
+ 		}
+ 		if (status + sizeof(*h) < h->nlmsg_len) {
+ 			perror("Unexpected EOF reading $TCPDIAG_FILE");
+-			return -1;
++			break;
+ 		}
+ 
+ 		/* The only legal exit point */
+-		if (h->nlmsg_type == NLMSG_DONE)
+-			return 0;
++		if (h->nlmsg_type == NLMSG_DONE) {
++			err = 0;
++			break;
++		}
+ 
+ 		if (h->nlmsg_type == NLMSG_ERROR) {
+ 			struct nlmsgerr *err = (struct nlmsgerr *)NLMSG_DATA(h);
+@@ -2809,7 +2812,7 @@ static int tcp_show_netlink_file(struct filter *f)
+ 				errno = -err->error;
+ 				perror("TCPDIAG answered");
+ 			}
+-			return -1;
++			break;
+ 		}
+ 
+ 		parse_diag_msg(h, &s);
+@@ -2818,10 +2821,15 @@ static int tcp_show_netlink_file(struct filter *f)
+ 		if (f && f->f && run_ssfilter(f->f, &s) == 0)
+ 			continue;
+ 
+-		err = inet_show_sock(h, &s);
+-		if (err < 0)
+-			return err;
++		err2 = inet_show_sock(h, &s);
++		if (err2 < 0) {
++			err = err2;
++			break;
++		}
+ 	}
++
++	fclose(fp);
++	return err;
+ }
+ 
+ static int tcp_show(struct filter *f)
+-- 
+2.20.1
+

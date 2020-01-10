@@ -1,0 +1,60 @@
+From 7ea6dbec34ae5166dd93fd4dbfcab35512e86e94 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ipvrf: Fix error path of vrf_switch()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 6ac5943bdd5ac
+
+commit 6ac5943bdd5ac5bb8c22b99f5a1d5907ebbcae2b
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:27 2017 +0200
+
+    ipvrf: Fix error path of vrf_switch()
+
+    Apart from trying to close(-1), this also leaked memory.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/ipvrf.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/ip/ipvrf.c b/ip/ipvrf.c
+index 0f611b44b78ab..ae3b48fa81996 100644
+--- a/ip/ipvrf.c
++++ b/ip/ipvrf.c
+@@ -369,12 +369,12 @@ static int vrf_switch(const char *name)
+ 
+ 	/* -1 on length to add '/' to the end */
+ 	if (ipvrf_get_netns(netns, sizeof(netns) - 1) < 0)
+-		return -1;
++		goto out;
+ 
+ 	if (vrf_path(vpath, sizeof(vpath)) < 0) {
+ 		fprintf(stderr, "Failed to get base cgroup path: %s\n",
+ 			strerror(errno));
+-		return -1;
++		goto out;
+ 	}
+ 
+ 	/* if path already ends in netns then don't add it again */
+@@ -425,13 +425,14 @@ static int vrf_switch(const char *name)
+ 	snprintf(pid, sizeof(pid), "%d", getpid());
+ 	if (write(fd, pid, strlen(pid)) < 0) {
+ 		fprintf(stderr, "Failed to join cgroup\n");
+-		goto out;
++		goto out2;
+ 	}
+ 
+ 	rc = 0;
++out2:
++	close(fd);
+ out:
+ 	free(mnt);
+-	close(fd);
+ 
+ 	return rc;
+ }
+-- 
+2.20.1
+

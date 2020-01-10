@@ -1,0 +1,90 @@
+From c6e0fc7a5ec0b890c35a3b5d4cc5e1f7794cc47f Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] tc/m_gact: Drop dead code
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 73aa988868e7e
+Conflicts: context change due to missing commits:
+* e67aba5595811 ("tc: actions: add helpers to parse and print control actions")
+* 18f05d06016d9 ("tc: gact: fix control action parsing")
+
+commit 73aa988868e7e068b4fc0daaca7cfdb3e07fe744
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:31 2017 +0200
+
+    tc/m_gact: Drop dead code
+
+    The use of 'ok' variable in parse_gact() is ineffective: The second
+    conditional increments it either if *argv is 'gact' or if
+    parse_action_control() doesn't fail (in which case exit() is called).
+    So this is effectively an unconditional increment and since no decrement
+    happens anywhere, all remaining checks for 'ok != 0' can be dropped.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/m_gact.c | 18 +++++-------------
+ 1 file changed, 5 insertions(+), 13 deletions(-)
+
+diff --git a/tc/m_gact.c b/tc/m_gact.c
+index 755a3bee2c2f2..0cb5222fd3817 100644
+--- a/tc/m_gact.c
++++ b/tc/m_gact.c
+@@ -86,7 +86,6 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
+ {
+ 	int argc = *argc_p;
+ 	char **argv = *argv_p;
+-	int ok = 0;
+ 	int action = TC_POLICE_RECLASSIFY;
+ 	struct tc_gact p = { .action = TC_POLICE_RECLASSIFY };
+ #ifdef CONFIG_GACT_PROB
+@@ -100,25 +99,22 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
+ 
+ 
+ 	if (matches(*argv, "gact") == 0) {
+-		ok++;
++		argc--;
++		argv++;
+ 	} else {
+ 		action = get_act(&argv);
+ 		if (action != -10) {
+ 			p.action = action;
+-			ok++;
++			argc--;
++			argv++;
+ 		} else {
+ 			explain();
+ 			return action;
+ 		}
+ 	}
+ 
+-	if (ok) {
+-		argc--;
+-		argv++;
+-	}
+-
+ #ifdef CONFIG_GACT_PROB
+-	if (ok && argc > 0) {
++	if (argc > 0) {
+ 		if (matches(*argv, "random") == 0) {
+ 			rd = 1;
+ 			NEXT_ARG();
+@@ -167,15 +163,11 @@ parse_gact(struct action_util *a, int *argc_p, char ***argv_p,
+ 			}
+ 			argc--;
+ 			argv++;
+-			ok++;
+ 		} else if (matches(*argv, "help") == 0) {
+ 				usage();
+ 		}
+ 	}
+ 
+-	if (!ok)
+-		return -1;
+-
+ 	tail = NLMSG_TAIL(n);
+ 	addattr_l(n, MAX_MSG, tca_id, NULL, 0);
+ 	addattr_l(n, MAX_MSG, TCA_GACT_PARMS, &p, sizeof(p));
+-- 
+2.20.1
+

@@ -1,0 +1,46 @@
+From e4526cbbfb6151e87e493a7fecfe2384a3751100 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:12:49 +0200
+Subject: [PATCH] m_mirred: don't bail if the control action is missing
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit 6eccf7ecdb010
+
+commit 6eccf7ecdb010a90e5271942748ef4338ddb61ae
+Author: Paolo Abeni <pabeni@redhat.com>
+Date:   Mon May 20 11:56:52 2019 +0200
+
+    m_mirred: don't bail if the control action is missing
+
+    The mirred act admits an optional control action, defaulting
+    to TC_ACT_PIPE. The parsing code currently emits an error message
+    if the control action is not provided on the command line, even
+    if the command itself completes with no error.
+
+    This change shuts down the error message, using the appropriate
+    parsing helper.
+
+    Fixes: e67aba559581 ("tc: actions: add helpers to parse and print control actions")
+    Signed-off-by: Paolo Abeni <pabeni@redhat.com>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ tc/m_mirred.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/tc/m_mirred.c b/tc/m_mirred.c
+index b1f45f1e6ecb0..90d0b633c1318 100644
+--- a/tc/m_mirred.c
++++ b/tc/m_mirred.c
+@@ -172,7 +172,8 @@ parse_direction(struct action_util *a, int *argc_p, char ***argv_p,
+ 
+ 
+ 	if (p.eaction == TCA_EGRESS_MIRROR || p.eaction == TCA_INGRESS_MIRROR)
+-		parse_action_control(&argc, &argv, &p.action, false);
++		parse_action_control_dflt(&argc, &argv, &p.action, false,
++					  TC_ACT_PIPE);
+ 
+ 	if (argc) {
+ 		if (iok && matches(*argv, "index") == 0) {
+-- 
+2.20.1
+

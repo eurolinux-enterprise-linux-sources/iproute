@@ -1,0 +1,38 @@
+From 78ff1fa1a2ff22e6fb7dc0a689e5a4861826431e Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ifstat: Fix memleak in error case
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 35f6adefb8f9d
+
+commit 35f6adefb8f9d56437f5455ac8c0c3cc329e3317
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:28 2017 +0200
+
+    ifstat: Fix memleak in error case
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ifstat.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/misc/ifstat.c b/misc/ifstat.c
+index a853ee6d7e3b3..8fa354265a9a1 100644
+--- a/misc/ifstat.c
++++ b/misc/ifstat.c
+@@ -143,8 +143,10 @@ static int get_nlmsg_extended(const struct sockaddr_nl *who,
+ 		struct rtattr *attr;
+ 
+ 		attr = parse_rtattr_one_nested(sub_type, tb[filter_type]);
+-		if (attr == NULL)
++		if (attr == NULL) {
++			free(n);
+ 			return 0;
++		}
+ 		memcpy(&n->val, RTA_DATA(attr), sizeof(n->val));
+ 	}
+ 	memset(&n->rate, 0, sizeof(n->rate));
+-- 
+2.20.1
+

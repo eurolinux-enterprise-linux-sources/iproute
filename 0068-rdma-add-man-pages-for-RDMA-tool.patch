@@ -1,0 +1,422 @@
+From 4bee4617fa17405a52e11ed47e21feb20a277cc2 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Thu, 28 Mar 2019 15:00:33 +0100
+Subject: [PATCH] rdma: add man pages for RDMA tool
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1642479
+Upstream Status: RHEL-only
+
+commit 379afb6274462dee196d5909f6988b1ce5466c0b
+Author: Andrea Claudi <aclaudi@redhat.com>
+Date:   Thu Mar 28 13:02:20 2019 +0100
+
+    rdma: add man pages for RDMA tool
+
+    Checkout to the v5.0.0 upstream tag and update man8 Makefile
+
+    Signed-off-by: Andrea Claudi <aclaudi@redhat.com>
+---
+ man/man8/Makefile        |   2 +-
+ man/man8/rdma-dev.8      |  69 +++++++++++++++++++++++
+ man/man8/rdma-link.8     |  56 ++++++++++++++++++
+ man/man8/rdma-resource.8 | 109 +++++++++++++++++++++++++++++++++++
+ man/man8/rdma.8          | 119 +++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 354 insertions(+), 1 deletion(-)
+ create mode 100644 man/man8/rdma-dev.8
+ create mode 100644 man/man8/rdma-link.8
+ create mode 100644 man/man8/rdma-resource.8
+ create mode 100644 man/man8/rdma.8
+
+diff --git a/man/man8/Makefile b/man/man8/Makefile
+index f33186446819e..416443f3f5361 100644
+--- a/man/man8/Makefile
++++ b/man/man8/Makefile
+@@ -19,7 +19,7 @@ MAN8PAGES = $(TARGETS) ip.8 arpd.8 lnstat.8 routel.8 rtacct.8 rtmon.8 rtpr.8 ss.
+ 	tc-simple.8 tc-skbedit.8 tc-vlan.8 tc-xt.8 tc-skbmod.8 tc-ife.8 \
+ 	tc-tunnel_key.8 tc-sample.8 \
+ 	devlink.8 devlink-dev.8 devlink-monitor.8 devlink-port.8 devlink-sb.8 \
+-	ifstat.8
++	ifstat.8 rdma.8 rdma-dev.8 rdma-link.8 rdma-resource.8
+ 
+ all: $(TARGETS)
+ 
+diff --git a/man/man8/rdma-dev.8 b/man/man8/rdma-dev.8
+new file mode 100644
+index 0000000000000..069f471791904
+--- /dev/null
++++ b/man/man8/rdma-dev.8
+@@ -0,0 +1,69 @@
++.TH RDMA\-DEV 8 "06 Jul 2017" "iproute2" "Linux"
++.SH NAME
++rdma-dev \- RDMA device configuration
++.SH SYNOPSIS
++.sp
++.ad l
++.in +8
++.ti -8
++.B rdma
++.RI "[ " OPTIONS " ]"
++.B dev
++.RI  " { " COMMAND " | "
++.BR help " }"
++.sp
++
++.ti -8
++.IR OPTIONS " := { "
++\fB\-V\fR[\fIersion\fR] |
++\fB\-d\fR[\fIetails\fR] }
++
++.ti -8
++.B rdma dev show
++.RI "[ " DEV " ]"
++
++.ti -8
++.B rdma dev set
++.RI "[ " DEV " ]"
++.BR name
++.BR NEWNAME
++
++.ti -8
++.B rdma dev help
++
++.SH "DESCRIPTION"
++.SS rdma dev set - rename rdma device
++
++.SS rdma dev show - display rdma device attributes
++
++.PP
++.I "DEV"
++- specifies the RDMA device to show.
++If this argument is omitted all devices are listed.
++
++.SH "EXAMPLES"
++.PP
++rdma dev
++.RS 4
++Shows the state of all RDMA devices on the system.
++.RE
++.PP
++rdma dev show mlx5_3
++.RS 4
++Shows the state of specified RDMA device.
++.RE
++.PP
++rdma dev set mlx5_3 name rdma_0
++.RS 4
++Renames the mlx5_3 device to rdma_0.
++.RE
++.PP
++
++.SH SEE ALSO
++.BR rdma (8),
++.BR rdma-link (8),
++.BR rdma-resource (8),
++.br
++
++.SH AUTHOR
++Leon Romanovsky <leonro@mellanox.com>
+diff --git a/man/man8/rdma-link.8 b/man/man8/rdma-link.8
+new file mode 100644
+index 0000000000000..bddf34746e8b2
+--- /dev/null
++++ b/man/man8/rdma-link.8
+@@ -0,0 +1,56 @@
++.TH RDMA\-LINK 8 "06 Jul 2017" "iproute2" "Linux"
++.SH NAME
++rdma-link \- rdma link configuration
++.SH SYNOPSIS
++.sp
++.ad l
++.in +8
++.ti -8
++.B devlink
++.RI "[ " OPTIONS " ]"
++.B link
++.RI  " { " COMMAND " | "
++.BR help " }"
++.sp
++
++.ti -8
++.IR OPTIONS " := { "
++\fB\-V\fR[\fIersion\fR] |
++\fB\-d\fR[\fIetails\fR] }
++
++.ti -8
++.B rdma link show
++.RI "[ " DEV/PORT_INDEX " ]"
++
++.ti -8
++.B rdma link help
++
++.SH "DESCRIPTION"
++.SS rdma link show - display rdma link attributes
++
++.PP
++.I "DEV/PORT_INDEX"
++- specifies the RDMA link to show.
++If this argument is omitted all links are listed.
++
++.SH "EXAMPLES"
++.PP
++rdma link show
++.RS 4
++Shows the state of all rdma links on the system.
++.RE
++.PP
++rdma link show mlx5_2/1
++.RS 4
++Shows the state of specified rdma link.
++.RE
++.PP
++
++.SH SEE ALSO
++.BR rdma (8),
++.BR rdma-dev (8),
++.BR rdma-resource (8),
++.br
++
++.SH AUTHOR
++Leon Romanovsky <leonro@mellanox.com>
+diff --git a/man/man8/rdma-resource.8 b/man/man8/rdma-resource.8
+new file mode 100644
+index 0000000000000..40b073dbfcf24
+--- /dev/null
++++ b/man/man8/rdma-resource.8
+@@ -0,0 +1,109 @@
++.TH RDMA\-RESOURCE 8 "26 Dec 2017" "iproute2" "Linux"
++.SH NAME
++rdma-resource \- rdma resource configuration
++.SH SYNOPSIS
++.sp
++.ad l
++.in +8
++.ti -8
++.B rdma
++.RI "[ " OPTIONS " ] " RESOURCE " { " COMMAND " | "
++.BR help " }"
++.sp
++
++.ti -8
++.IR RESOURCE " := { "
++.BR cm_id " | " cq " | " mr " | " pd " | " qp " }"
++.sp
++
++.ti -8
++.IR OPTIONS " := { "
++\fB\-j\fR[\fIson\fR] |
++\fB\-d\fR[\fIetails\fR] }
++
++.ti -8
++.B rdma resource show
++.RI "[ " DEV/PORT_INDEX " ]"
++
++.ti -8
++.B rdma resource help
++
++.SH "DESCRIPTION"
++.SS rdma resource show - display rdma resource tracking information
++
++.PP
++.I "DEV/PORT_INDEX"
++- specifies the RDMA link to show.
++If this argument is omitted all links are listed.
++
++.SH "EXAMPLES"
++.PP
++rdma resource show
++.RS 4
++Shows summary for all devices on the system.
++.RE
++.PP
++rdma resource show mlx5_2
++.RS 4
++Shows the state of specified rdma device.
++.RE
++.PP
++rdma res show qp link mlx5_4
++.RS 4
++Get all QPs for the specific device.
++.RE
++.PP
++rdma res show qp link mlx5_4/1
++.RS 4
++Get QPs of specific port.
++.RE
++.PP
++rdma res show qp link mlx5_4/0
++.RS 4
++Provide illegal port number (0 is illegal).
++.RE
++.PP
++rdma res show qp link mlx5_4/-
++.RS 4
++Get QPs which have not assigned port yet.
++.RE
++.PP
++rdma res show qp link mlx5_4/- -d
++.RS 4
++Detailed view.
++.RE
++.PP
++rdma res show qp link mlx5_4/- -dd
++.RS 4
++Detailed view including driver-specific details.
++.RE
++.PP
++rdma res show qp link mlx5_4/1 lqpn 0-6
++.RS 4
++Limit to specific Local QPNs.
++.RE
++.PP
++rdma resource show cm_id dst-port 7174
++.RS 4
++Show CM_IDs with destination ip port of 7174.
++.RE
++.PP
++rdma resource show cm_id src-addr 172.16.0.100
++.RS 4
++Show CM_IDs bound to local ip address 172.16.0.100
++.RE
++.PP
++rdma resource show cq pid 30489
++.RS 4
++Show CQs belonging to pid 30489
++.RE
++.PP
++
++.SH SEE ALSO
++.BR rdma (8),
++.BR rdma-dev (8),
++.BR rdma-link (8),
++.br
++
++.SH AUTHOR
++Leon Romanovsky <leonro@mellanox.com>
+diff --git a/man/man8/rdma.8 b/man/man8/rdma.8
+new file mode 100644
+index 0000000000000..b2b5aef866ab0
+--- /dev/null
++++ b/man/man8/rdma.8
+@@ -0,0 +1,119 @@
++.TH RDMA 8 "28 Mar 2017" "iproute2" "Linux"
++.SH NAME
++rdma \- RDMA tool
++.SH SYNOPSIS
++.sp
++.ad l
++.in +8
++.ti -8
++.B rdma
++.RI "[ " OPTIONS " ] " OBJECT " { " COMMAND " | "
++.BR help " }"
++.sp
++
++.ti -8
++.B rdma
++.RB "[ " -force " ] "
++.BI "-batch " filename
++.sp
++
++.ti -8
++.IR OBJECT " := { "
++.BR dev " | " link " }"
++.sp
++
++.ti -8
++.IR OPTIONS " := { "
++\fB\-V\fR[\fIersion\fR] |
++\fB\-d\fR[\fIetails\fR] }
++\fB\-j\fR[\fIson\fR] }
++\fB\-p\fR[\fIretty\fR] }
++
++.SH OPTIONS
++
++.TP
++.BR "\-V" , " -Version"
++Print the version of the
++.B rdma
++tool and exit.
++
++.TP
++.BR "\-b", " \-batch " <FILENAME>
++Read commands from provided file or standard input and invoke them.
++First failure will cause termination of rdma.
++
++.TP
++.BR "\-force"
++Don't terminate rdma on errors in batch mode.
++If there were any errors during execution of the commands, the application return code will be non zero.
++
++.TP
++.BR "\-d" , " --details"
++Output detailed information.  Adding a second \-d includes driver-specific details.
++
++.TP
++.BR "\-p" , " --pretty"
++When combined with -j generate a pretty JSON output.
++
++.TP
++.BR "\-j" , " --json"
++Generate JSON output.
++
++.SS
++.I OBJECT
++
++.TP
++.B dev
++- RDMA device.
++
++.TP
++.B link
++- RDMA port related.
++
++.PP
++The names of all objects may be written in full or
++abbreviated form, for example
++.B stats
++can be abbreviated as
++.B stat
++or just
++.B s.
++
++.SS
++.I COMMAND
++
++Specifies the action to perform on the object.
++The set of possible actions depends on the object type.
++As a rule, it is possible to
++.B show
++(or
++.B list
++) objects, but some objects do not allow all of these operations
++or have some additional commands. The
++.B help
++command is available for all objects. It prints
++out a list of available commands and argument syntax conventions.
++.sp
++If no command is given, some default command is assumed.
++Usually it is
++.B list
++or, if the objects of this class cannot be listed,
++.BR "help" .
++
++.SH EXIT STATUS
++Exit status is 0 if command was successful or a positive integer upon failure.
++
++.SH SEE ALSO
++.BR rdma-dev (8),
++.BR rdma-link (8),
++.BR rdma-resource (8),
++.br
++
++.SH REPORTING BUGS
++Report any bugs to the Linux RDMA mailing list
++.B <linux-rdma@vger.kernel.org>
++where the development and maintenance is primarily done.
++You do not have to be subscribed to the list to send a message there.
++
++.SH AUTHOR
++Leon Romanovsky <leonro@mellanox.com>
+-- 
+2.20.1
+

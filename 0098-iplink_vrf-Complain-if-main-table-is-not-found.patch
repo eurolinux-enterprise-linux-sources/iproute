@@ -1,0 +1,38 @@
+From b9d228a8c22f1d9069fa0c8f98e6bd94011c5714 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] iplink_vrf: Complain if main table is not found
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 84b6a3f4b5720
+
+commit 84b6a3f4b5720aaf673c2eaad2cf60f786de077b
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 18:36:51 2017 +0200
+
+    iplink_vrf: Complain if main table is not found
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Acked-by: David Ahern <dsahern@gmail.com>
+---
+ ip/iplink_vrf.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/ip/iplink_vrf.c b/ip/iplink_vrf.c
+index 370bb86815a80..9c2de2732a88e 100644
+--- a/ip/iplink_vrf.c
++++ b/ip/iplink_vrf.c
+@@ -127,7 +127,9 @@ __u32 ipvrf_get_table(const char *name)
+ 	if (rtnl_talk_suppress_rtnl_errmsg(&rth, &req.n, &answer) < 0) {
+ 		/* special case "default" vrf to be the main table */
+ 		if (errno == ENODEV && !strcmp(name, "default"))
+-			rtnl_rttable_a2n(&tb_id, "main");
++			if (rtnl_rttable_a2n(&tb_id, "main"))
++				fprintf(stderr,
++					"BUG: RTTable \"main\" not found.\n");
+ 
+ 		return tb_id;
+ 	}
+-- 
+2.20.1
+

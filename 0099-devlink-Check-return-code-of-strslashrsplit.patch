@@ -1,0 +1,62 @@
+From ea11b95042171f254fe0127ea0f1f2786d81dc83 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] devlink: Check return code of strslashrsplit()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 6e33f7b0f6e04
+
+commit 6e33f7b0f6e04dd46bea24c3ab28d61e54625dd7
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 18:36:52 2017 +0200
+
+    devlink: Check return code of strslashrsplit()
+
+    This function shouldn't fail because all callers of
+    __dl_argv_handle_port() make sure the passed string contains enough
+    slashes already, but better make sure if this changes in future the
+    function won't access uninitialized data.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ devlink/devlink.c | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/devlink/devlink.c b/devlink/devlink.c
+index ae295b5632e8c..082eeafa1146a 100644
+--- a/devlink/devlink.c
++++ b/devlink/devlink.c
+@@ -576,18 +576,26 @@ static int __dl_argv_handle_port(char *str,
+ 				 char **p_bus_name, char **p_dev_name,
+ 				 uint32_t *p_port_index)
+ {
+-	char *handlestr = handlestr;
+-	char *portstr = portstr;
++	char *handlestr;
++	char *portstr;
+ 	int err;
+ 
+-	strslashrsplit(str, &handlestr, &portstr);
++	err = strslashrsplit(str, &handlestr, &portstr);
++	if (err) {
++		pr_err("Port identification \"%s\" is invalid\n", str);
++		return err;
++	}
+ 	err = strtouint32_t(portstr, p_port_index);
+ 	if (err) {
+ 		pr_err("Port index \"%s\" is not a number or not within range\n",
+ 		       portstr);
+ 		return err;
+ 	}
+-	strslashrsplit(handlestr, p_bus_name, p_dev_name);
++	err = strslashrsplit(handlestr, p_bus_name, p_dev_name);
++	if (err) {
++		pr_err("Port identification \"%s\" is invalid\n", str);
++		return err;
++	}
+ 	return 0;
+ }
+ 
+-- 
+2.20.1
+

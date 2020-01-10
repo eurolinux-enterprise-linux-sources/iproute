@@ -1,0 +1,38 @@
+From e5d32611010d4694562980b790ed7849342f594b Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] ipmaddr: Avoid accessing uninitialized data
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit b48a1161f5f9b
+
+commit b48a1161f5f9b6a0cda399a224bbbf72eba4a5c6
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 11:27:01 2017 +0200
+
+    ipmaddr: Avoid accessing uninitialized data
+
+    Looks like this can only happen if /proc/net/igmp is malformed, but
+    better be sure.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/ipmaddr.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/ipmaddr.c b/ip/ipmaddr.c
+index 4f726fdd976f1..85a69e779563d 100644
+--- a/ip/ipmaddr.c
++++ b/ip/ipmaddr.c
+@@ -136,7 +136,7 @@ static void read_igmp(struct ma_info **result_p)
+ 
+ 	while (fgets(buf, sizeof(buf), fp)) {
+ 		struct ma_info *ma;
+-		size_t len;
++		size_t len = 0;
+ 
+ 		if (buf[0] != '\t') {
+ 			sscanf(buf, "%d%s", &m.index, m.name);
+-- 
+2.20.1
+

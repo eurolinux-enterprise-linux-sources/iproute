@@ -1,0 +1,54 @@
+From 60a5c300c8cd0fbd4c378900d298eb2444c0343d Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] ss: Use C99 initializer in netlink_show_one()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 301826beb3baa
+
+commit 301826beb3baa902e2057d81912d1586459f605f
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 11:27:02 2017 +0200
+
+    ss: Use C99 initializer in netlink_show_one()
+
+    This has the additional benefit of initializing st.ino to zero which is
+    used later in is_sctp_assoc() function.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index cc38fc499c210..7a38e9d830e8d 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -3567,17 +3567,18 @@ static int netlink_show_one(struct filter *f,
+ 				int rq, int wq,
+ 				unsigned long long sk, unsigned long long cb)
+ {
+-	struct sockstat st;
++	struct sockstat st = {
++		.state		= SS_CLOSE,
++		.rq		= rq,
++		.wq		= wq,
++		.local.family	= AF_NETLINK,
++		.remote.family	= AF_NETLINK,
++	};
+ 
+ 	SPRINT_BUF(prot_buf) = {};
+ 	const char *prot_name;
+ 	char procname[64] = {};
+ 
+-	st.state = SS_CLOSE;
+-	st.rq	 = rq;
+-	st.wq	 = wq;
+-	st.local.family = st.remote.family = AF_NETLINK;
+-
+ 	if (f->f) {
+ 		st.rport = -1;
+ 		st.lport = pid;
+-- 
+2.20.1
+

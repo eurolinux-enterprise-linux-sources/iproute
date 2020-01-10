@@ -1,0 +1,40 @@
+From 774b1c35d4515434e979d9090960ad3293bfe12e Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:18:27 +0200
+Subject: [PATCH] tc_util: Silence spurious compiler warning
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit 66942e522e54d
+
+commit 66942e522e54d9f96153590b7c1c7830b8f73f5c
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Nov 15 15:01:31 2017 +0100
+
+    tc_util: Silence spurious compiler warning
+
+    GCC version 7.2.1 complains that 'result1' may be used uninitialized in
+    parse_action_control_slash_spaces(). This should not be possible in
+    practice, so the actual value 'result1' is initialized with does not
+    matter.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/tc_util.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tc/tc_util.c b/tc/tc_util.c
+index 65695ea592ed8..e115e5a70e3a1 100644
+--- a/tc/tc_util.c
++++ b/tc/tc_util.c
+@@ -556,7 +556,7 @@ static int parse_action_control_slash_spaces(int *argc_p, char ***argv_p,
+ {
+ 	int argc = *argc_p;
+ 	char **argv = *argv_p;
+-	int result1, result2;
++	int result1 = -1, result2;
+ 	int *result_p = &result1;
+ 	int ok = 0;
+ 	int ret;
+-- 
+2.20.1
+

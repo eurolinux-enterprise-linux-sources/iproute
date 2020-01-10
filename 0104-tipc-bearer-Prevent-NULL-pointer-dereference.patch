@@ -1,0 +1,35 @@
+From 73b2d3ee4bbdbfba7db035d9b89a2bcffc15e1ba Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] tipc/bearer: Prevent NULL pointer dereference
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 70a6df3962b84
+
+commit 70a6df3962b8448fc9c28d72606828a004ed5b6b
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:46:34 2017 +0200
+
+    tipc/bearer: Prevent NULL pointer dereference
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tipc/bearer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tipc/bearer.c b/tipc/bearer.c
+index c3d4491f8f6ef..0d84570150624 100644
+--- a/tipc/bearer.c
++++ b/tipc/bearer.c
+@@ -439,7 +439,7 @@ static int cmd_bearer_enable(struct nlmsghdr *nlh, const struct cmd *cmd,
+ 		return err;
+ 
+ 	opt = get_opt(opts, "media");
+-	if (strcmp(opt->val, "udp") == 0) {
++	if (opt && strcmp(opt->val, "udp") == 0) {
+ 		err = nl_add_udp_enable_opts(nlh, opts, cmdl);
+ 		if (err)
+ 			return err;
+-- 
+2.20.1
+

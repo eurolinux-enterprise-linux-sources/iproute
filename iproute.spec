@@ -2,7 +2,7 @@
 
 %define rpmversion 4.11.0
 %define baserelease 0.el7
-%define specrelease 14%{?dist}.2
+%define specrelease 25%{?dist}
 %define pkg_release %{specrelease}%{?buildid}
 
 Summary:            Advanced IP routing and network device configuration tools
@@ -58,11 +58,109 @@ Patch39:            0040-link_gre6-Detect-invalid-encaplimit-values.patch
 Patch40:            0041-man-tc-csum.8-Fix-inconsistency-in-example-descripti.patch
 Patch41:            0042-tc-fix-command-tc-actions-del-hang-issue.patch
 Patch42:            0043-ip-link-Fix-use-after-free-in-nl_get_ll_addr_len.patch
-Patch43:            0050-iproute-Abort-if-nexthop-cannot-be-parsed.patch
-Patch44:            0051-ip-route-Fix-segfault-with-many-nexthops.patch
-Patch45:            0052-man-ip-route.8-Document-nexthop-limit.patch
-Patch46:            0053-ip-route-Fix-nexthop-encap-parsing.patch
-Patch47:            0054-ip-link-Fix-listing-of-alias-interfaces.patch
+Patch43:            0044-tc-m_tunnel_key-reformat-the-usage-text.patch
+Patch44:            0045-tc-m_tunnel_key-Allow-key-less-tunnels.patch
+Patch45:            0046-tc-include-stdint.h-explicitly-for-UINT16_MAX.patch
+Patch46:            0047-Update-kernel-headers.patch
+Patch47:            0048-tc-flower-Add-match-on-encapsulating-tos-ttl.patch
+Patch48:            0049-tc-act_tunnel_key-Enable-setup-of-tos-and-ttl.patch
+Patch49:            0050-iproute-Abort-if-nexthop-cannot-be-parsed.patch
+Patch50:            0051-ip-route-Fix-segfault-with-many-nexthops.patch
+Patch51:            0052-man-ip-route.8-Document-nexthop-limit.patch
+Patch52:            0053-ip-route-Fix-nexthop-encap-parsing.patch
+Patch53:            0054-ip-link-Fix-listing-of-alias-interfaces.patch
+Patch54:            0055-ip-Add-violation-counters-to-VF-statisctics.patch
+Patch55:            0056-devlink-Add-support-for-devlink-resource-abstraction.patch
+Patch56:            0057-devlink-Add-support-for-hot-reload.patch
+Patch57:            0058-devlink-Update-man-pages-and-add-resource-man.patch
+Patch58:            0059-devlink-Add-param-command-support.patch
+Patch59:            0060-man-ip-route.8-ssthresh-parameter-is-NUMBER.patch
+Patch60:            0061-man-tc-vlan.8-Fix-for-incorrect-example.patch
+Patch61:            0062-tc-flower-Add-support-for-QinQ.patch
+Patch62:            0063-utils-Move-BIT-macro-to-common-header.patch
+Patch63:            0064-lib-make-resolve_hosts-variable-common.patch
+Patch64:            0065-json_writer-add-new-json-handlers-null-float-with-fo.patch
+Patch65:            0066-rdma-Add-MR-resource-tracking-information.patch
+Patch66:            0067-rdma-add-infrastructure-for-RDMA-tool.patch
+Patch67:            0068-rdma-add-man-pages-for-RDMA-tool.patch
+Patch68:            0069-tc-f_flower-Add-support-for-matching-first-frag-pack.patch
+Patch69:            0070-ss-enclose-IPv6-address-in-brackets.patch
+Patch70:            0071-ip-address-Use-correct-max-attribute-value-in-print_.patch
+Patch71:            0072-examples-Some-shell-fixes-to-cbq.init.patch
+Patch72:            0073-ifcfg-Quote-left-hand-side-of-expression.patch
+Patch73:            0074-tipc-node-Fix-socket-fd-check-in-cmd_node_get_addr.patch
+Patch74:            0075-iproute_lwtunnel-Argument-to-strerror-must-be-positi.patch
+Patch75:            0076-iproute_lwtunnel-csum_mode-value-checking-was-ineffe.patch
+Patch76:            0077-ss-Don-t-leak-fd-in-tcp_show_netlink_file.patch
+Patch77:            0078-tc-em_ipset-Don-t-leak-sockfd-on-error-path.patch
+Patch78:            0079-ipvrf-Fix-error-path-of-vrf_switch.patch
+Patch79:            0080-ifstat-Fix-memleak-in-error-case.patch
+Patch80:            0081-ifstat-Fix-memleak-in-dump_kern_db-for-json-output.patch
+Patch81:            0082-ss-Fix-potential-memleak-in-unix_stats_print.patch
+Patch82:            0083-tipc-bearer-Fix-resource-leak-in-error-path.patch
+Patch83:            0084-devlink-No-need-for-this-self-assignment.patch
+Patch84:            0085-ipntable-No-need-to-check-and-assign-to-parms_rta.patch
+Patch85:            0086-iproute-Fix-for-missing-Oifs-display.patch
+Patch86:            0087-lib-rt_names-Drop-dead-code-in-rtnl_rttable_n2a.patch
+Patch87:            0088-ss-Skip-useless-check-in-parse_hostcond.patch
+Patch88:            0089-ss-Drop-useless-assignment.patch
+Patch89:            0090-tc-m_gact-Drop-dead-code.patch
+Patch90:            0091-ipaddress-Avoid-accessing-uninitialized-variable-lcl.patch
+Patch91:            0092-iplink_can-Prevent-overstepping-array-bounds.patch
+Patch92:            0093-ipmaddr-Avoid-accessing-uninitialized-data.patch
+Patch93:            0094-ss-Use-C99-initializer-in-netlink_show_one.patch
+Patch94:            0095-netem-maketable-Check-return-value-of-fstat.patch
+Patch95:            0096-tc-q_multiq-Don-t-pass-garbage-in-TCA_OPTIONS.patch
+Patch96:            0097-iproute-Check-mark-value-input.patch
+Patch97:            0098-iplink_vrf-Complain-if-main-table-is-not-found.patch
+Patch98:            0099-devlink-Check-return-code-of-strslashrsplit.patch
+Patch99:            0100-lib-bpf-Don-t-leak-fp-in-bpf_find_mntpt.patch
+Patch100:           0101-ifstat-nstat-Check-fdopen-return-value.patch
+Patch101:           0102-tc-q_netem-Don-t-dereference-possibly-NULL-pointer.patch
+Patch102:           0103-tc-tc_filter-Make-sure-filter-name-is-not-empty.patch
+Patch103:           0104-tipc-bearer-Prevent-NULL-pointer-dereference.patch
+Patch104:           0105-ipntable-Avoid-memory-allocation-for-filter.name.patch
+Patch105:           0106-lib-fs-Fix-format-string-in-find_fs_mount.patch
+Patch106:           0107-lib-inet_proto-Review-inet_proto_-a2n-n2a.patch
+Patch107:           0108-lnstat_util-Simplify-alloc_and_open-a-bit.patch
+Patch108:           0109-tc-m_xt-Fix-for-potential-string-buffer-overflows.patch
+Patch109:           0110-lib-ll_map-Choose-size-of-new-cache-items-at-run-tim.patch
+Patch110:           0111-ss-Make-struct-tcpstat-fields-timer-and-timeout-unsi.patch
+Patch111:           0112-ss-Make-sure-scanned-index-value-to-unix_state_map-i.patch
+Patch112:           0113-netem-maketable-Check-return-value-of-fscanf.patch
+Patch113:           0114-lib-bpf-Check-return-value-of-write.patch
+Patch114:           0115-lib-fs-Fix-and-simplify-make_path.patch
+Patch115:           0116-lib-libnetlink-Don-t-pass-NULL-parameter-to-memcpy.patch
+Patch116:           0117-utils-Implement-strlcpy-and-strlcat.patch
+Patch117:           0118-Convert-the-obvious-cases-to-strlcpy.patch
+Patch118:           0119-Convert-harmful-calls-to-strncpy-to-strlcpy.patch
+Patch119:           0120-ipxfrm-Replace-STRBUF_CAT-macro-with-strlcat.patch
+Patch120:           0121-tc_util-No-need-to-terminate-an-snprintf-ed-buffer.patch
+Patch121:           0122-lnstat_util-Make-sure-buffer-is-NUL-terminated.patch
+Patch122:           0123-utils-strlcpy-and-strlcat-don-t-clobber-dst.patch
+Patch123:           0124-ip-6-tunnel-Avoid-copying-user-supplied-interface-na.patch
+Patch124:           0125-tc-flower-No-need-to-cache-indev-arg.patch
+Patch125:           0126-Check-user-supplied-interface-name-lengths.patch
+Patch126:           0127-bpf-minor-cleanups-for-bpf_trace_pipe.patch
+Patch127:           0128-ip-tunnel-Use-tnl_parse_key-to-parse-tunnel-key.patch
+Patch128:           0129-man-ip-link-document-GRE-tunnels.patch
+Patch129:           0130-gre-gre6-allow-clearing-i-o-key-seq-csum-flags.patch
+Patch130:           0131-tc_filter-add-support-for-chain-index.patch
+Patch131:           0132-tc-actions-add-helpers-to-parse-and-print-control-ac.patch
+Patch132:           0133-tc-actions-introduce-support-for-goto-chain-action.patch
+Patch133:           0134-tc-gact-fix-control-action-parsing.patch
+Patch134:           0135-tc-don-t-print-error-message-on-miss-when-parsing-ac.patch
+Patch135:           0136-tc-util-Don-t-call-NEXT_ARG_FWD-in-__parse_action_co.patch
+Patch136:           0137-tc-fix-parsing-of-the-control-action.patch
+Patch137:           0138-m_mirred-don-t-bail-if-the-control-action-is-missing.patch
+Patch138:           0139-tc-m_tunnel_key-add-csum-nocsum-option.patch
+Patch139:           0140-gre6-add-collect-metadata-support.patch
+Patch140:           0141-tc_util-Silence-spurious-compiler-warning.patch
+Patch141:           0142-ss-use-for-any-address-any-family-sockets.patch
+Patch142:           0143-tc-introduce-tc_qdisc_block_exists-helper.patch
+Patch143:           0144-tc_filter-resolve-device-name-before-parsing-filter.patch
+Patch144:           0145-tc-introduce-support-for-block-handle-for-filter-ope.patch
+Patch145:           0146-tc-implement-ingress-egress-block-index-attributes-f.patch
 License:            GPLv2+ and Public Domain
 BuildRequires:      bison
 BuildRequires:      flex
@@ -175,14 +273,130 @@ cat %{SOURCE3} >>%{buildroot}%{_sysconfdir}/iproute2/rt_dsfield
 %{_includedir}/iproute2/bpf_elf.h
 
 %changelog
-* Tue Mar 12 2019 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7_6.2]
-- ip-link: Fix listing of alias interfaces (Phil Sutter) [1687717]
+* Fri Jun 21 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-25.el7]
+- tc: implement ingress/egress block index attributes for qdiscs (Andrea Claudi) [1721291]
+- tc: introduce support for block-handle for filter operations (Andrea Claudi) [1721291]
+- tc_filter: resolve device name before parsing filter (Andrea Claudi) [1721291]
+- tc: introduce tc_qdisc_block_exists helper (Andrea Claudi) [1721291]
 
-* Fri Mar 01 2019 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7_6.1]
-- ip-route: Fix nexthop encap parsing (Phil Sutter) [1679996]
-- man: ip-route.8: Document nexthop limit (Phil Sutter) [1679996]
-- ip-route: Fix segfault with many nexthops (Phil Sutter) [1679996]
-- iproute: Abort if nexthop cannot be parsed (Phil Sutter) [1679996]
+* Wed Jun 12 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-24.el7]
+- ss: use [::] for any address/any family sockets (Andrea Claudi) [1588122]
+
+* Wed Jun 05 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-23.el7]
+- tc_util: Silence spurious compiler warning (Andrea Claudi) [1714660]
+- gre6: add collect metadata support (Andrea Claudi) [1714660]
+- tc: m_tunnel_key: add csum/nocsum option (Andrea Claudi) [1714660]
+- m_mirred: don't bail if the control action is missing (Andrea Claudi) [1714660]
+- tc: fix parsing of the control action (Andrea Claudi) [1714660]
+- tc: util: Don't call NEXT_ARG_FWD() in __parse_action_control() (Andrea Claudi) [1714660]
+- tc: don't print error message on miss when parsing action with default (Andrea Claudi) [1714660]
+- tc: gact: fix control action parsing (Andrea Claudi) [1714660]
+- tc/actions: introduce support for goto chain action (Andrea Claudi) [1714660]
+- tc: actions: add helpers to parse and print control actions (Andrea Claudi) [1714660]
+- tc_filter: add support for chain index (Andrea Claudi) [1714660]
+- gre/gre6: allow clearing {,i,o}{key,seq,csum} flags (Andrea Claudi) [1714660]
+- man: ip link: document GRE tunnels (Andrea Claudi) [1714660]
+- ip/tunnel: Use tnl_parse_key() to parse tunnel key (Andrea Claudi) [1714660]
+
+* Tue Apr 30 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-22.el7]
+- bpf: minor cleanups for bpf_trace_pipe (Andrea Claudi) [1465646]
+
+* Mon Apr 29 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-21.el7]
+- Check user supplied interface name lengths (Andrea Claudi) [1465646]
+- tc: flower: No need to cache indev arg (Andrea Claudi) [1465646]
+- ip{6, }tunnel: Avoid copying user-supplied interface name around (Andrea Claudi) [1465646]
+- utils: strlcpy() and strlcat() don't clobber dst (Andrea Claudi) [1465646]
+- lnstat_util: Make sure buffer is NUL-terminated (Andrea Claudi) [1465646]
+- tc_util: No need to terminate an snprintf'ed buffer (Andrea Claudi) [1465646]
+- ipxfrm: Replace STRBUF_CAT macro with strlcat() (Andrea Claudi) [1465646]
+- Convert harmful calls to strncpy() to strlcpy() (Andrea Claudi) [1465646]
+- Convert the obvious cases to strlcpy() (Andrea Claudi) [1465646]
+- utils: Implement strlcpy() and strlcat() (Andrea Claudi) [1465646]
+- lib/libnetlink: Don't pass NULL parameter to memcpy() (Andrea Claudi) [1465646]
+- lib/fs: Fix and simplify make_path() (Andrea Claudi) [1465646]
+- lib/bpf: Check return value of write() (Andrea Claudi) [1465646]
+- netem/maketable: Check return value of fscanf() (Andrea Claudi) [1465646]
+- ss: Make sure scanned index value to unix_state_map is sane (Andrea Claudi) [1465646]
+- ss: Make struct tcpstat fields 'timer' and 'timeout' unsigned (Andrea Claudi) [1465646]
+- lib/ll_map: Choose size of new cache items at run-time (Andrea Claudi) [1465646]
+- tc/m_xt: Fix for potential string buffer overflows (Andrea Claudi) [1465646]
+- lnstat_util: Simplify alloc_and_open() a bit (Andrea Claudi) [1465646]
+- lib/inet_proto: Review inet_proto_{a2n,n2a}() (Andrea Claudi) [1465646]
+- lib/fs: Fix format string in find_fs_mount() (Andrea Claudi) [1465646]
+- ipntable: Avoid memory allocation for filter.name (Andrea Claudi) [1465646]
+- tipc/bearer: Prevent NULL pointer dereference (Andrea Claudi) [1465646]
+- tc/tc_filter: Make sure filter name is not empty (Andrea Claudi) [1465646]
+- tc/q_netem: Don't dereference possibly NULL pointer (Andrea Claudi) [1465646]
+- ifstat, nstat: Check fdopen() return value (Andrea Claudi) [1465646]
+- lib/bpf: Don't leak fp in bpf_find_mntpt() (Andrea Claudi) [1465646]
+- devlink: Check return code of strslashrsplit() (Andrea Claudi) [1465646]
+- iplink_vrf: Complain if main table is not found (Andrea Claudi) [1465646]
+- iproute: Check mark value input (Andrea Claudi) [1465646]
+- tc/q_multiq: Don't pass garbage in TCA_OPTIONS (Andrea Claudi) [1465646]
+- netem/maketable: Check return value of fstat() (Andrea Claudi) [1465646]
+- ss: Use C99 initializer in netlink_show_one() (Andrea Claudi) [1465646]
+- ipmaddr: Avoid accessing uninitialized data (Andrea Claudi) [1465646]
+- iplink_can: Prevent overstepping array bounds (Andrea Claudi) [1465646]
+- ipaddress: Avoid accessing uninitialized variable lcl (Andrea Claudi) [1465646]
+- tc/m_gact: Drop dead code (Andrea Claudi) [1465646]
+- ss: Drop useless assignment (Andrea Claudi) [1465646]
+- ss: Skip useless check in parse_hostcond() (Andrea Claudi) [1465646]
+- lib/rt_names: Drop dead code in rtnl_rttable_n2a() (Andrea Claudi) [1465646]
+- iproute: Fix for missing 'Oifs:' display (Andrea Claudi) [1465646]
+- ipntable: No need to check and assign to parms_rta (Andrea Claudi) [1465646]
+- devlink: No need for this self-assignment (Andrea Claudi) [1465646]
+- tipc/bearer: Fix resource leak in error path (Andrea Claudi) [1465646]
+- ss: Fix potential memleak in unix_stats_print() (Andrea Claudi) [1465646]
+- ifstat: Fix memleak in dump_kern_db() for json output (Andrea Claudi) [1465646]
+- ifstat: Fix memleak in error case (Andrea Claudi) [1465646]
+- ipvrf: Fix error path of vrf_switch() (Andrea Claudi) [1465646]
+- tc/em_ipset: Don't leak sockfd on error path (Andrea Claudi) [1465646]
+- ss: Don't leak fd in tcp_show_netlink_file() (Andrea Claudi) [1465646]
+- iproute_lwtunnel: csum_mode value checking was ineffective (Andrea Claudi) [1465646]
+- iproute_lwtunnel: Argument to strerror must be positive (Andrea Claudi) [1465646]
+- tipc/node: Fix socket fd check in cmd_node_get_addr() (Andrea Claudi) [1465646]
+- ifcfg: Quote left-hand side of [ ] expression (Andrea Claudi) [1465646]
+- examples: Some shell fixes to cbq.init (Andrea Claudi) [1465646]
+- ip-address: Use correct max attribute value in print_vf_stats64() (Andrea Claudi) [1679749]
+- ss: enclose IPv6 address in brackets (Andrea Claudi) [1588122]
+- tc: f_flower: Add support for matching first frag packets (Andrea Claudi) [1559814]
+
+* Thu Mar 28 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-20.el7]
+- rdma: add man pages for RDMA tool (Andrea Claudi) [1642479]
+
+* Wed Mar 27 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-19.el7]
+- rdma: add infrastructure for RDMA tool (Andrea Claudi) [1642479 1641914]
+- rdma: Add MR resource tracking information (Andrea Claudi) [1642479 1641914]
+- json_writer: add new json handlers (null, float with format, lluint, hu) (Andrea Claudi) [1642479 1641914]
+- lib: make resolve_hosts variable common (Andrea Claudi) [1642479 1641914]
+- utils: Move BIT macro to common header (Andrea Claudi) [1642479 1641914]
+- tc: flower: Add support for QinQ (Andrea Claudi) [1642347]
+- man: tc-vlan.8: Fix for incorrect example (Andrea Claudi) [1593630]
+- man: ip-route.8: ssthresh parameter is NUMBER (Andrea Claudi) [1593628]
+- devlink: Add param command support (Andrea Claudi) [1644731]
+- devlink: Update man pages and add resource man (Andrea Claudi) [1644731]
+- devlink: Add support for hot reload (Andrea Claudi) [1644731]
+- devlink: Add support for devlink resource abstraction (Andrea Claudi) [1644731]
+
+* Mon Mar 18 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-18.el7]
+- ip: Add violation counters to VF statisctics (Andrea Claudi) [1471680]
+
+* Mon Mar 11 2019 Phil Sutter <psutter@redhat.com> [4.11.0-17.el7]
+- ip-link: Fix listing of alias interfaces (Phil Sutter) [1673226]
+
+* Thu Feb 21 2019 Phil Sutter <psutter@redhat.com> [4.11.0-16.el7]
+- ip-route: Fix nexthop encap parsing (Phil Sutter) [1624656]
+- man: ip-route.8: Document nexthop limit (Phil Sutter) [1624656]
+- ip-route: Fix segfault with many nexthops (Phil Sutter) [1624656]
+- iproute: Abort if nexthop cannot be parsed (Phil Sutter) [1624656]
+
+* Wed Feb 06 2019 Phil Sutter <psutter@redhat.com> [4.11.0-15.el7]
+- tc/act_tunnel_key: Enable setup of tos and ttl (Phil Sutter) [1641909]
+- tc/flower: Add match on encapsulating tos/ttl (Phil Sutter) [1641909]
+- Update kernel headers (Phil Sutter)
+- tc: include stdint.h explicitly for UINT16_MAX (Phil Sutter) [1641909]
+- tc: m_tunnel_key: Allow key-less tunnels (Phil Sutter) [1658506]
+- tc: m_tunnel_key: reformat the usage text (Phil Sutter) [1658506]
 
 * Tue Mar 06 2018 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7]
 - ip-link: Fix use after free in nl_get_ll_addr_len() (Phil Sutter) [1550097]

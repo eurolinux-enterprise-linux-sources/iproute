@@ -1,0 +1,268 @@
+From 24eec64aa52b65b606d8cc0b03619f3974f12484 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:08:41 +0200
+Subject: [PATCH] gre/gre6: allow clearing {,i,o}{key,seq,csum} flags
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit 7f520601f59ee
+Conflicts: context change on ip/link_gre?.c due to missing commit
+           ae91205c4d2a7 ("gre/gre6: Unify gre_print_help()")
+
+commit 7f520601f59ee35da2fc48b3f1b39ed2b80c9efa
+Author: Sabrina Dubroca <sd@queasysnail.net>
+Date:   Fri Apr 20 10:32:00 2018 +0200
+
+    gre/gre6: allow clearing {,i,o}{key,seq,csum} flags
+
+    Currently, iproute allows setting those flags, but it's impossible to
+    clear them, since their current value is fetched from the kernel and
+    then we OR in the additional flags passed on the command line.
+
+    Add no* variants to allow clearing them.
+
+    Signed-off-by: Sabrina Dubroca <sd@queasysnail.net>
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+---
+ ip/link_gre.c         | 30 +++++++++++++++++++++++++++---
+ ip/link_gre6.c        | 30 +++++++++++++++++++++++++++---
+ man/man8/ip-link.8.in | 27 ++++++++++++++++++---------
+ 3 files changed, 72 insertions(+), 15 deletions(-)
+
+diff --git a/ip/link_gre.c b/ip/link_gre.c
+index 1376d2e3af7de..41e2edbedb6eb 100644
+--- a/ip/link_gre.c
++++ b/ip/link_gre.c
+@@ -28,9 +28,9 @@ static void print_usage(FILE *f)
+ 	fprintf(f,
+ 		"Usage: ... { gre | gretap } [ remote ADDR ]\n"
+ 		"                            [ local ADDR ]\n"
+-		"                            [ [i|o]seq ]\n"
+-		"                            [ [i|o]key KEY ]\n"
+-		"                            [ [i|o]csum ]\n"
++		"                            [ [no][i|o]seq ]\n"
++		"                            [ [i|o]key KEY | no[i|o]key ]\n"
++		"                            [ [no][i|o]csum ]\n"
+ 		"                            [ ttl TTL ]\n"
+ 		"                            [ tos TOS ]\n"
+ 		"                            [ [no]pmtudisc ]\n"
+@@ -171,28 +171,52 @@ get_failed:
+ 			iflags |= GRE_KEY;
+ 			oflags |= GRE_KEY;
+ 			ikey = okey = tnl_parse_key("key", *argv);
++		} else if (!matches(*argv, "nokey")) {
++			iflags &= ~GRE_KEY;
++			oflags &= ~GRE_KEY;
++			ikey = okey = 0;
+ 		} else if (!matches(*argv, "ikey")) {
+ 			NEXT_ARG();
+ 			iflags |= GRE_KEY;
+ 			ikey = tnl_parse_key("ikey", *argv);
++		} else if (!matches(*argv, "noikey")) {
++			iflags &= ~GRE_KEY;
++			ikey = 0;
+ 		} else if (!matches(*argv, "okey")) {
+ 			NEXT_ARG();
+ 			oflags |= GRE_KEY;
+ 			okey = tnl_parse_key("okey", *argv);
++		} else if (!matches(*argv, "nookey")) {
++			oflags &= ~GRE_KEY;
++			okey = 0;
+ 		} else if (!matches(*argv, "seq")) {
+ 			iflags |= GRE_SEQ;
+ 			oflags |= GRE_SEQ;
++		} else if (!matches(*argv, "noseq")) {
++			iflags &= ~GRE_SEQ;
++			oflags &= ~GRE_SEQ;
+ 		} else if (!matches(*argv, "iseq")) {
+ 			iflags |= GRE_SEQ;
++		} else if (!matches(*argv, "noiseq")) {
++			iflags &= ~GRE_SEQ;
+ 		} else if (!matches(*argv, "oseq")) {
+ 			oflags |= GRE_SEQ;
++		} else if (!matches(*argv, "nooseq")) {
++			oflags &= ~GRE_SEQ;
+ 		} else if (!matches(*argv, "csum")) {
+ 			iflags |= GRE_CSUM;
+ 			oflags |= GRE_CSUM;
++		} else if (!matches(*argv, "nocsum")) {
++			iflags &= ~GRE_CSUM;
++			oflags &= ~GRE_CSUM;
+ 		} else if (!matches(*argv, "icsum")) {
+ 			iflags |= GRE_CSUM;
++		} else if (!matches(*argv, "noicsum")) {
++			iflags &= ~GRE_CSUM;
+ 		} else if (!matches(*argv, "ocsum")) {
+ 			oflags |= GRE_CSUM;
++		} else if (!matches(*argv, "noocsum")) {
++			oflags &= ~GRE_CSUM;
+ 		} else if (!matches(*argv, "nopmtudisc")) {
+ 			pmtudisc = 0;
+ 		} else if (!matches(*argv, "pmtudisc")) {
+diff --git a/ip/link_gre6.c b/ip/link_gre6.c
+index 22e6e44aae29b..127e51de4ab73 100644
+--- a/ip/link_gre6.c
++++ b/ip/link_gre6.c
+@@ -35,9 +35,9 @@ static void print_usage(FILE *f)
+ 	fprintf(f,
+ 		"Usage: ... { ip6gre | ip6gretap } [ remote ADDR ]\n"
+ 		"                                  [ local ADDR ]\n"
+-		"                                  [ [i|o]seq ]\n"
+-		"                                  [ [i|o]key KEY ]\n"
+-		"                                  [ [i|o]csum ]\n"
++		"                                  [ [no][i|o]seq ]\n"
++		"                                  [ [i|o]key KEY | no[i|o]key ]\n"
++		"                                  [ [no][i|o]csum ]\n"
+ 		"                                  [ hoplimit TTL ]\n"
+ 		"                                  [ encaplimit ELIM ]\n"
+ 		"                                  [ tclass TCLASS ]\n"
+@@ -185,28 +185,52 @@ get_failed:
+ 			iflags |= GRE_KEY;
+ 			oflags |= GRE_KEY;
+ 			ikey = okey = tnl_parse_key("key", *argv);
++		} else if (!matches(*argv, "nokey")) {
++			iflags &= ~GRE_KEY;
++			oflags &= ~GRE_KEY;
++			ikey = okey = 0;
+ 		} else if (!matches(*argv, "ikey")) {
+ 			NEXT_ARG();
+ 			iflags |= GRE_KEY;
+ 			ikey = tnl_parse_key("ikey", *argv);
++		} else if (!matches(*argv, "noikey")) {
++			iflags &= ~GRE_KEY;
++			ikey = 0;
+ 		} else if (!matches(*argv, "okey")) {
+ 			NEXT_ARG();
+ 			oflags |= GRE_KEY;
+ 			okey = tnl_parse_key("okey", *argv);
++		} else if (!matches(*argv, "nookey")) {
++			oflags &= ~GRE_KEY;
++			okey = 0;
+ 		} else if (!matches(*argv, "seq")) {
+ 			iflags |= GRE_SEQ;
+ 			oflags |= GRE_SEQ;
++		} else if (!matches(*argv, "noseq")) {
++			iflags &= ~GRE_SEQ;
++			oflags &= ~GRE_SEQ;
+ 		} else if (!matches(*argv, "iseq")) {
+ 			iflags |= GRE_SEQ;
++		} else if (!matches(*argv, "noiseq")) {
++			iflags &= ~GRE_SEQ;
+ 		} else if (!matches(*argv, "oseq")) {
+ 			oflags |= GRE_SEQ;
++		} else if (!matches(*argv, "nooseq")) {
++			oflags &= ~GRE_SEQ;
+ 		} else if (!matches(*argv, "csum")) {
+ 			iflags |= GRE_CSUM;
+ 			oflags |= GRE_CSUM;
++		} else if (!matches(*argv, "nocsum")) {
++			iflags &= ~GRE_CSUM;
++			oflags &= ~GRE_CSUM;
+ 		} else if (!matches(*argv, "icsum")) {
+ 			iflags |= GRE_CSUM;
++		} else if (!matches(*argv, "noicsum")) {
++			iflags &= ~GRE_CSUM;
+ 		} else if (!matches(*argv, "ocsum")) {
+ 			oflags |= GRE_CSUM;
++		} else if (!matches(*argv, "noocsum")) {
++			oflags &= ~GRE_CSUM;
+ 		} else if (!matches(*argv, "remote")) {
+ 			inet_prefix addr;
+ 
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index cfea1bdfdc030..8be5d5e1e9fd6 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -708,12 +708,14 @@ the following additional arguments are supported:
+ .BR type " { " gre " | " gretap " }"
+ .BI " remote " ADDR " local " ADDR
+ [
+-.RB [ i | o ] seq
++.RB [ no ] "" [ i | o ] seq
+ ] [
+ .RB [ i | o ] key
+ .I KEY
++|
++.BR no [ i | o ] key
+ ] [
+-.RB [ i | o ] csum
++.RB [ no ] "" [ i | o ] csum
+ ] [
+ .BI ttl " TTL "
+ ] [
+@@ -749,7 +751,7 @@ the following additional arguments are supported:
+ It must be an address on another interface on this host.
+ 
+ .sp
+-.RB [ i | o ] seq
++.RB  [ no ] "" [ i | o ] seq
+ - serialize packets.
+ The
+ .B oseq
+@@ -761,6 +763,8 @@ flag requires that all input packets are serialized.
+ .sp
+ .RB [ i | o ] key
+ .I KEY
++|
++.BR no [ i | o ] key
+ - use keyed GRE with key
+ .IR KEY ". "KEY
+ is either a number or an IPv4 address-like dotted quad.
+@@ -772,7 +776,7 @@ The
+ parameters specify different keys for input and output.
+ 
+ .sp
+-.RB  [ i | o ] csum
++.RB  [ no ] "" [ i | o ] csum
+ - generate/require checksums for tunneled packets.
+ The
+ .B ocsum
+@@ -853,12 +857,14 @@ the following additional arguments are supported:
+ .BR type " { " ip6gre " | " ip6gretap " }"
+ .BI remote " ADDR " local " ADDR"
+ [
+-.RB [ i | o ] seq
++.RB [ no ] "" [ i | o ] seq
+ ] [
+ .RB [ i | o ] key
+ .I KEY
++|
++.BR no [ i | o ] key
+ ] [
+-.RB [ i | o ] csum
++.RB [ no ] "" [ i | o ] csum
+ ] [
+ .BI hoplimit " TTL "
+ ] [
+@@ -884,7 +890,7 @@ the following additional arguments are supported:
+ It must be an address on another interface on this host.
+ 
+ .sp
+-.RB  [ i | o ] seq
++.RB  [ no ] "" [ i | o ] seq
+ - serialize packets.
+ The
+ .B oseq
+@@ -894,7 +900,10 @@ The
+ flag requires that all input packets are serialized.
+ 
+ .sp
+-.RB  [ i | o ] key " \fIKEY"
++.RB [ i | o ] key
++.I KEY
++|
++.BR no [ i | o ] key
+ - use keyed GRE with key
+ .IR KEY ". "KEY
+ is either a number or an IPv4 address-like dotted quad.
+@@ -906,7 +915,7 @@ The
+ parameters specify different keys for input and output.
+ 
+ .sp
+-.RB  [ i | o ] csum
++.RB  [ no ] "" [ i | o ] csum
+ - generate/require checksums for tunneled packets.
+ The
+ .B ocsum
+-- 
+2.20.1
+

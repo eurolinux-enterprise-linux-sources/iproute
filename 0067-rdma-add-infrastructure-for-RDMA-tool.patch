@@ -1,0 +1,5287 @@
+From 6ca04b58fcbaeaa5c8848e77ae0cfcf8b5f4c9ab Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 13:31:34 +0100
+Subject: [PATCH] rdma: add infrastructure for RDMA tool
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1642479
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641914
+Upstream Status: RHEL-only
+
+commit de87313c8cd0399fd803fcaa8dfaa4aa27912f79
+Author: Andrea Claudi <aclaudi@redhat.com>
+Date:   Thu Mar 21 17:24:12 2019 +0100
+
+    rdma: add infrastructure for RDMA tool
+
+    Checkout to the v5.0.0 upstream tag.
+
+    Conflicts:
+      - add rdma on base Makefile
+      - fix config path and libmnl cflags and libs on rdma/Makefile
+
+    Signed-off-by: Andrea Claudi <aclaudi@redhat.com>
+---
+ Makefile                               |    2 +-
+ rdma/.gitignore                        |    1 +
+ rdma/Makefile                          |   27 +
+ rdma/dev.c                             |  312 ++++++
+ rdma/include/uapi/rdma/ib_user_sa.h    |   77 ++
+ rdma/include/uapi/rdma/ib_user_verbs.h | 1302 ++++++++++++++++++++++++
+ rdma/include/uapi/rdma/rdma_netlink.h  |  438 ++++++++
+ rdma/include/uapi/rdma/rdma_user_cm.h  |  324 ++++++
+ rdma/link.c                            |  355 +++++++
+ rdma/rdma.c                            |  203 ++++
+ rdma/rdma.h                            |  131 +++
+ rdma/res.c                             | 1111 ++++++++++++++++++++
+ rdma/utils.c                           |  868 ++++++++++++++++
+ 13 files changed, 5150 insertions(+), 1 deletion(-)
+ create mode 100644 rdma/.gitignore
+ create mode 100644 rdma/Makefile
+ create mode 100644 rdma/dev.c
+ create mode 100644 rdma/include/uapi/rdma/ib_user_sa.h
+ create mode 100644 rdma/include/uapi/rdma/ib_user_verbs.h
+ create mode 100644 rdma/include/uapi/rdma/rdma_netlink.h
+ create mode 100644 rdma/include/uapi/rdma/rdma_user_cm.h
+ create mode 100644 rdma/link.c
+ create mode 100644 rdma/rdma.c
+ create mode 100644 rdma/rdma.h
+ create mode 100644 rdma/res.c
+ create mode 100644 rdma/utils.c
+
+diff --git a/Makefile b/Makefile
+index df2fa33630e65..aea12423166cd 100644
+--- a/Makefile
++++ b/Makefile
+@@ -52,7 +52,7 @@ WFLAGS += -Wmissing-declarations -Wold-style-definition -Wformat=2
+ CFLAGS := $(WFLAGS) $(CCOPTS) -I../include -I../include/uapi $(DEFINES) $(CFLAGS)
+ YACCFLAGS = -d -t -v
+ 
+-SUBDIRS=lib ip tc bridge misc netem genl tipc devlink man
++SUBDIRS=lib ip tc bridge misc netem genl tipc devlink rdma man
+ 
+ LIBNETLINK=../lib/libnetlink.a ../lib/libutil.a
+ LDLIBS += $(LIBNETLINK)
+diff --git a/rdma/.gitignore b/rdma/.gitignore
+new file mode 100644
+index 0000000000000..51fb172baa216
+--- /dev/null
++++ b/rdma/.gitignore
+@@ -0,0 +1 @@
++rdma
+diff --git a/rdma/Makefile b/rdma/Makefile
+new file mode 100644
+index 0000000000000..0830c82f77edb
+--- /dev/null
++++ b/rdma/Makefile
+@@ -0,0 +1,27 @@
++# SPDX-License-Identifier: GPL-2.0
++include ../Config
++
++TARGETS :=
++
++ifeq ($(HAVE_MNL),y)
++CFLAGS += -I./include/uapi/
++CFLAGS += $(shell $(PKG_CONFIG) libmnl --cflags)
++LDLIBS += $(shell $(PKG_CONFIG) libmnl --libs)
++
++RDMA_OBJ = rdma.o utils.o dev.o link.o res.o
++
++TARGETS += rdma
++endif
++
++all:	$(TARGETS) $(LIBS)
++
++rdma:	$(RDMA_OBJ) $(LIBS)
++	$(QUIET_LINK)$(CC) $^ $(LDFLAGS) $(LDLIBS) -o $@
++
++install: all
++	for i in $(TARGETS); \
++	do install -m 0755 $$i $(DESTDIR)$(SBINDIR); \
++	done
++
++clean:
++	rm -f $(RDMA_OBJ) $(TARGETS)
+diff --git a/rdma/dev.c b/rdma/dev.c
+new file mode 100644
+index 0000000000000..60ff4b31e3204
+--- /dev/null
++++ b/rdma/dev.c
+@@ -0,0 +1,312 @@
++/*
++ * dev.c	RDMA tool
++ *
++ *              This program is free software; you can redistribute it and/or
++ *              modify it under the terms of the GNU General Public License
++ *              as published by the Free Software Foundation; either version
++ *              2 of the License, or (at your option) any later version.
++ *
++ * Authors:     Leon Romanovsky <leonro@mellanox.com>
++ */
++
++#include "rdma.h"
++
++static int dev_help(struct rd *rd)
++{
++	pr_out("Usage: %s dev show [DEV]\n", rd->filename);
++	pr_out("       %s dev set [DEV] name DEVNAME\n", rd->filename);
++	return 0;
++}
++
++static const char *dev_caps_to_str(uint32_t idx)
++{
++#define RDMA_DEV_FLAGS_LOW(x) \
++	x(RESIZE_MAX_WR, 0) \
++	x(BAD_PKEY_CNTR, 1) \
++	x(BAD_QKEY_CNTR, 2) \
++	x(RAW_MULTI, 3) \
++	x(AUTO_PATH_MIG, 4) \
++	x(CHANGE_PHY_PORT, 5) \
++	x(UD_AV_PORT_ENFORCE_PORT_ENFORCE, 6) \
++	x(CURR_QP_STATE_MOD, 7) \
++	x(SHUTDOWN_PORT, 8) \
++	x(INIT_TYPE, 9) \
++	x(PORT_ACTIVE_EVENT, 10) \
++	x(SYS_IMAGE_GUID, 11) \
++	x(RC_RNR_NAK_GEN, 12) \
++	x(SRQ_RESIZE, 13) \
++	x(N_NOTIFY_CQ, 14) \
++	x(LOCAL_DMA_LKEY, 15) \
++	x(MEM_WINDOW, 17) \
++	x(UD_IP_CSUM, 18) \
++	x(UD_TSO, 19) \
++	x(XRC, 20) \
++	x(MEM_MGT_EXTENSIONS, 21) \
++	x(BLOCK_MULTICAST_LOOPBACK, 22) \
++	x(MEM_WINDOW_TYPE_2A, 23) \
++	x(MEM_WINDOW_TYPE_2B, 24) \
++	x(RC_IP_CSUM, 25) \
++	x(RAW_IP_CSUM, 26) \
++	x(CROSS_CHANNEL, 27) \
++	x(MANAGED_FLOW_STEERING, 29) \
++	x(SIGNATURE_HANDOVER, 30) \
++	x(ON_DEMAND_PAGING, 31)
++
++#define RDMA_DEV_FLAGS_HIGH(x) \
++	x(SG_GAPS_REG, 0) \
++	x(VIRTUAL_FUNCTION, 1) \
++	x(RAW_SCATTER_FCS, 2) \
++	x(RDMA_NETDEV_OPA_VNIC, 3) \
++	x(PCI_WRITE_END_PADDING, 4)
++
++	/*
++	 * Separation below is needed to allow compilation of rdmatool
++	 * on 32bits systems. On such systems, C-enum is limited to be
++	 * int and can't hold more than 32 bits.
++	 */
++	enum { RDMA_DEV_FLAGS_LOW(RDMA_BITMAP_ENUM) };
++	enum { RDMA_DEV_FLAGS_HIGH(RDMA_BITMAP_ENUM) };
++
++	static const char * const
++		rdma_dev_names_low[] = { RDMA_DEV_FLAGS_LOW(RDMA_BITMAP_NAMES) };
++	static const char * const
++		rdma_dev_names_high[] = { RDMA_DEV_FLAGS_HIGH(RDMA_BITMAP_NAMES) };
++	uint32_t high_idx;
++	#undef RDMA_DEV_FLAGS_LOW
++	#undef RDMA_DEV_FLAGS_HIGH
++
++	if (idx < ARRAY_SIZE(rdma_dev_names_low) && rdma_dev_names_low[idx])
++		return rdma_dev_names_low[idx];
++
++	high_idx = idx - ARRAY_SIZE(rdma_dev_names_low);
++	if (high_idx <  ARRAY_SIZE(rdma_dev_names_high) &&
++	    rdma_dev_names_high[high_idx])
++		return rdma_dev_names_high[high_idx];
++
++	return "UNKNOWN";
++}
++
++static void dev_print_caps(struct rd *rd, struct nlattr **tb)
++{
++	uint64_t caps;
++	uint32_t idx;
++
++	if (!tb[RDMA_NLDEV_ATTR_CAP_FLAGS])
++		return;
++
++	caps = mnl_attr_get_u64(tb[RDMA_NLDEV_ATTR_CAP_FLAGS]);
++
++	if (rd->json_output) {
++		jsonw_name(rd->jw, "caps");
++		jsonw_start_array(rd->jw);
++	} else {
++		pr_out("\n    caps: <");
++	}
++	for (idx = 0; caps; idx++) {
++		if (caps & 0x1) {
++			if (rd->json_output) {
++				jsonw_string(rd->jw, dev_caps_to_str(idx));
++			} else {
++				pr_out("%s", dev_caps_to_str(idx));
++				if (caps >> 0x1)
++					pr_out(", ");
++			}
++		}
++		caps >>= 0x1;
++	}
++
++	if (rd->json_output)
++		jsonw_end_array(rd->jw);
++	else
++		pr_out(">");
++}
++
++static void dev_print_fw(struct rd *rd, struct nlattr **tb)
++{
++	const char *str;
++	if (!tb[RDMA_NLDEV_ATTR_FW_VERSION])
++		return;
++
++	str = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_FW_VERSION]);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "fw", str);
++	else
++		pr_out("fw %s ", str);
++}
++
++static void dev_print_node_guid(struct rd *rd, struct nlattr **tb)
++{
++	uint64_t node_guid;
++	uint16_t vp[4];
++	char str[32];
++
++	if (!tb[RDMA_NLDEV_ATTR_NODE_GUID])
++		return;
++
++	node_guid = mnl_attr_get_u64(tb[RDMA_NLDEV_ATTR_NODE_GUID]);
++	memcpy(vp, &node_guid, sizeof(uint64_t));
++	snprintf(str, 32, "%04x:%04x:%04x:%04x", vp[3], vp[2], vp[1], vp[0]);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "node_guid", str);
++	else
++		pr_out("node_guid %s ", str);
++}
++
++static void dev_print_sys_image_guid(struct rd *rd, struct nlattr **tb)
++{
++	uint64_t sys_image_guid;
++	uint16_t vp[4];
++	char str[32];
++
++	if (!tb[RDMA_NLDEV_ATTR_SYS_IMAGE_GUID])
++		return;
++
++	sys_image_guid = mnl_attr_get_u64(tb[RDMA_NLDEV_ATTR_SYS_IMAGE_GUID]);
++	memcpy(vp, &sys_image_guid, sizeof(uint64_t));
++	snprintf(str, 32, "%04x:%04x:%04x:%04x", vp[3], vp[2], vp[1], vp[0]);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "sys_image_guid", str);
++	else
++		pr_out("sys_image_guid %s ", str);
++}
++
++static const char *node_type_to_str(uint8_t node_type)
++{
++	static const char * const node_type_str[] = { "unknown", "ca",
++						      "switch", "router",
++						      "rnic", "usnic",
++						      "usnic_dp" };
++	if (node_type < ARRAY_SIZE(node_type_str))
++		return node_type_str[node_type];
++	return "unknown";
++}
++
++static void dev_print_node_type(struct rd *rd, struct nlattr **tb)
++{
++	const char *node_str;
++	uint8_t node_type;
++
++	if (!tb[RDMA_NLDEV_ATTR_DEV_NODE_TYPE])
++		return;
++
++	node_type = mnl_attr_get_u8(tb[RDMA_NLDEV_ATTR_DEV_NODE_TYPE]);
++	node_str = node_type_to_str(node_type);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "node_type", node_str);
++	else
++		pr_out("node_type %s ", node_str);
++}
++
++static int dev_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct rd *rd = data;
++	const char *name;
++	uint32_t idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] || !tb[RDMA_NLDEV_ATTR_DEV_NAME])
++		return MNL_CB_ERROR;
++
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	if (rd->json_output) {
++		jsonw_uint_field(rd->jw, "ifindex", idx);
++		jsonw_string_field(rd->jw, "ifname", name);
++	} else {
++		pr_out("%u: %s: ", idx, name);
++	}
++
++	dev_print_node_type(rd, tb);
++	dev_print_fw(rd, tb);
++	dev_print_node_guid(rd, tb);
++	dev_print_sys_image_guid(rd, tb);
++	if (rd->show_details)
++		dev_print_caps(rd, tb);
++
++	if (!rd->json_output)
++		pr_out("\n");
++	return MNL_CB_OK;
++}
++
++static int dev_no_args(struct rd *rd)
++{
++	uint32_t seq;
++	int ret;
++
++	rd_prepare_msg(rd, RDMA_NLDEV_CMD_GET,
++		       &seq, (NLM_F_REQUEST | NLM_F_ACK));
++	mnl_attr_put_u32(rd->nlh, RDMA_NLDEV_ATTR_DEV_INDEX, rd->dev_idx);
++	ret = rd_send_msg(rd);
++	if (ret)
++		return ret;
++
++	if (rd->json_output)
++		jsonw_start_object(rd->jw);
++	ret = rd_recv_msg(rd, dev_parse_cb, rd, seq);
++	if (rd->json_output)
++		jsonw_end_object(rd->jw);
++	return ret;
++}
++
++static int dev_one_show(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		dev_no_args},
++		{ 0 }
++	};
++
++	return rd_exec_cmd(rd, cmds, "parameter");
++}
++
++static int dev_set_name(struct rd *rd)
++{
++	uint32_t seq;
++
++	if (rd_no_arg(rd)) {
++		pr_err("Please provide device new name.\n");
++		return -EINVAL;
++	}
++
++	rd_prepare_msg(rd, RDMA_NLDEV_CMD_SET,
++		       &seq, (NLM_F_REQUEST | NLM_F_ACK));
++	mnl_attr_put_u32(rd->nlh, RDMA_NLDEV_ATTR_DEV_INDEX, rd->dev_idx);
++	mnl_attr_put_strz(rd->nlh, RDMA_NLDEV_ATTR_DEV_NAME, rd_argv(rd));
++
++	return rd_send_msg(rd);
++}
++
++static int dev_one_set(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		dev_help},
++		{ "name",	dev_set_name},
++		{ 0 }
++	};
++
++	return rd_exec_cmd(rd, cmds, "parameter");
++}
++
++static int dev_show(struct rd *rd)
++{
++	return rd_exec_dev(rd, dev_one_show);
++}
++
++static int dev_set(struct rd *rd)
++{
++	return rd_exec_require_dev(rd, dev_one_set);
++}
++
++int cmd_dev(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		dev_show },
++		{ "show",	dev_show },
++		{ "list",	dev_show },
++		{ "set",	dev_set },
++		{ "help",	dev_help },
++		{ 0 }
++	};
++
++	return rd_exec_cmd(rd, cmds, "dev command");
++}
+diff --git a/rdma/include/uapi/rdma/ib_user_sa.h b/rdma/include/uapi/rdma/ib_user_sa.h
+new file mode 100644
+index 0000000000000..435155d6e1c6a
+--- /dev/null
++++ b/rdma/include/uapi/rdma/ib_user_sa.h
+@@ -0,0 +1,77 @@
++/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
++/*
++ * Copyright (c) 2005 Intel Corporation.  All rights reserved.
++ *
++ * This software is available to you under a choice of one of two
++ * licenses.  You may choose to be licensed under the terms of the GNU
++ * General Public License (GPL) Version 2, available from the file
++ * COPYING in the main directory of this source tree, or the
++ * OpenIB.org BSD license below:
++ *
++ *     Redistribution and use in source and binary forms, with or
++ *     without modification, are permitted provided that the following
++ *     conditions are met:
++ *
++ *      - Redistributions of source code must retain the above
++ *        copyright notice, this list of conditions and the following
++ *        disclaimer.
++ *
++ *      - Redistributions in binary form must reproduce the above
++ *        copyright notice, this list of conditions and the following
++ *        disclaimer in the documentation and/or other materials
++ *        provided with the distribution.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
++ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
++ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
++ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++ * SOFTWARE.
++ */
++
++#ifndef IB_USER_SA_H
++#define IB_USER_SA_H
++
++#include <linux/types.h>
++
++enum {
++	IB_PATH_GMP		= 1,
++	IB_PATH_PRIMARY		= (1<<1),
++	IB_PATH_ALTERNATE	= (1<<2),
++	IB_PATH_OUTBOUND	= (1<<3),
++	IB_PATH_INBOUND		= (1<<4),
++	IB_PATH_INBOUND_REVERSE = (1<<5),
++	IB_PATH_BIDIRECTIONAL	= IB_PATH_OUTBOUND | IB_PATH_INBOUND_REVERSE
++};
++
++struct ib_path_rec_data {
++	__u32	flags;
++	__u32	reserved;
++	__u32	path_rec[16];
++};
++
++struct ib_user_path_rec {
++	__u8	dgid[16];
++	__u8	sgid[16];
++	__be16	dlid;
++	__be16	slid;
++	__u32	raw_traffic;
++	__be32	flow_label;
++	__u32	reversible;
++	__u32	mtu;
++	__be16	pkey;
++	__u8	hop_limit;
++	__u8	traffic_class;
++	__u8	numb_path;
++	__u8	sl;
++	__u8	mtu_selector;
++	__u8	rate_selector;
++	__u8	rate;
++	__u8	packet_life_time_selector;
++	__u8	packet_life_time;
++	__u8	preference;
++};
++
++#endif /* IB_USER_SA_H */
+diff --git a/rdma/include/uapi/rdma/ib_user_verbs.h b/rdma/include/uapi/rdma/ib_user_verbs.h
+new file mode 100644
+index 0000000000000..480d9a60b68e4
+--- /dev/null
++++ b/rdma/include/uapi/rdma/ib_user_verbs.h
+@@ -0,0 +1,1302 @@
++/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
++/*
++ * Copyright (c) 2005 Topspin Communications.  All rights reserved.
++ * Copyright (c) 2005, 2006 Cisco Systems.  All rights reserved.
++ * Copyright (c) 2005 PathScale, Inc.  All rights reserved.
++ * Copyright (c) 2006 Mellanox Technologies.  All rights reserved.
++ *
++ * This software is available to you under a choice of one of two
++ * licenses.  You may choose to be licensed under the terms of the GNU
++ * General Public License (GPL) Version 2, available from the file
++ * COPYING in the main directory of this source tree, or the
++ * OpenIB.org BSD license below:
++ *
++ *     Redistribution and use in source and binary forms, with or
++ *     without modification, are permitted provided that the following
++ *     conditions are met:
++ *
++ *      - Redistributions of source code must retain the above
++ *        copyright notice, this list of conditions and the following
++ *        disclaimer.
++ *
++ *      - Redistributions in binary form must reproduce the above
++ *        copyright notice, this list of conditions and the following
++ *        disclaimer in the documentation and/or other materials
++ *        provided with the distribution.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
++ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
++ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
++ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++ * SOFTWARE.
++ */
++
++#ifndef IB_USER_VERBS_H
++#define IB_USER_VERBS_H
++
++#include <linux/types.h>
++
++/*
++ * Increment this value if any changes that break userspace ABI
++ * compatibility are made.
++ */
++#define IB_USER_VERBS_ABI_VERSION	6
++#define IB_USER_VERBS_CMD_THRESHOLD    50
++
++enum ib_uverbs_write_cmds {
++	IB_USER_VERBS_CMD_GET_CONTEXT,
++	IB_USER_VERBS_CMD_QUERY_DEVICE,
++	IB_USER_VERBS_CMD_QUERY_PORT,
++	IB_USER_VERBS_CMD_ALLOC_PD,
++	IB_USER_VERBS_CMD_DEALLOC_PD,
++	IB_USER_VERBS_CMD_CREATE_AH,
++	IB_USER_VERBS_CMD_MODIFY_AH,
++	IB_USER_VERBS_CMD_QUERY_AH,
++	IB_USER_VERBS_CMD_DESTROY_AH,
++	IB_USER_VERBS_CMD_REG_MR,
++	IB_USER_VERBS_CMD_REG_SMR,
++	IB_USER_VERBS_CMD_REREG_MR,
++	IB_USER_VERBS_CMD_QUERY_MR,
++	IB_USER_VERBS_CMD_DEREG_MR,
++	IB_USER_VERBS_CMD_ALLOC_MW,
++	IB_USER_VERBS_CMD_BIND_MW,
++	IB_USER_VERBS_CMD_DEALLOC_MW,
++	IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL,
++	IB_USER_VERBS_CMD_CREATE_CQ,
++	IB_USER_VERBS_CMD_RESIZE_CQ,
++	IB_USER_VERBS_CMD_DESTROY_CQ,
++	IB_USER_VERBS_CMD_POLL_CQ,
++	IB_USER_VERBS_CMD_PEEK_CQ,
++	IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
++	IB_USER_VERBS_CMD_CREATE_QP,
++	IB_USER_VERBS_CMD_QUERY_QP,
++	IB_USER_VERBS_CMD_MODIFY_QP,
++	IB_USER_VERBS_CMD_DESTROY_QP,
++	IB_USER_VERBS_CMD_POST_SEND,
++	IB_USER_VERBS_CMD_POST_RECV,
++	IB_USER_VERBS_CMD_ATTACH_MCAST,
++	IB_USER_VERBS_CMD_DETACH_MCAST,
++	IB_USER_VERBS_CMD_CREATE_SRQ,
++	IB_USER_VERBS_CMD_MODIFY_SRQ,
++	IB_USER_VERBS_CMD_QUERY_SRQ,
++	IB_USER_VERBS_CMD_DESTROY_SRQ,
++	IB_USER_VERBS_CMD_POST_SRQ_RECV,
++	IB_USER_VERBS_CMD_OPEN_XRCD,
++	IB_USER_VERBS_CMD_CLOSE_XRCD,
++	IB_USER_VERBS_CMD_CREATE_XSRQ,
++	IB_USER_VERBS_CMD_OPEN_QP,
++};
++
++enum {
++	IB_USER_VERBS_EX_CMD_QUERY_DEVICE = IB_USER_VERBS_CMD_QUERY_DEVICE,
++	IB_USER_VERBS_EX_CMD_CREATE_CQ = IB_USER_VERBS_CMD_CREATE_CQ,
++	IB_USER_VERBS_EX_CMD_CREATE_QP = IB_USER_VERBS_CMD_CREATE_QP,
++	IB_USER_VERBS_EX_CMD_MODIFY_QP = IB_USER_VERBS_CMD_MODIFY_QP,
++	IB_USER_VERBS_EX_CMD_CREATE_FLOW = IB_USER_VERBS_CMD_THRESHOLD,
++	IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
++	IB_USER_VERBS_EX_CMD_CREATE_WQ,
++	IB_USER_VERBS_EX_CMD_MODIFY_WQ,
++	IB_USER_VERBS_EX_CMD_DESTROY_WQ,
++	IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
++	IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL,
++	IB_USER_VERBS_EX_CMD_MODIFY_CQ
++};
++
++/*
++ * Make sure that all structs defined in this file remain laid out so
++ * that they pack the same way on 32-bit and 64-bit architectures (to
++ * avoid incompatibility between 32-bit userspace and 64-bit kernels).
++ * Specifically:
++ *  - Do not use pointer types -- pass pointers in __u64 instead.
++ *  - Make sure that any structure larger than 4 bytes is padded to a
++ *    multiple of 8 bytes.  Otherwise the structure size will be
++ *    different between 32-bit and 64-bit architectures.
++ */
++
++struct ib_uverbs_async_event_desc {
++	__aligned_u64 element;
++	__u32 event_type;	/* enum ib_event_type */
++	__u32 reserved;
++};
++
++struct ib_uverbs_comp_event_desc {
++	__aligned_u64 cq_handle;
++};
++
++struct ib_uverbs_cq_moderation_caps {
++	__u16     max_cq_moderation_count;
++	__u16     max_cq_moderation_period;
++	__u32     reserved;
++};
++
++/*
++ * All commands from userspace should start with a __u32 command field
++ * followed by __u16 in_words and out_words fields (which give the
++ * length of the command block and response buffer if any in 32-bit
++ * words).  The kernel driver will read these fields first and read
++ * the rest of the command struct based on these value.
++ */
++
++#define IB_USER_VERBS_CMD_COMMAND_MASK 0xff
++#define IB_USER_VERBS_CMD_FLAG_EXTENDED 0x80000000u
++
++struct ib_uverbs_cmd_hdr {
++	__u32 command;
++	__u16 in_words;
++	__u16 out_words;
++};
++
++struct ib_uverbs_ex_cmd_hdr {
++	__aligned_u64 response;
++	__u16 provider_in_words;
++	__u16 provider_out_words;
++	__u32 cmd_hdr_reserved;
++};
++
++struct ib_uverbs_get_context {
++	__aligned_u64 response;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_get_context_resp {
++	__u32 async_fd;
++	__u32 num_comp_vectors;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_query_device {
++	__aligned_u64 response;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_query_device_resp {
++	__aligned_u64 fw_ver;
++	__be64 node_guid;
++	__be64 sys_image_guid;
++	__aligned_u64 max_mr_size;
++	__aligned_u64 page_size_cap;
++	__u32 vendor_id;
++	__u32 vendor_part_id;
++	__u32 hw_ver;
++	__u32 max_qp;
++	__u32 max_qp_wr;
++	__u32 device_cap_flags;
++	__u32 max_sge;
++	__u32 max_sge_rd;
++	__u32 max_cq;
++	__u32 max_cqe;
++	__u32 max_mr;
++	__u32 max_pd;
++	__u32 max_qp_rd_atom;
++	__u32 max_ee_rd_atom;
++	__u32 max_res_rd_atom;
++	__u32 max_qp_init_rd_atom;
++	__u32 max_ee_init_rd_atom;
++	__u32 atomic_cap;
++	__u32 max_ee;
++	__u32 max_rdd;
++	__u32 max_mw;
++	__u32 max_raw_ipv6_qp;
++	__u32 max_raw_ethy_qp;
++	__u32 max_mcast_grp;
++	__u32 max_mcast_qp_attach;
++	__u32 max_total_mcast_qp_attach;
++	__u32 max_ah;
++	__u32 max_fmr;
++	__u32 max_map_per_fmr;
++	__u32 max_srq;
++	__u32 max_srq_wr;
++	__u32 max_srq_sge;
++	__u16 max_pkeys;
++	__u8  local_ca_ack_delay;
++	__u8  phys_port_cnt;
++	__u8  reserved[4];
++};
++
++struct ib_uverbs_ex_query_device {
++	__u32 comp_mask;
++	__u32 reserved;
++};
++
++struct ib_uverbs_odp_caps {
++	__aligned_u64 general_caps;
++	struct {
++		__u32 rc_odp_caps;
++		__u32 uc_odp_caps;
++		__u32 ud_odp_caps;
++	} per_transport_caps;
++	__u32 reserved;
++};
++
++struct ib_uverbs_rss_caps {
++	/* Corresponding bit will be set if qp type from
++	 * 'enum ib_qp_type' is supported, e.g.
++	 * supported_qpts |= 1 << IB_QPT_UD
++	 */
++	__u32 supported_qpts;
++	__u32 max_rwq_indirection_tables;
++	__u32 max_rwq_indirection_table_size;
++	__u32 reserved;
++};
++
++struct ib_uverbs_tm_caps {
++	/* Max size of rendezvous request message */
++	__u32 max_rndv_hdr_size;
++	/* Max number of entries in tag matching list */
++	__u32 max_num_tags;
++	/* TM flags */
++	__u32 flags;
++	/* Max number of outstanding list operations */
++	__u32 max_ops;
++	/* Max number of SGE in tag matching entry */
++	__u32 max_sge;
++	__u32 reserved;
++};
++
++struct ib_uverbs_ex_query_device_resp {
++	struct ib_uverbs_query_device_resp base;
++	__u32 comp_mask;
++	__u32 response_length;
++	struct ib_uverbs_odp_caps odp_caps;
++	__aligned_u64 timestamp_mask;
++	__aligned_u64 hca_core_clock; /* in KHZ */
++	__aligned_u64 device_cap_flags_ex;
++	struct ib_uverbs_rss_caps rss_caps;
++	__u32  max_wq_type_rq;
++	__u32 raw_packet_caps;
++	struct ib_uverbs_tm_caps tm_caps;
++	struct ib_uverbs_cq_moderation_caps cq_moderation_caps;
++	__aligned_u64 max_dm_size;
++};
++
++struct ib_uverbs_query_port {
++	__aligned_u64 response;
++	__u8  port_num;
++	__u8  reserved[7];
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_query_port_resp {
++	__u32 port_cap_flags;		/* see ib_uverbs_query_port_cap_flags */
++	__u32 max_msg_sz;
++	__u32 bad_pkey_cntr;
++	__u32 qkey_viol_cntr;
++	__u32 gid_tbl_len;
++	__u16 pkey_tbl_len;
++	__u16 lid;
++	__u16 sm_lid;
++	__u8  state;
++	__u8  max_mtu;
++	__u8  active_mtu;
++	__u8  lmc;
++	__u8  max_vl_num;
++	__u8  sm_sl;
++	__u8  subnet_timeout;
++	__u8  init_type_reply;
++	__u8  active_width;
++	__u8  active_speed;
++	__u8  phys_state;
++	__u8  link_layer;
++	__u8  flags;			/* see ib_uverbs_query_port_flags */
++	__u8  reserved;
++};
++
++struct ib_uverbs_alloc_pd {
++	__aligned_u64 response;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_alloc_pd_resp {
++	__u32 pd_handle;
++	__u32 driver_data[0];
++};
++
++struct ib_uverbs_dealloc_pd {
++	__u32 pd_handle;
++};
++
++struct ib_uverbs_open_xrcd {
++	__aligned_u64 response;
++	__u32 fd;
++	__u32 oflags;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_open_xrcd_resp {
++	__u32 xrcd_handle;
++	__u32 driver_data[0];
++};
++
++struct ib_uverbs_close_xrcd {
++	__u32 xrcd_handle;
++};
++
++struct ib_uverbs_reg_mr {
++	__aligned_u64 response;
++	__aligned_u64 start;
++	__aligned_u64 length;
++	__aligned_u64 hca_va;
++	__u32 pd_handle;
++	__u32 access_flags;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_reg_mr_resp {
++	__u32 mr_handle;
++	__u32 lkey;
++	__u32 rkey;
++	__u32 driver_data[0];
++};
++
++struct ib_uverbs_rereg_mr {
++	__aligned_u64 response;
++	__u32 mr_handle;
++	__u32 flags;
++	__aligned_u64 start;
++	__aligned_u64 length;
++	__aligned_u64 hca_va;
++	__u32 pd_handle;
++	__u32 access_flags;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_rereg_mr_resp {
++	__u32 lkey;
++	__u32 rkey;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_dereg_mr {
++	__u32 mr_handle;
++};
++
++struct ib_uverbs_alloc_mw {
++	__aligned_u64 response;
++	__u32 pd_handle;
++	__u8  mw_type;
++	__u8  reserved[3];
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_alloc_mw_resp {
++	__u32 mw_handle;
++	__u32 rkey;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_dealloc_mw {
++	__u32 mw_handle;
++};
++
++struct ib_uverbs_create_comp_channel {
++	__aligned_u64 response;
++};
++
++struct ib_uverbs_create_comp_channel_resp {
++	__u32 fd;
++};
++
++struct ib_uverbs_create_cq {
++	__aligned_u64 response;
++	__aligned_u64 user_handle;
++	__u32 cqe;
++	__u32 comp_vector;
++	__s32 comp_channel;
++	__u32 reserved;
++	__aligned_u64 driver_data[0];
++};
++
++enum ib_uverbs_ex_create_cq_flags {
++	IB_UVERBS_CQ_FLAGS_TIMESTAMP_COMPLETION = 1 << 0,
++	IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN = 1 << 1,
++};
++
++struct ib_uverbs_ex_create_cq {
++	__aligned_u64 user_handle;
++	__u32 cqe;
++	__u32 comp_vector;
++	__s32 comp_channel;
++	__u32 comp_mask;
++	__u32 flags;  /* bitmask of ib_uverbs_ex_create_cq_flags */
++	__u32 reserved;
++};
++
++struct ib_uverbs_create_cq_resp {
++	__u32 cq_handle;
++	__u32 cqe;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_ex_create_cq_resp {
++	struct ib_uverbs_create_cq_resp base;
++	__u32 comp_mask;
++	__u32 response_length;
++};
++
++struct ib_uverbs_resize_cq {
++	__aligned_u64 response;
++	__u32 cq_handle;
++	__u32 cqe;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_resize_cq_resp {
++	__u32 cqe;
++	__u32 reserved;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_poll_cq {
++	__aligned_u64 response;
++	__u32 cq_handle;
++	__u32 ne;
++};
++
++struct ib_uverbs_wc {
++	__aligned_u64 wr_id;
++	__u32 status;
++	__u32 opcode;
++	__u32 vendor_err;
++	__u32 byte_len;
++	union {
++		__be32 imm_data;
++		__u32 invalidate_rkey;
++	} ex;
++	__u32 qp_num;
++	__u32 src_qp;
++	__u32 wc_flags;
++	__u16 pkey_index;
++	__u16 slid;
++	__u8 sl;
++	__u8 dlid_path_bits;
++	__u8 port_num;
++	__u8 reserved;
++};
++
++struct ib_uverbs_poll_cq_resp {
++	__u32 count;
++	__u32 reserved;
++	struct ib_uverbs_wc wc[0];
++};
++
++struct ib_uverbs_req_notify_cq {
++	__u32 cq_handle;
++	__u32 solicited_only;
++};
++
++struct ib_uverbs_destroy_cq {
++	__aligned_u64 response;
++	__u32 cq_handle;
++	__u32 reserved;
++};
++
++struct ib_uverbs_destroy_cq_resp {
++	__u32 comp_events_reported;
++	__u32 async_events_reported;
++};
++
++struct ib_uverbs_global_route {
++	__u8  dgid[16];
++	__u32 flow_label;
++	__u8  sgid_index;
++	__u8  hop_limit;
++	__u8  traffic_class;
++	__u8  reserved;
++};
++
++struct ib_uverbs_ah_attr {
++	struct ib_uverbs_global_route grh;
++	__u16 dlid;
++	__u8  sl;
++	__u8  src_path_bits;
++	__u8  static_rate;
++	__u8  is_global;
++	__u8  port_num;
++	__u8  reserved;
++};
++
++struct ib_uverbs_qp_attr {
++	__u32	qp_attr_mask;
++	__u32	qp_state;
++	__u32	cur_qp_state;
++	__u32	path_mtu;
++	__u32	path_mig_state;
++	__u32	qkey;
++	__u32	rq_psn;
++	__u32	sq_psn;
++	__u32	dest_qp_num;
++	__u32	qp_access_flags;
++
++	struct ib_uverbs_ah_attr ah_attr;
++	struct ib_uverbs_ah_attr alt_ah_attr;
++
++	/* ib_qp_cap */
++	__u32	max_send_wr;
++	__u32	max_recv_wr;
++	__u32	max_send_sge;
++	__u32	max_recv_sge;
++	__u32	max_inline_data;
++
++	__u16	pkey_index;
++	__u16	alt_pkey_index;
++	__u8	en_sqd_async_notify;
++	__u8	sq_draining;
++	__u8	max_rd_atomic;
++	__u8	max_dest_rd_atomic;
++	__u8	min_rnr_timer;
++	__u8	port_num;
++	__u8	timeout;
++	__u8	retry_cnt;
++	__u8	rnr_retry;
++	__u8	alt_port_num;
++	__u8	alt_timeout;
++	__u8	reserved[5];
++};
++
++struct ib_uverbs_create_qp {
++	__aligned_u64 response;
++	__aligned_u64 user_handle;
++	__u32 pd_handle;
++	__u32 send_cq_handle;
++	__u32 recv_cq_handle;
++	__u32 srq_handle;
++	__u32 max_send_wr;
++	__u32 max_recv_wr;
++	__u32 max_send_sge;
++	__u32 max_recv_sge;
++	__u32 max_inline_data;
++	__u8  sq_sig_all;
++	__u8  qp_type;
++	__u8  is_srq;
++	__u8  reserved;
++	__aligned_u64 driver_data[0];
++};
++
++enum ib_uverbs_create_qp_mask {
++	IB_UVERBS_CREATE_QP_MASK_IND_TABLE = 1UL << 0,
++};
++
++enum {
++	IB_UVERBS_CREATE_QP_SUP_COMP_MASK = IB_UVERBS_CREATE_QP_MASK_IND_TABLE,
++};
++
++enum {
++	/*
++	 * This value is equal to IB_QP_DEST_QPN.
++	 */
++	IB_USER_LEGACY_LAST_QP_ATTR_MASK = 1ULL << 20,
++};
++
++enum {
++	/*
++	 * This value is equal to IB_QP_RATE_LIMIT.
++	 */
++	IB_USER_LAST_QP_ATTR_MASK = 1ULL << 25,
++};
++
++struct ib_uverbs_ex_create_qp {
++	__aligned_u64 user_handle;
++	__u32 pd_handle;
++	__u32 send_cq_handle;
++	__u32 recv_cq_handle;
++	__u32 srq_handle;
++	__u32 max_send_wr;
++	__u32 max_recv_wr;
++	__u32 max_send_sge;
++	__u32 max_recv_sge;
++	__u32 max_inline_data;
++	__u8  sq_sig_all;
++	__u8  qp_type;
++	__u8  is_srq;
++	__u8 reserved;
++	__u32 comp_mask;
++	__u32 create_flags;
++	__u32 rwq_ind_tbl_handle;
++	__u32  source_qpn;
++};
++
++struct ib_uverbs_open_qp {
++	__aligned_u64 response;
++	__aligned_u64 user_handle;
++	__u32 pd_handle;
++	__u32 qpn;
++	__u8  qp_type;
++	__u8  reserved[7];
++	__aligned_u64 driver_data[0];
++};
++
++/* also used for open response */
++struct ib_uverbs_create_qp_resp {
++	__u32 qp_handle;
++	__u32 qpn;
++	__u32 max_send_wr;
++	__u32 max_recv_wr;
++	__u32 max_send_sge;
++	__u32 max_recv_sge;
++	__u32 max_inline_data;
++	__u32 reserved;
++	__u32 driver_data[0];
++};
++
++struct ib_uverbs_ex_create_qp_resp {
++	struct ib_uverbs_create_qp_resp base;
++	__u32 comp_mask;
++	__u32 response_length;
++};
++
++/*
++ * This struct needs to remain a multiple of 8 bytes to keep the
++ * alignment of the modify QP parameters.
++ */
++struct ib_uverbs_qp_dest {
++	__u8  dgid[16];
++	__u32 flow_label;
++	__u16 dlid;
++	__u16 reserved;
++	__u8  sgid_index;
++	__u8  hop_limit;
++	__u8  traffic_class;
++	__u8  sl;
++	__u8  src_path_bits;
++	__u8  static_rate;
++	__u8  is_global;
++	__u8  port_num;
++};
++
++struct ib_uverbs_query_qp {
++	__aligned_u64 response;
++	__u32 qp_handle;
++	__u32 attr_mask;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_query_qp_resp {
++	struct ib_uverbs_qp_dest dest;
++	struct ib_uverbs_qp_dest alt_dest;
++	__u32 max_send_wr;
++	__u32 max_recv_wr;
++	__u32 max_send_sge;
++	__u32 max_recv_sge;
++	__u32 max_inline_data;
++	__u32 qkey;
++	__u32 rq_psn;
++	__u32 sq_psn;
++	__u32 dest_qp_num;
++	__u32 qp_access_flags;
++	__u16 pkey_index;
++	__u16 alt_pkey_index;
++	__u8  qp_state;
++	__u8  cur_qp_state;
++	__u8  path_mtu;
++	__u8  path_mig_state;
++	__u8  sq_draining;
++	__u8  max_rd_atomic;
++	__u8  max_dest_rd_atomic;
++	__u8  min_rnr_timer;
++	__u8  port_num;
++	__u8  timeout;
++	__u8  retry_cnt;
++	__u8  rnr_retry;
++	__u8  alt_port_num;
++	__u8  alt_timeout;
++	__u8  sq_sig_all;
++	__u8  reserved[5];
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_modify_qp {
++	struct ib_uverbs_qp_dest dest;
++	struct ib_uverbs_qp_dest alt_dest;
++	__u32 qp_handle;
++	__u32 attr_mask;
++	__u32 qkey;
++	__u32 rq_psn;
++	__u32 sq_psn;
++	__u32 dest_qp_num;
++	__u32 qp_access_flags;
++	__u16 pkey_index;
++	__u16 alt_pkey_index;
++	__u8  qp_state;
++	__u8  cur_qp_state;
++	__u8  path_mtu;
++	__u8  path_mig_state;
++	__u8  en_sqd_async_notify;
++	__u8  max_rd_atomic;
++	__u8  max_dest_rd_atomic;
++	__u8  min_rnr_timer;
++	__u8  port_num;
++	__u8  timeout;
++	__u8  retry_cnt;
++	__u8  rnr_retry;
++	__u8  alt_port_num;
++	__u8  alt_timeout;
++	__u8  reserved[2];
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_ex_modify_qp {
++	struct ib_uverbs_modify_qp base;
++	__u32	rate_limit;
++	__u32	reserved;
++};
++
++struct ib_uverbs_ex_modify_qp_resp {
++	__u32  comp_mask;
++	__u32  response_length;
++};
++
++struct ib_uverbs_destroy_qp {
++	__aligned_u64 response;
++	__u32 qp_handle;
++	__u32 reserved;
++};
++
++struct ib_uverbs_destroy_qp_resp {
++	__u32 events_reported;
++};
++
++/*
++ * The ib_uverbs_sge structure isn't used anywhere, since we assume
++ * the ib_sge structure is packed the same way on 32-bit and 64-bit
++ * architectures in both kernel and user space.  It's just here to
++ * document the ABI.
++ */
++struct ib_uverbs_sge {
++	__aligned_u64 addr;
++	__u32 length;
++	__u32 lkey;
++};
++
++enum ib_uverbs_wr_opcode {
++	IB_UVERBS_WR_RDMA_WRITE = 0,
++	IB_UVERBS_WR_RDMA_WRITE_WITH_IMM = 1,
++	IB_UVERBS_WR_SEND = 2,
++	IB_UVERBS_WR_SEND_WITH_IMM = 3,
++	IB_UVERBS_WR_RDMA_READ = 4,
++	IB_UVERBS_WR_ATOMIC_CMP_AND_SWP = 5,
++	IB_UVERBS_WR_ATOMIC_FETCH_AND_ADD = 6,
++	IB_UVERBS_WR_LOCAL_INV = 7,
++	IB_UVERBS_WR_BIND_MW = 8,
++	IB_UVERBS_WR_SEND_WITH_INV = 9,
++	IB_UVERBS_WR_TSO = 10,
++	IB_UVERBS_WR_RDMA_READ_WITH_INV = 11,
++	IB_UVERBS_WR_MASKED_ATOMIC_CMP_AND_SWP = 12,
++	IB_UVERBS_WR_MASKED_ATOMIC_FETCH_AND_ADD = 13,
++	/* Review enum ib_wr_opcode before modifying this */
++};
++
++struct ib_uverbs_send_wr {
++	__aligned_u64 wr_id;
++	__u32 num_sge;
++	__u32 opcode;		/* see enum ib_uverbs_wr_opcode */
++	__u32 send_flags;
++	union {
++		__be32 imm_data;
++		__u32 invalidate_rkey;
++	} ex;
++	union {
++		struct {
++			__aligned_u64 remote_addr;
++			__u32 rkey;
++			__u32 reserved;
++		} rdma;
++		struct {
++			__aligned_u64 remote_addr;
++			__aligned_u64 compare_add;
++			__aligned_u64 swap;
++			__u32 rkey;
++			__u32 reserved;
++		} atomic;
++		struct {
++			__u32 ah;
++			__u32 remote_qpn;
++			__u32 remote_qkey;
++			__u32 reserved;
++		} ud;
++	} wr;
++};
++
++struct ib_uverbs_post_send {
++	__aligned_u64 response;
++	__u32 qp_handle;
++	__u32 wr_count;
++	__u32 sge_count;
++	__u32 wqe_size;
++	struct ib_uverbs_send_wr send_wr[0];
++};
++
++struct ib_uverbs_post_send_resp {
++	__u32 bad_wr;
++};
++
++struct ib_uverbs_recv_wr {
++	__aligned_u64 wr_id;
++	__u32 num_sge;
++	__u32 reserved;
++};
++
++struct ib_uverbs_post_recv {
++	__aligned_u64 response;
++	__u32 qp_handle;
++	__u32 wr_count;
++	__u32 sge_count;
++	__u32 wqe_size;
++	struct ib_uverbs_recv_wr recv_wr[0];
++};
++
++struct ib_uverbs_post_recv_resp {
++	__u32 bad_wr;
++};
++
++struct ib_uverbs_post_srq_recv {
++	__aligned_u64 response;
++	__u32 srq_handle;
++	__u32 wr_count;
++	__u32 sge_count;
++	__u32 wqe_size;
++	struct ib_uverbs_recv_wr recv[0];
++};
++
++struct ib_uverbs_post_srq_recv_resp {
++	__u32 bad_wr;
++};
++
++struct ib_uverbs_create_ah {
++	__aligned_u64 response;
++	__aligned_u64 user_handle;
++	__u32 pd_handle;
++	__u32 reserved;
++	struct ib_uverbs_ah_attr attr;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_create_ah_resp {
++	__u32 ah_handle;
++	__u32 driver_data[0];
++};
++
++struct ib_uverbs_destroy_ah {
++	__u32 ah_handle;
++};
++
++struct ib_uverbs_attach_mcast {
++	__u8  gid[16];
++	__u32 qp_handle;
++	__u16 mlid;
++	__u16 reserved;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_detach_mcast {
++	__u8  gid[16];
++	__u32 qp_handle;
++	__u16 mlid;
++	__u16 reserved;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_flow_spec_hdr {
++	__u32 type;
++	__u16 size;
++	__u16 reserved;
++	/* followed by flow_spec */
++	__aligned_u64 flow_spec_data[0];
++};
++
++struct ib_uverbs_flow_eth_filter {
++	__u8  dst_mac[6];
++	__u8  src_mac[6];
++	__be16 ether_type;
++	__be16 vlan_tag;
++};
++
++struct ib_uverbs_flow_spec_eth {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_eth_filter val;
++	struct ib_uverbs_flow_eth_filter mask;
++};
++
++struct ib_uverbs_flow_ipv4_filter {
++	__be32 src_ip;
++	__be32 dst_ip;
++	__u8	proto;
++	__u8	tos;
++	__u8	ttl;
++	__u8	flags;
++};
++
++struct ib_uverbs_flow_spec_ipv4 {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_ipv4_filter val;
++	struct ib_uverbs_flow_ipv4_filter mask;
++};
++
++struct ib_uverbs_flow_tcp_udp_filter {
++	__be16 dst_port;
++	__be16 src_port;
++};
++
++struct ib_uverbs_flow_spec_tcp_udp {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_tcp_udp_filter val;
++	struct ib_uverbs_flow_tcp_udp_filter mask;
++};
++
++struct ib_uverbs_flow_ipv6_filter {
++	__u8    src_ip[16];
++	__u8    dst_ip[16];
++	__be32	flow_label;
++	__u8	next_hdr;
++	__u8	traffic_class;
++	__u8	hop_limit;
++	__u8	reserved;
++};
++
++struct ib_uverbs_flow_spec_ipv6 {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_ipv6_filter val;
++	struct ib_uverbs_flow_ipv6_filter mask;
++};
++
++struct ib_uverbs_flow_spec_action_tag {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	__u32			      tag_id;
++	__u32			      reserved1;
++};
++
++struct ib_uverbs_flow_spec_action_drop {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++};
++
++struct ib_uverbs_flow_spec_action_handle {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	__u32			      handle;
++	__u32			      reserved1;
++};
++
++struct ib_uverbs_flow_spec_action_count {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	__u32			      handle;
++	__u32			      reserved1;
++};
++
++struct ib_uverbs_flow_tunnel_filter {
++	__be32 tunnel_id;
++};
++
++struct ib_uverbs_flow_spec_tunnel {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_tunnel_filter val;
++	struct ib_uverbs_flow_tunnel_filter mask;
++};
++
++struct ib_uverbs_flow_spec_esp_filter {
++	__u32 spi;
++	__u32 seq;
++};
++
++struct ib_uverbs_flow_spec_esp {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_spec_esp_filter val;
++	struct ib_uverbs_flow_spec_esp_filter mask;
++};
++
++struct ib_uverbs_flow_gre_filter {
++	/* c_ks_res0_ver field is bits 0-15 in offset 0 of a standard GRE header:
++	 * bit 0 - C - checksum bit.
++	 * bit 1 - reserved. set to 0.
++	 * bit 2 - key bit.
++	 * bit 3 - sequence number bit.
++	 * bits 4:12 - reserved. set to 0.
++	 * bits 13:15 - GRE version.
++	 */
++	__be16 c_ks_res0_ver;
++	__be16 protocol;
++	__be32 key;
++};
++
++struct ib_uverbs_flow_spec_gre {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_gre_filter     val;
++	struct ib_uverbs_flow_gre_filter     mask;
++};
++
++struct ib_uverbs_flow_mpls_filter {
++	/* The field includes the entire MPLS label:
++	 * bits 0:19 - label field.
++	 * bits 20:22 - traffic class field.
++	 * bits 23 - bottom of stack bit.
++	 * bits 24:31 - ttl field.
++	 */
++	__be32 label;
++};
++
++struct ib_uverbs_flow_spec_mpls {
++	union {
++		struct ib_uverbs_flow_spec_hdr hdr;
++		struct {
++			__u32 type;
++			__u16 size;
++			__u16 reserved;
++		};
++	};
++	struct ib_uverbs_flow_mpls_filter     val;
++	struct ib_uverbs_flow_mpls_filter     mask;
++};
++
++struct ib_uverbs_flow_attr {
++	__u32 type;
++	__u16 size;
++	__u16 priority;
++	__u8  num_of_specs;
++	__u8  reserved[2];
++	__u8  port;
++	__u32 flags;
++	/* Following are the optional layers according to user request
++	 * struct ib_flow_spec_xxx
++	 * struct ib_flow_spec_yyy
++	 */
++	struct ib_uverbs_flow_spec_hdr flow_specs[0];
++};
++
++struct ib_uverbs_create_flow  {
++	__u32 comp_mask;
++	__u32 qp_handle;
++	struct ib_uverbs_flow_attr flow_attr;
++};
++
++struct ib_uverbs_create_flow_resp {
++	__u32 comp_mask;
++	__u32 flow_handle;
++};
++
++struct ib_uverbs_destroy_flow  {
++	__u32 comp_mask;
++	__u32 flow_handle;
++};
++
++struct ib_uverbs_create_srq {
++	__aligned_u64 response;
++	__aligned_u64 user_handle;
++	__u32 pd_handle;
++	__u32 max_wr;
++	__u32 max_sge;
++	__u32 srq_limit;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_create_xsrq {
++	__aligned_u64 response;
++	__aligned_u64 user_handle;
++	__u32 srq_type;
++	__u32 pd_handle;
++	__u32 max_wr;
++	__u32 max_sge;
++	__u32 srq_limit;
++	__u32 max_num_tags;
++	__u32 xrcd_handle;
++	__u32 cq_handle;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_create_srq_resp {
++	__u32 srq_handle;
++	__u32 max_wr;
++	__u32 max_sge;
++	__u32 srqn;
++	__u32 driver_data[0];
++};
++
++struct ib_uverbs_modify_srq {
++	__u32 srq_handle;
++	__u32 attr_mask;
++	__u32 max_wr;
++	__u32 srq_limit;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_query_srq {
++	__aligned_u64 response;
++	__u32 srq_handle;
++	__u32 reserved;
++	__aligned_u64 driver_data[0];
++};
++
++struct ib_uverbs_query_srq_resp {
++	__u32 max_wr;
++	__u32 max_sge;
++	__u32 srq_limit;
++	__u32 reserved;
++};
++
++struct ib_uverbs_destroy_srq {
++	__aligned_u64 response;
++	__u32 srq_handle;
++	__u32 reserved;
++};
++
++struct ib_uverbs_destroy_srq_resp {
++	__u32 events_reported;
++};
++
++struct ib_uverbs_ex_create_wq  {
++	__u32 comp_mask;
++	__u32 wq_type;
++	__aligned_u64 user_handle;
++	__u32 pd_handle;
++	__u32 cq_handle;
++	__u32 max_wr;
++	__u32 max_sge;
++	__u32 create_flags; /* Use enum ib_wq_flags */
++	__u32 reserved;
++};
++
++struct ib_uverbs_ex_create_wq_resp {
++	__u32 comp_mask;
++	__u32 response_length;
++	__u32 wq_handle;
++	__u32 max_wr;
++	__u32 max_sge;
++	__u32 wqn;
++};
++
++struct ib_uverbs_ex_destroy_wq  {
++	__u32 comp_mask;
++	__u32 wq_handle;
++};
++
++struct ib_uverbs_ex_destroy_wq_resp {
++	__u32 comp_mask;
++	__u32 response_length;
++	__u32 events_reported;
++	__u32 reserved;
++};
++
++struct ib_uverbs_ex_modify_wq  {
++	__u32 attr_mask;
++	__u32 wq_handle;
++	__u32 wq_state;
++	__u32 curr_wq_state;
++	__u32 flags; /* Use enum ib_wq_flags */
++	__u32 flags_mask; /* Use enum ib_wq_flags */
++};
++
++/* Prevent memory allocation rather than max expected size */
++#define IB_USER_VERBS_MAX_LOG_IND_TBL_SIZE 0x0d
++struct ib_uverbs_ex_create_rwq_ind_table  {
++	__u32 comp_mask;
++	__u32 log_ind_tbl_size;
++	/* Following are the wq handles according to log_ind_tbl_size
++	 * wq_handle1
++	 * wq_handle2
++	 */
++	__u32 wq_handles[0];
++};
++
++struct ib_uverbs_ex_create_rwq_ind_table_resp {
++	__u32 comp_mask;
++	__u32 response_length;
++	__u32 ind_tbl_handle;
++	__u32 ind_tbl_num;
++};
++
++struct ib_uverbs_ex_destroy_rwq_ind_table  {
++	__u32 comp_mask;
++	__u32 ind_tbl_handle;
++};
++
++struct ib_uverbs_cq_moderation {
++	__u16 cq_count;
++	__u16 cq_period;
++};
++
++struct ib_uverbs_ex_modify_cq {
++	__u32 cq_handle;
++	__u32 attr_mask;
++	struct ib_uverbs_cq_moderation attr;
++	__u32 reserved;
++};
++
++#define IB_DEVICE_NAME_MAX 64
++
++#endif /* IB_USER_VERBS_H */
+diff --git a/rdma/include/uapi/rdma/rdma_netlink.h b/rdma/include/uapi/rdma/rdma_netlink.h
+new file mode 100644
+index 0000000000000..04c80cebef49f
+--- /dev/null
++++ b/rdma/include/uapi/rdma/rdma_netlink.h
+@@ -0,0 +1,438 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++#ifndef _RDMA_NETLINK_H
++#define _RDMA_NETLINK_H
++
++#include <linux/types.h>
++
++enum {
++	RDMA_NL_RDMA_CM = 1,
++	RDMA_NL_IWCM,
++	RDMA_NL_RSVD,
++	RDMA_NL_LS,	/* RDMA Local Services */
++	RDMA_NL_NLDEV,	/* RDMA device interface */
++	RDMA_NL_NUM_CLIENTS
++};
++
++enum {
++	RDMA_NL_GROUP_CM = 1,
++	RDMA_NL_GROUP_IWPM,
++	RDMA_NL_GROUP_LS,
++	RDMA_NL_NUM_GROUPS
++};
++
++#define RDMA_NL_GET_CLIENT(type) ((type & (((1 << 6) - 1) << 10)) >> 10)
++#define RDMA_NL_GET_OP(type) (type & ((1 << 10) - 1))
++#define RDMA_NL_GET_TYPE(client, op) ((client << 10) + op)
++
++enum {
++	RDMA_NL_RDMA_CM_ID_STATS = 0,
++	RDMA_NL_RDMA_CM_NUM_OPS
++};
++
++enum {
++	RDMA_NL_RDMA_CM_ATTR_SRC_ADDR = 1,
++	RDMA_NL_RDMA_CM_ATTR_DST_ADDR,
++	RDMA_NL_RDMA_CM_NUM_ATTR,
++};
++
++/* iwarp port mapper op-codes */
++enum {
++	RDMA_NL_IWPM_REG_PID = 0,
++	RDMA_NL_IWPM_ADD_MAPPING,
++	RDMA_NL_IWPM_QUERY_MAPPING,
++	RDMA_NL_IWPM_REMOVE_MAPPING,
++	RDMA_NL_IWPM_REMOTE_INFO,
++	RDMA_NL_IWPM_HANDLE_ERR,
++	RDMA_NL_IWPM_MAPINFO,
++	RDMA_NL_IWPM_MAPINFO_NUM,
++	RDMA_NL_IWPM_NUM_OPS
++};
++
++struct rdma_cm_id_stats {
++	__u32	qp_num;
++	__u32	bound_dev_if;
++	__u32	port_space;
++	__s32	pid;
++	__u8	cm_state;
++	__u8	node_type;
++	__u8	port_num;
++	__u8	qp_type;
++};
++
++enum {
++	IWPM_NLA_REG_PID_UNSPEC = 0,
++	IWPM_NLA_REG_PID_SEQ,
++	IWPM_NLA_REG_IF_NAME,
++	IWPM_NLA_REG_IBDEV_NAME,
++	IWPM_NLA_REG_ULIB_NAME,
++	IWPM_NLA_REG_PID_MAX
++};
++
++enum {
++	IWPM_NLA_RREG_PID_UNSPEC = 0,
++	IWPM_NLA_RREG_PID_SEQ,
++	IWPM_NLA_RREG_IBDEV_NAME,
++	IWPM_NLA_RREG_ULIB_NAME,
++	IWPM_NLA_RREG_ULIB_VER,
++	IWPM_NLA_RREG_PID_ERR,
++	IWPM_NLA_RREG_PID_MAX
++
++};
++
++enum {
++	IWPM_NLA_MANAGE_MAPPING_UNSPEC = 0,
++	IWPM_NLA_MANAGE_MAPPING_SEQ,
++	IWPM_NLA_MANAGE_ADDR,
++	IWPM_NLA_MANAGE_MAPPED_LOC_ADDR,
++	IWPM_NLA_RMANAGE_MAPPING_ERR,
++	IWPM_NLA_RMANAGE_MAPPING_MAX
++};
++
++#define IWPM_NLA_MANAGE_MAPPING_MAX 3
++#define IWPM_NLA_QUERY_MAPPING_MAX  4
++#define IWPM_NLA_MAPINFO_SEND_MAX   3
++
++enum {
++	IWPM_NLA_QUERY_MAPPING_UNSPEC = 0,
++	IWPM_NLA_QUERY_MAPPING_SEQ,
++	IWPM_NLA_QUERY_LOCAL_ADDR,
++	IWPM_NLA_QUERY_REMOTE_ADDR,
++	IWPM_NLA_RQUERY_MAPPED_LOC_ADDR,
++	IWPM_NLA_RQUERY_MAPPED_REM_ADDR,
++	IWPM_NLA_RQUERY_MAPPING_ERR,
++	IWPM_NLA_RQUERY_MAPPING_MAX
++};
++
++enum {
++	IWPM_NLA_MAPINFO_REQ_UNSPEC = 0,
++	IWPM_NLA_MAPINFO_ULIB_NAME,
++	IWPM_NLA_MAPINFO_ULIB_VER,
++	IWPM_NLA_MAPINFO_REQ_MAX
++};
++
++enum {
++	IWPM_NLA_MAPINFO_UNSPEC = 0,
++	IWPM_NLA_MAPINFO_LOCAL_ADDR,
++	IWPM_NLA_MAPINFO_MAPPED_ADDR,
++	IWPM_NLA_MAPINFO_MAX
++};
++
++enum {
++	IWPM_NLA_MAPINFO_NUM_UNSPEC = 0,
++	IWPM_NLA_MAPINFO_SEQ,
++	IWPM_NLA_MAPINFO_SEND_NUM,
++	IWPM_NLA_MAPINFO_ACK_NUM,
++	IWPM_NLA_MAPINFO_NUM_MAX
++};
++
++enum {
++	IWPM_NLA_ERR_UNSPEC = 0,
++	IWPM_NLA_ERR_SEQ,
++	IWPM_NLA_ERR_CODE,
++	IWPM_NLA_ERR_MAX
++};
++
++/*
++ * Local service operations:
++ *   RESOLVE - The client requests the local service to resolve a path.
++ *   SET_TIMEOUT - The local service requests the client to set the timeout.
++ *   IP_RESOLVE - The client requests the local service to resolve an IP to GID.
++ */
++enum {
++	RDMA_NL_LS_OP_RESOLVE = 0,
++	RDMA_NL_LS_OP_SET_TIMEOUT,
++	RDMA_NL_LS_OP_IP_RESOLVE,
++	RDMA_NL_LS_NUM_OPS
++};
++
++/* Local service netlink message flags */
++#define RDMA_NL_LS_F_ERR	0x0100	/* Failed response */
++
++/*
++ * Local service resolve operation family header.
++ * The layout for the resolve operation:
++ *    nlmsg header
++ *    family header
++ *    attributes
++ */
++
++/*
++ * Local service path use:
++ * Specify how the path(s) will be used.
++ *   ALL - For connected CM operation (6 pathrecords)
++ *   UNIDIRECTIONAL - For unidirectional UD (1 pathrecord)
++ *   GMP - For miscellaneous GMP like operation (at least 1 reversible
++ *         pathrecord)
++ */
++enum {
++	LS_RESOLVE_PATH_USE_ALL = 0,
++	LS_RESOLVE_PATH_USE_UNIDIRECTIONAL,
++	LS_RESOLVE_PATH_USE_GMP,
++	LS_RESOLVE_PATH_USE_MAX
++};
++
++#define LS_DEVICE_NAME_MAX 64
++
++struct rdma_ls_resolve_header {
++	__u8 device_name[LS_DEVICE_NAME_MAX];
++	__u8 port_num;
++	__u8 path_use;
++};
++
++struct rdma_ls_ip_resolve_header {
++	__u32 ifindex;
++};
++
++/* Local service attribute type */
++#define RDMA_NLA_F_MANDATORY	(1 << 13)
++#define RDMA_NLA_TYPE_MASK	(~(NLA_F_NESTED | NLA_F_NET_BYTEORDER | \
++				  RDMA_NLA_F_MANDATORY))
++
++/*
++ * Local service attributes:
++ *   Attr Name       Size                       Byte order
++ *   -----------------------------------------------------
++ *   PATH_RECORD     struct ib_path_rec_data
++ *   TIMEOUT         u32                        cpu
++ *   SERVICE_ID      u64                        cpu
++ *   DGID            u8[16]                     BE
++ *   SGID            u8[16]                     BE
++ *   TCLASS          u8
++ *   PKEY            u16                        cpu
++ *   QOS_CLASS       u16                        cpu
++ *   IPV4            u32                        BE
++ *   IPV6            u8[16]                     BE
++ */
++enum {
++	LS_NLA_TYPE_UNSPEC = 0,
++	LS_NLA_TYPE_PATH_RECORD,
++	LS_NLA_TYPE_TIMEOUT,
++	LS_NLA_TYPE_SERVICE_ID,
++	LS_NLA_TYPE_DGID,
++	LS_NLA_TYPE_SGID,
++	LS_NLA_TYPE_TCLASS,
++	LS_NLA_TYPE_PKEY,
++	LS_NLA_TYPE_QOS_CLASS,
++	LS_NLA_TYPE_IPV4,
++	LS_NLA_TYPE_IPV6,
++	LS_NLA_TYPE_MAX
++};
++
++/* Local service DGID/SGID attribute: big endian */
++struct rdma_nla_ls_gid {
++	__u8		gid[16];
++};
++
++enum rdma_nldev_command {
++	RDMA_NLDEV_CMD_UNSPEC,
++
++	RDMA_NLDEV_CMD_GET, /* can dump */
++	RDMA_NLDEV_CMD_SET,
++
++	/* 3 - 4 are free to use */
++
++	RDMA_NLDEV_CMD_PORT_GET = 5, /* can dump */
++
++	/* 6 - 8 are free to use */
++
++	RDMA_NLDEV_CMD_RES_GET = 9, /* can dump */
++
++	RDMA_NLDEV_CMD_RES_QP_GET, /* can dump */
++
++	RDMA_NLDEV_CMD_RES_CM_ID_GET, /* can dump */
++
++	RDMA_NLDEV_CMD_RES_CQ_GET, /* can dump */
++
++	RDMA_NLDEV_CMD_RES_MR_GET, /* can dump */
++
++	RDMA_NLDEV_CMD_RES_PD_GET, /* can dump */
++
++	RDMA_NLDEV_NUM_OPS
++};
++
++enum {
++	RDMA_NLDEV_ATTR_ENTRY_STRLEN = 16,
++};
++
++enum rdma_nldev_print_type {
++	RDMA_NLDEV_PRINT_TYPE_UNSPEC,
++	RDMA_NLDEV_PRINT_TYPE_HEX,
++};
++
++enum rdma_nldev_attr {
++	/* don't change the order or add anything between, this is ABI! */
++	RDMA_NLDEV_ATTR_UNSPEC,
++
++	/* Pad attribute for 64b alignment */
++	RDMA_NLDEV_ATTR_PAD = RDMA_NLDEV_ATTR_UNSPEC,
++
++	/* Identifier for ib_device */
++	RDMA_NLDEV_ATTR_DEV_INDEX,		/* u32 */
++
++	RDMA_NLDEV_ATTR_DEV_NAME,		/* string */
++	/*
++	 * Device index together with port index are identifiers
++	 * for port/link properties.
++	 *
++	 * For RDMA_NLDEV_CMD_GET commamnd, port index will return number
++	 * of available ports in ib_device, while for port specific operations,
++	 * it will be real port index as it appears in sysfs. Port index follows
++	 * sysfs notation and starts from 1 for the first port.
++	 */
++	RDMA_NLDEV_ATTR_PORT_INDEX,		/* u32 */
++
++	/*
++	 * Device and port capabilities
++	 *
++	 * When used for port info, first 32-bits are CapabilityMask followed by
++	 * 16-bit CapabilityMask2.
++	 */
++	RDMA_NLDEV_ATTR_CAP_FLAGS,		/* u64 */
++
++	/*
++	 * FW version
++	 */
++	RDMA_NLDEV_ATTR_FW_VERSION,		/* string */
++
++	/*
++	 * Node GUID (in host byte order) associated with the RDMA device.
++	 */
++	RDMA_NLDEV_ATTR_NODE_GUID,			/* u64 */
++
++	/*
++	 * System image GUID (in host byte order) associated with
++	 * this RDMA device and other devices which are part of a
++	 * single system.
++	 */
++	RDMA_NLDEV_ATTR_SYS_IMAGE_GUID,		/* u64 */
++
++	/*
++	 * Subnet prefix (in host byte order)
++	 */
++	RDMA_NLDEV_ATTR_SUBNET_PREFIX,		/* u64 */
++
++	/*
++	 * Local Identifier (LID),
++	 * According to IB specification, It is 16-bit address assigned
++	 * by the Subnet Manager. Extended to be 32-bit for OmniPath users.
++	 */
++	RDMA_NLDEV_ATTR_LID,			/* u32 */
++	RDMA_NLDEV_ATTR_SM_LID,			/* u32 */
++
++	/*
++	 * LID mask control (LMC)
++	 */
++	RDMA_NLDEV_ATTR_LMC,			/* u8 */
++
++	RDMA_NLDEV_ATTR_PORT_STATE,		/* u8 */
++	RDMA_NLDEV_ATTR_PORT_PHYS_STATE,	/* u8 */
++
++	RDMA_NLDEV_ATTR_DEV_NODE_TYPE,		/* u8 */
++
++	RDMA_NLDEV_ATTR_RES_SUMMARY,		/* nested table */
++	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY,	/* nested table */
++	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME,	/* string */
++	RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR,	/* u64 */
++
++	RDMA_NLDEV_ATTR_RES_QP,			/* nested table */
++	RDMA_NLDEV_ATTR_RES_QP_ENTRY,		/* nested table */
++	/*
++	 * Local QPN
++	 */
++	RDMA_NLDEV_ATTR_RES_LQPN,		/* u32 */
++	/*
++	 * Remote QPN,
++	 * Applicable for RC and UC only IBTA 11.2.5.3 QUERY QUEUE PAIR
++	 */
++	RDMA_NLDEV_ATTR_RES_RQPN,		/* u32 */
++	/*
++	 * Receive Queue PSN,
++	 * Applicable for RC and UC only 11.2.5.3 QUERY QUEUE PAIR
++	 */
++	RDMA_NLDEV_ATTR_RES_RQ_PSN,		/* u32 */
++	/*
++	 * Send Queue PSN
++	 */
++	RDMA_NLDEV_ATTR_RES_SQ_PSN,		/* u32 */
++	RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE,	/* u8 */
++	/*
++	 * QP types as visible to RDMA/core, the reserved QPT
++	 * are not exported through this interface.
++	 */
++	RDMA_NLDEV_ATTR_RES_TYPE,		/* u8 */
++	RDMA_NLDEV_ATTR_RES_STATE,		/* u8 */
++	/*
++	 * Process ID which created object,
++	 * in case of kernel origin, PID won't exist.
++	 */
++	RDMA_NLDEV_ATTR_RES_PID,		/* u32 */
++	/*
++	 * The name of process created following resource.
++	 * It will exist only for kernel objects.
++	 * For user created objects, the user is supposed
++	 * to read /proc/PID/comm file.
++	 */
++	RDMA_NLDEV_ATTR_RES_KERN_NAME,		/* string */
++
++	RDMA_NLDEV_ATTR_RES_CM_ID,		/* nested table */
++	RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY,	/* nested table */
++	/*
++	 * rdma_cm_id port space.
++	 */
++	RDMA_NLDEV_ATTR_RES_PS,			/* u32 */
++	/*
++	 * Source and destination socket addresses
++	 */
++	RDMA_NLDEV_ATTR_RES_SRC_ADDR,		/* __kernel_sockaddr_storage */
++	RDMA_NLDEV_ATTR_RES_DST_ADDR,		/* __kernel_sockaddr_storage */
++
++	RDMA_NLDEV_ATTR_RES_CQ,			/* nested table */
++	RDMA_NLDEV_ATTR_RES_CQ_ENTRY,		/* nested table */
++	RDMA_NLDEV_ATTR_RES_CQE,		/* u32 */
++	RDMA_NLDEV_ATTR_RES_USECNT,		/* u64 */
++	RDMA_NLDEV_ATTR_RES_POLL_CTX,		/* u8 */
++
++	RDMA_NLDEV_ATTR_RES_MR,			/* nested table */
++	RDMA_NLDEV_ATTR_RES_MR_ENTRY,		/* nested table */
++	RDMA_NLDEV_ATTR_RES_RKEY,		/* u32 */
++	RDMA_NLDEV_ATTR_RES_LKEY,		/* u32 */
++	RDMA_NLDEV_ATTR_RES_IOVA,		/* u64 */
++	RDMA_NLDEV_ATTR_RES_MRLEN,		/* u64 */
++
++	RDMA_NLDEV_ATTR_RES_PD,			/* nested table */
++	RDMA_NLDEV_ATTR_RES_PD_ENTRY,		/* nested table */
++	RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,	/* u32 */
++	RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,	/* u32 */
++	/*
++	 * Provides logical name and index of netdevice which is
++	 * connected to physical port. This information is relevant
++	 * for RoCE and iWARP.
++	 *
++	 * The netdevices which are associated with containers are
++	 * supposed to be exported together with GID table once it
++	 * will be exposed through the netlink. Because the
++	 * associated netdevices are properties of GIDs.
++	 */
++	RDMA_NLDEV_ATTR_NDEV_INDEX,		/* u32 */
++	RDMA_NLDEV_ATTR_NDEV_NAME,		/* string */
++	/*
++	 * driver-specific attributes.
++	 */
++	RDMA_NLDEV_ATTR_DRIVER,			/* nested table */
++	RDMA_NLDEV_ATTR_DRIVER_ENTRY,		/* nested table */
++	RDMA_NLDEV_ATTR_DRIVER_STRING,		/* string */
++	/*
++	 * u8 values from enum rdma_nldev_print_type
++	 */
++	RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE,	/* u8 */
++	RDMA_NLDEV_ATTR_DRIVER_S32,		/* s32 */
++	RDMA_NLDEV_ATTR_DRIVER_U32,		/* u32 */
++	RDMA_NLDEV_ATTR_DRIVER_S64,		/* s64 */
++	RDMA_NLDEV_ATTR_DRIVER_U64,		/* u64 */
++
++	/*
++	 * Always the end
++	 */
++	RDMA_NLDEV_ATTR_MAX
++};
++#endif /* _RDMA_NETLINK_H */
+diff --git a/rdma/include/uapi/rdma/rdma_user_cm.h b/rdma/include/uapi/rdma/rdma_user_cm.h
+new file mode 100644
+index 0000000000000..0d1e78ebad051
+--- /dev/null
++++ b/rdma/include/uapi/rdma/rdma_user_cm.h
+@@ -0,0 +1,324 @@
++/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
++/*
++ * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
++ *
++ * This software is available to you under a choice of one of two
++ * licenses.  You may choose to be licensed under the terms of the GNU
++ * General Public License (GPL) Version 2, available from the file
++ * COPYING in the main directory of this source tree, or the
++ * OpenIB.org BSD license below:
++ *
++ *     Redistribution and use in source and binary forms, with or
++ *     without modification, are permitted provided that the following
++ *     conditions are met:
++ *
++ *      - Redistributions of source code must retain the above
++ *        copyright notice, this list of conditions and the following
++ *        disclaimer.
++ *
++ *      - Redistributions in binary form must reproduce the above
++ *        copyright notice, this list of conditions and the following
++ *        disclaimer in the documentation and/or other materials
++ *        provided with the distribution.
++ *
++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
++ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
++ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
++ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
++ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++ * SOFTWARE.
++ */
++
++#ifndef RDMA_USER_CM_H
++#define RDMA_USER_CM_H
++
++#include <linux/types.h>
++#include <linux/socket.h>
++#include <linux/in6.h>
++#include <rdma/ib_user_verbs.h>
++#include <rdma/ib_user_sa.h>
++
++#define RDMA_USER_CM_ABI_VERSION	4
++
++#define RDMA_MAX_PRIVATE_DATA		256
++
++enum {
++	RDMA_USER_CM_CMD_CREATE_ID,
++	RDMA_USER_CM_CMD_DESTROY_ID,
++	RDMA_USER_CM_CMD_BIND_IP,
++	RDMA_USER_CM_CMD_RESOLVE_IP,
++	RDMA_USER_CM_CMD_RESOLVE_ROUTE,
++	RDMA_USER_CM_CMD_QUERY_ROUTE,
++	RDMA_USER_CM_CMD_CONNECT,
++	RDMA_USER_CM_CMD_LISTEN,
++	RDMA_USER_CM_CMD_ACCEPT,
++	RDMA_USER_CM_CMD_REJECT,
++	RDMA_USER_CM_CMD_DISCONNECT,
++	RDMA_USER_CM_CMD_INIT_QP_ATTR,
++	RDMA_USER_CM_CMD_GET_EVENT,
++	RDMA_USER_CM_CMD_GET_OPTION,
++	RDMA_USER_CM_CMD_SET_OPTION,
++	RDMA_USER_CM_CMD_NOTIFY,
++	RDMA_USER_CM_CMD_JOIN_IP_MCAST,
++	RDMA_USER_CM_CMD_LEAVE_MCAST,
++	RDMA_USER_CM_CMD_MIGRATE_ID,
++	RDMA_USER_CM_CMD_QUERY,
++	RDMA_USER_CM_CMD_BIND,
++	RDMA_USER_CM_CMD_RESOLVE_ADDR,
++	RDMA_USER_CM_CMD_JOIN_MCAST
++};
++
++/* See IBTA Annex A11, servies ID bytes 4 & 5 */
++enum rdma_ucm_port_space {
++	RDMA_PS_IPOIB = 0x0002,
++	RDMA_PS_IB    = 0x013F,
++	RDMA_PS_TCP   = 0x0106,
++	RDMA_PS_UDP   = 0x0111,
++};
++
++/*
++ * command ABI structures.
++ */
++struct rdma_ucm_cmd_hdr {
++	__u32 cmd;
++	__u16 in;
++	__u16 out;
++};
++
++struct rdma_ucm_create_id {
++	__aligned_u64 uid;
++	__aligned_u64 response;
++	__u16 ps;                  /* use enum rdma_ucm_port_space */
++	__u8  qp_type;
++	__u8  reserved[5];
++};
++
++struct rdma_ucm_create_id_resp {
++	__u32 id;
++};
++
++struct rdma_ucm_destroy_id {
++	__aligned_u64 response;
++	__u32 id;
++	__u32 reserved;
++};
++
++struct rdma_ucm_destroy_id_resp {
++	__u32 events_reported;
++};
++
++struct rdma_ucm_bind_ip {
++	__aligned_u64 response;
++	struct sockaddr_in6 addr;
++	__u32 id;
++};
++
++struct rdma_ucm_bind {
++	__u32 id;
++	__u16 addr_size;
++	__u16 reserved;
++	struct __kernel_sockaddr_storage addr;
++};
++
++struct rdma_ucm_resolve_ip {
++	struct sockaddr_in6 src_addr;
++	struct sockaddr_in6 dst_addr;
++	__u32 id;
++	__u32 timeout_ms;
++};
++
++struct rdma_ucm_resolve_addr {
++	__u32 id;
++	__u32 timeout_ms;
++	__u16 src_size;
++	__u16 dst_size;
++	__u32 reserved;
++	struct __kernel_sockaddr_storage src_addr;
++	struct __kernel_sockaddr_storage dst_addr;
++};
++
++struct rdma_ucm_resolve_route {
++	__u32 id;
++	__u32 timeout_ms;
++};
++
++enum {
++	RDMA_USER_CM_QUERY_ADDR,
++	RDMA_USER_CM_QUERY_PATH,
++	RDMA_USER_CM_QUERY_GID
++};
++
++struct rdma_ucm_query {
++	__aligned_u64 response;
++	__u32 id;
++	__u32 option;
++};
++
++struct rdma_ucm_query_route_resp {
++	__aligned_u64 node_guid;
++	struct ib_user_path_rec ib_route[2];
++	struct sockaddr_in6 src_addr;
++	struct sockaddr_in6 dst_addr;
++	__u32 num_paths;
++	__u8 port_num;
++	__u8 reserved[3];
++};
++
++struct rdma_ucm_query_addr_resp {
++	__aligned_u64 node_guid;
++	__u8  port_num;
++	__u8  reserved;
++	__u16 pkey;
++	__u16 src_size;
++	__u16 dst_size;
++	struct __kernel_sockaddr_storage src_addr;
++	struct __kernel_sockaddr_storage dst_addr;
++};
++
++struct rdma_ucm_query_path_resp {
++	__u32 num_paths;
++	__u32 reserved;
++	struct ib_path_rec_data path_data[0];
++};
++
++struct rdma_ucm_conn_param {
++	__u32 qp_num;
++	__u32 qkey;
++	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
++	__u8  private_data_len;
++	__u8  srq;
++	__u8  responder_resources;
++	__u8  initiator_depth;
++	__u8  flow_control;
++	__u8  retry_count;
++	__u8  rnr_retry_count;
++	__u8  valid;
++};
++
++struct rdma_ucm_ud_param {
++	__u32 qp_num;
++	__u32 qkey;
++	struct ib_uverbs_ah_attr ah_attr;
++	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
++	__u8  private_data_len;
++	__u8  reserved[7];
++};
++
++struct rdma_ucm_connect {
++	struct rdma_ucm_conn_param conn_param;
++	__u32 id;
++	__u32 reserved;
++};
++
++struct rdma_ucm_listen {
++	__u32 id;
++	__u32 backlog;
++};
++
++struct rdma_ucm_accept {
++	__aligned_u64 uid;
++	struct rdma_ucm_conn_param conn_param;
++	__u32 id;
++	__u32 reserved;
++};
++
++struct rdma_ucm_reject {
++	__u32 id;
++	__u8  private_data_len;
++	__u8  reserved[3];
++	__u8  private_data[RDMA_MAX_PRIVATE_DATA];
++};
++
++struct rdma_ucm_disconnect {
++	__u32 id;
++};
++
++struct rdma_ucm_init_qp_attr {
++	__aligned_u64 response;
++	__u32 id;
++	__u32 qp_state;
++};
++
++struct rdma_ucm_notify {
++	__u32 id;
++	__u32 event;
++};
++
++struct rdma_ucm_join_ip_mcast {
++	__aligned_u64 response;		/* rdma_ucm_create_id_resp */
++	__aligned_u64 uid;
++	struct sockaddr_in6 addr;
++	__u32 id;
++};
++
++/* Multicast join flags */
++enum {
++	RDMA_MC_JOIN_FLAG_FULLMEMBER,
++	RDMA_MC_JOIN_FLAG_SENDONLY_FULLMEMBER,
++	RDMA_MC_JOIN_FLAG_RESERVED,
++};
++
++struct rdma_ucm_join_mcast {
++	__aligned_u64 response;		/* rdma_ucma_create_id_resp */
++	__aligned_u64 uid;
++	__u32 id;
++	__u16 addr_size;
++	__u16 join_flags;
++	struct __kernel_sockaddr_storage addr;
++};
++
++struct rdma_ucm_get_event {
++	__aligned_u64 response;
++};
++
++struct rdma_ucm_event_resp {
++	__aligned_u64 uid;
++	__u32 id;
++	__u32 event;
++	__u32 status;
++	/*
++	 * NOTE: This union is not aligned to 8 bytes so none of the union
++	 * members may contain a u64 or anything with higher alignment than 4.
++	 */
++	union {
++		struct rdma_ucm_conn_param conn;
++		struct rdma_ucm_ud_param   ud;
++	} param;
++	__u32 reserved;
++};
++
++/* Option levels */
++enum {
++	RDMA_OPTION_ID		= 0,
++	RDMA_OPTION_IB		= 1
++};
++
++/* Option details */
++enum {
++	RDMA_OPTION_ID_TOS	 = 0,
++	RDMA_OPTION_ID_REUSEADDR = 1,
++	RDMA_OPTION_ID_AFONLY	 = 2,
++	RDMA_OPTION_IB_PATH	 = 1
++};
++
++struct rdma_ucm_set_option {
++	__aligned_u64 optval;
++	__u32 id;
++	__u32 level;
++	__u32 optname;
++	__u32 optlen;
++};
++
++struct rdma_ucm_migrate_id {
++	__aligned_u64 response;
++	__u32 id;
++	__u32 fd;
++};
++
++struct rdma_ucm_migrate_resp {
++	__u32 events_reported;
++};
++
++#endif /* RDMA_USER_CM_H */
+diff --git a/rdma/link.c b/rdma/link.c
+new file mode 100644
+index 0000000000000..c064be627be2c
+--- /dev/null
++++ b/rdma/link.c
+@@ -0,0 +1,355 @@
++/*
++ * link.c	RDMA tool
++ *
++ *              This program is free software; you can redistribute it and/or
++ *              modify it under the terms of the GNU General Public License
++ *              as published by the Free Software Foundation; either version
++ *              2 of the License, or (at your option) any later version.
++ *
++ * Authors:     Leon Romanovsky <leonro@mellanox.com>
++ */
++
++#include "rdma.h"
++
++static int link_help(struct rd *rd)
++{
++	pr_out("Usage: %s link show [DEV/PORT_INDEX]\n", rd->filename);
++	return 0;
++}
++
++static const char *caps_to_str(uint32_t idx)
++{
++#define RDMA_PORT_FLAGS_LOW(x) \
++	x(RESERVED, 0) \
++	x(SM, 1) \
++	x(NOTICE, 2) \
++	x(TRAP, 3) \
++	x(OPT_IPD, 4) \
++	x(AUTO_MIGR, 5) \
++	x(SL_MAP, 6) \
++	x(MKEY_NVRAM, 7) \
++	x(PKEY_NVRAM, 8) \
++	x(LED_INFO, 9) \
++	x(SM_DISABLED, 10) \
++	x(SYS_IMAGE_GUID, 11) \
++	x(PKEY_SW_EXT_PORT_TRAP, 12) \
++	x(CABLE_INFO, 13) \
++	x(EXTENDED_SPEEDS, 14) \
++	x(CAP_MASK2, 15) \
++	x(CM, 16) \
++	x(SNMP_TUNNEL, 17) \
++	x(REINIT, 18) \
++	x(DEVICE_MGMT, 19) \
++	x(VENDOR_CLASS, 20) \
++	x(DR_NOTICE, 21) \
++	x(CAP_MASK_NOTICE, 22) \
++	x(BOOT_MGMT, 23) \
++	x(LINK_LATENCY, 24) \
++	x(CLIENT_REG, 25) \
++	x(OTHER_LOCAL_CHANGES, 26) \
++	x(LINK_SPPED_WIDTH, 27) \
++	x(VENDOR_SPECIFIC_MADS, 28) \
++	x(MULT_PKER_TRAP, 29) \
++	x(MULT_FDB, 30) \
++	x(HIERARCHY_INFO, 31)
++
++#define RDMA_PORT_FLAGS_HIGH(x) \
++	x(SET_NODE_DESC, 0) \
++	x(EXT_INFO, 1) \
++	x(VIRT, 2) \
++	x(SWITCH_POR_STATE_TABLE, 3) \
++	x(LINK_WIDTH_2X, 4) \
++	x(LINK_SPEED_HDR, 5)
++
++	/*
++	 * Separation below is needed to allow compilation of rdmatool
++	 * on 32bits systems. On such systems, C-enum is limited to be
++	 * int and can't hold more than 32 bits.
++	 */
++	enum { RDMA_PORT_FLAGS_LOW(RDMA_BITMAP_ENUM) };
++	enum { RDMA_PORT_FLAGS_HIGH(RDMA_BITMAP_ENUM) };
++
++	static const char * const
++		rdma_port_names_low[] = { RDMA_PORT_FLAGS_LOW(RDMA_BITMAP_NAMES) };
++	static const char * const
++		rdma_port_names_high[] = { RDMA_PORT_FLAGS_HIGH(RDMA_BITMAP_NAMES) };
++	uint32_t high_idx;
++	#undef RDMA_PORT_FLAGS_LOW
++	#undef RDMA_PORT_FLAGS_HIGH
++
++	if (idx < ARRAY_SIZE(rdma_port_names_low) && rdma_port_names_low[idx])
++		return rdma_port_names_low[idx];
++
++	high_idx = idx - ARRAY_SIZE(rdma_port_names_low);
++	if (high_idx < ARRAY_SIZE(rdma_port_names_high) &&
++	    rdma_port_names_high[high_idx])
++		return rdma_port_names_high[high_idx];
++
++	return "UNKNOWN";
++}
++
++static void link_print_caps(struct rd *rd, struct nlattr **tb)
++{
++	uint64_t caps;
++	uint32_t idx;
++
++	if (!tb[RDMA_NLDEV_ATTR_CAP_FLAGS])
++		return;
++
++	caps = mnl_attr_get_u64(tb[RDMA_NLDEV_ATTR_CAP_FLAGS]);
++
++	if (rd->json_output) {
++		jsonw_name(rd->jw, "caps");
++		jsonw_start_array(rd->jw);
++	} else {
++		pr_out("\n    caps: <");
++	}
++	for (idx = 0; caps; idx++) {
++		if (caps & 0x1) {
++			if (rd->json_output) {
++				jsonw_string(rd->jw, caps_to_str(idx));
++			} else {
++				pr_out("%s", caps_to_str(idx));
++				if (caps >> 0x1)
++					pr_out(", ");
++			}
++		}
++		caps >>= 0x1;
++	}
++
++	if (rd->json_output)
++		jsonw_end_array(rd->jw);
++	else
++		pr_out(">");
++}
++
++static void link_print_subnet_prefix(struct rd *rd, struct nlattr **tb)
++{
++	uint64_t subnet_prefix;
++	uint16_t vp[4];
++	char str[32];
++
++	if (!tb[RDMA_NLDEV_ATTR_SUBNET_PREFIX])
++		return;
++
++	subnet_prefix = mnl_attr_get_u64(tb[RDMA_NLDEV_ATTR_SUBNET_PREFIX]);
++	memcpy(vp, &subnet_prefix, sizeof(uint64_t));
++	snprintf(str, 32, "%04x:%04x:%04x:%04x", vp[3], vp[2], vp[1], vp[0]);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "subnet_prefix", str);
++	else
++		pr_out("subnet_prefix %s ", str);
++}
++
++static void link_print_lid(struct rd *rd, struct nlattr **tb)
++{
++	uint32_t lid;
++
++	if (!tb[RDMA_NLDEV_ATTR_LID])
++		return;
++
++	lid = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_LID]);
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "lid", lid);
++	else
++		pr_out("lid %u ", lid);
++}
++
++static void link_print_sm_lid(struct rd *rd, struct nlattr **tb)
++{
++	uint32_t sm_lid;
++
++	if (!tb[RDMA_NLDEV_ATTR_SM_LID])
++		return;
++
++	sm_lid = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_SM_LID]);
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "sm_lid", sm_lid);
++	else
++		pr_out("sm_lid %u ", sm_lid);
++}
++
++static void link_print_lmc(struct rd *rd, struct nlattr **tb)
++{
++	uint8_t lmc;
++
++	if (!tb[RDMA_NLDEV_ATTR_LMC])
++		return;
++
++	lmc = mnl_attr_get_u8(tb[RDMA_NLDEV_ATTR_LMC]);
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "lmc", lmc);
++	else
++		pr_out("lmc %u ", lmc);
++}
++
++static const char *link_state_to_str(uint8_t link_state)
++{
++	static const char * const link_state_str[] = { "NOP", "DOWN",
++						       "INIT", "ARMED",
++						       "ACTIVE",
++						       "ACTIVE_DEFER" };
++	if (link_state < ARRAY_SIZE(link_state_str))
++		return link_state_str[link_state];
++	return "UNKNOWN";
++}
++
++static void link_print_state(struct rd *rd, struct nlattr **tb)
++{
++	uint8_t state;
++
++	if (!tb[RDMA_NLDEV_ATTR_PORT_STATE])
++		return;
++
++	state = mnl_attr_get_u8(tb[RDMA_NLDEV_ATTR_PORT_STATE]);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "state", link_state_to_str(state));
++	else
++		pr_out("state %s ", link_state_to_str(state));
++}
++
++static const char *phys_state_to_str(uint8_t phys_state)
++{
++	static const char * const phys_state_str[] = { "NOP", "SLEEP",
++						       "POLLING", "DISABLED",
++						       "ARMED", "LINK_UP",
++						       "LINK_ERROR_RECOVER",
++						       "PHY_TEST", "UNKNOWN",
++						       "OPA_OFFLINE",
++						       "UNKNOWN", "OPA_TEST" };
++	if (phys_state < ARRAY_SIZE(phys_state_str))
++		return phys_state_str[phys_state];
++	return "UNKNOWN";
++};
++
++static void link_print_phys_state(struct rd *rd, struct nlattr **tb)
++{
++	uint8_t phys_state;
++
++	if (!tb[RDMA_NLDEV_ATTR_PORT_PHYS_STATE])
++		return;
++
++	phys_state = mnl_attr_get_u8(tb[RDMA_NLDEV_ATTR_PORT_PHYS_STATE]);
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "physical_state",
++				   phys_state_to_str(phys_state));
++	else
++		pr_out("physical_state %s ", phys_state_to_str(phys_state));
++}
++
++static void link_print_netdev(struct rd *rd, struct nlattr **tb)
++{
++	const char *netdev_name;
++	uint32_t idx;
++
++	if (!tb[RDMA_NLDEV_ATTR_NDEV_NAME] || !tb[RDMA_NLDEV_ATTR_NDEV_INDEX])
++		return;
++
++	netdev_name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_NDEV_NAME]);
++	idx = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_NDEV_INDEX]);
++	if (rd->json_output) {
++		jsonw_string_field(rd->jw, "netdev", netdev_name);
++		jsonw_uint_field(rd->jw, "netdev_index", idx);
++	} else {
++		pr_out("netdev %s ", netdev_name);
++		if (rd->show_details)
++			pr_out("netdev_index %u ", idx);
++	}
++}
++
++static int link_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct rd *rd = data;
++	uint32_t port, idx;
++	char name[32];
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] || !tb[RDMA_NLDEV_ATTR_DEV_NAME])
++		return MNL_CB_ERROR;
++
++	if (!tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
++		pr_err("This tool doesn't support switches yet\n");
++		return MNL_CB_ERROR;
++	}
++
++	idx = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	port = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
++	snprintf(name, 32, "%s/%u",
++		 mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]), port);
++
++	if (rd->json_output) {
++		jsonw_uint_field(rd->jw, "ifindex", idx);
++		jsonw_uint_field(rd->jw, "port", port);
++		jsonw_string_field(rd->jw, "ifname", name);
++
++	} else {
++		pr_out("%u/%u: %s: ", idx, port, name);
++	}
++
++	link_print_subnet_prefix(rd, tb);
++	link_print_lid(rd, tb);
++	link_print_sm_lid(rd, tb);
++	link_print_lmc(rd, tb);
++	link_print_state(rd, tb);
++	link_print_phys_state(rd, tb);
++	link_print_netdev(rd, tb);
++	if (rd->show_details)
++		link_print_caps(rd, tb);
++
++	if (!rd->json_output)
++		pr_out("\n");
++	return MNL_CB_OK;
++}
++
++static int link_no_args(struct rd *rd)
++{
++	uint32_t seq;
++	int ret;
++
++	rd_prepare_msg(rd, RDMA_NLDEV_CMD_PORT_GET, &seq,
++		       (NLM_F_REQUEST | NLM_F_ACK));
++	mnl_attr_put_u32(rd->nlh, RDMA_NLDEV_ATTR_DEV_INDEX, rd->dev_idx);
++	mnl_attr_put_u32(rd->nlh, RDMA_NLDEV_ATTR_PORT_INDEX, rd->port_idx);
++	ret = rd_send_msg(rd);
++	if (ret)
++		return ret;
++
++	if (rd->json_output)
++		jsonw_start_object(rd->jw);
++	ret = rd_recv_msg(rd, link_parse_cb, rd, seq);
++	if (rd->json_output)
++		jsonw_end_object(rd->jw);
++	return ret;
++}
++
++static int link_one_show(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		link_no_args},
++		{ 0 }
++	};
++
++	if (!rd->port_idx)
++		return 0;
++
++	return rd_exec_cmd(rd, cmds, "parameter");
++}
++
++static int link_show(struct rd *rd)
++{
++	return rd_exec_link(rd, link_one_show, true);
++}
++
++int cmd_link(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		link_show },
++		{ "show",	link_show },
++		{ "list",	link_show },
++		{ "help",	link_help },
++		{ 0 }
++	};
++
++	return rd_exec_cmd(rd, cmds, "link command");
++}
+diff --git a/rdma/rdma.c b/rdma/rdma.c
+new file mode 100644
+index 0000000000000..010e98371ef09
+--- /dev/null
++++ b/rdma/rdma.c
+@@ -0,0 +1,203 @@
++/*
++ * rdma.c	RDMA tool
++ *
++ *              This program is free software; you can redistribute it and/or
++ *              modify it under the terms of the GNU General Public License
++ *              as published by the Free Software Foundation; either version
++ *              2 of the License, or (at your option) any later version.
++ *
++ * Authors:     Leon Romanovsky <leonro@mellanox.com>
++ */
++
++#include "rdma.h"
++#include "SNAPSHOT.h"
++
++static void help(char *name)
++{
++	pr_out("Usage: %s [ OPTIONS ] OBJECT { COMMAND | help }\n"
++	       "       %s [ -f[orce] ] -b[atch] filename\n"
++	       "where  OBJECT := { dev | link | resource | help }\n"
++	       "       OPTIONS := { -V[ersion] | -d[etails] | -j[son] | -p[retty]}\n", name, name);
++}
++
++static int cmd_help(struct rd *rd)
++{
++	help(rd->filename);
++	return 0;
++}
++
++static int rd_cmd(struct rd *rd, int argc, char **argv)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		cmd_help },
++		{ "help",	cmd_help },
++		{ "dev",	cmd_dev },
++		{ "link",	cmd_link },
++		{ "resource",	cmd_res },
++		{ 0 }
++	};
++
++	rd->argc = argc;
++	rd->argv = argv;
++
++	return rd_exec_cmd(rd, cmds, "object");
++}
++
++static int rd_batch(struct rd *rd, const char *name, bool force)
++{
++	char *line = NULL;
++	size_t len = 0;
++	int ret = 0;
++
++	if (name && strcmp(name, "-") != 0) {
++		if (!freopen(name, "r", stdin)) {
++			pr_err("Cannot open file \"%s\" for reading: %s\n",
++			       name, strerror(errno));
++			return errno;
++		}
++	}
++
++	cmdlineno = 0;
++	while (getcmdline(&line, &len, stdin) != -1) {
++		char *largv[512];
++		int largc;
++
++		largc = makeargs(line, largv, ARRAY_SIZE(largv));
++		if (!largc)
++			continue;	/* blank line */
++
++		ret = rd_cmd(rd, largc, largv);
++		if (ret) {
++			pr_err("Command failed %s:%d\n", name, cmdlineno);
++			if (!force)
++				break;
++		}
++	}
++
++	free(line);
++
++	return ret;
++}
++
++static int rd_init(struct rd *rd, char *filename)
++{
++	uint32_t seq;
++	int ret;
++
++	rd->filename = filename;
++	INIT_LIST_HEAD(&rd->dev_map_list);
++	INIT_LIST_HEAD(&rd->filter_list);
++
++	if (rd->json_output) {
++		rd->jw = jsonw_new(stdout);
++		if (!rd->jw) {
++			pr_err("Failed to create JSON writer\n");
++			return -ENOMEM;
++		}
++		jsonw_pretty(rd->jw, rd->pretty_output);
++	}
++
++	rd->buff = malloc(MNL_SOCKET_BUFFER_SIZE);
++	if (!rd->buff)
++		return -ENOMEM;
++
++	rd_prepare_msg(rd, RDMA_NLDEV_CMD_GET,
++		       &seq, (NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP));
++	ret = rd_send_msg(rd);
++	if (ret)
++		return ret;
++
++	return rd_recv_msg(rd, rd_dev_init_cb, rd, seq);
++}
++
++static void rd_cleanup(struct rd *rd)
++{
++	if (rd->json_output)
++		jsonw_destroy(&rd->jw);
++	rd_free(rd);
++}
++
++int main(int argc, char **argv)
++{
++	static const struct option long_options[] = {
++		{ "version",		no_argument,		NULL, 'V' },
++		{ "help",		no_argument,		NULL, 'h' },
++		{ "json",		no_argument,		NULL, 'j' },
++		{ "pretty",		no_argument,		NULL, 'p' },
++		{ "details",		no_argument,		NULL, 'd' },
++		{ "force",		no_argument,		NULL, 'f' },
++		{ "batch",		required_argument,	NULL, 'b' },
++		{ NULL, 0, NULL, 0 }
++	};
++	bool show_driver_details = false;
++	const char *batch_file = NULL;
++	bool pretty_output = false;
++	bool show_details = false;
++	bool json_output = false;
++	bool force = false;
++	struct rd rd = {};
++	char *filename;
++	int opt;
++	int err;
++
++	filename = basename(argv[0]);
++
++	while ((opt = getopt_long(argc, argv, ":Vhdpjfb:",
++				  long_options, NULL)) >= 0) {
++		switch (opt) {
++		case 'V':
++			printf("%s utility, iproute2-ss%s\n",
++			       filename, SNAPSHOT);
++			return EXIT_SUCCESS;
++		case 'p':
++			pretty_output = true;
++			break;
++		case 'd':
++			if (show_details)
++				show_driver_details = true;
++			else
++				show_details = true;
++			break;
++		case 'j':
++			json_output = true;
++			break;
++		case 'f':
++			force = true;
++			break;
++		case 'b':
++			batch_file = optarg;
++			break;
++		case 'h':
++			help(filename);
++			return EXIT_SUCCESS;
++		case ':':
++			pr_err("-%c option requires an argument\n", optopt);
++			return EXIT_FAILURE;
++		default:
++			pr_err("Unknown option.\n");
++			help(filename);
++			return EXIT_FAILURE;
++		}
++	}
++
++	argc -= optind;
++	argv += optind;
++
++	rd.show_details = show_details;
++	rd.show_driver_details = show_driver_details;
++	rd.json_output = json_output;
++	rd.pretty_output = pretty_output;
++
++	err = rd_init(&rd, filename);
++	if (err)
++		goto out;
++
++	if (batch_file)
++		err = rd_batch(&rd, batch_file, force);
++	else
++		err = rd_cmd(&rd, argc, argv);
++out:
++	/* Always cleanup */
++	rd_cleanup(&rd);
++	return err ? EXIT_FAILURE : EXIT_SUCCESS;
++}
+diff --git a/rdma/rdma.h b/rdma/rdma.h
+new file mode 100644
+index 0000000000000..547bb5749a39f
+--- /dev/null
++++ b/rdma/rdma.h
+@@ -0,0 +1,131 @@
++/*
++ * rdma.c	RDMA tool
++ *
++ *              This program is free software; you can redistribute it and/or
++ *              modify it under the terms of the GNU General Public License
++ *              as published by the Free Software Foundation; either version
++ *              2 of the License, or (at your option) any later version.
++ *
++ * Authors:     Leon Romanovsky <leonro@mellanox.com>
++ */
++#ifndef _RDMA_TOOL_H_
++#define _RDMA_TOOL_H_
++
++#include <stdlib.h>
++#include <string.h>
++#include <errno.h>
++#include <getopt.h>
++#include <netinet/in.h>
++#include <libmnl/libmnl.h>
++#include <rdma/rdma_netlink.h>
++#include <rdma/rdma_user_cm.h>
++#include <time.h>
++#include <net/if_arp.h>
++
++#include "list.h"
++#include "utils.h"
++#include "json_writer.h"
++
++#define pr_err(args...) fprintf(stderr, ##args)
++#define pr_out(args...) fprintf(stdout, ##args)
++
++#define RDMA_BITMAP_ENUM(name, bit_no) RDMA_BITMAP_##name = BIT(bit_no),
++#define RDMA_BITMAP_NAMES(name, bit_no) [bit_no] = #name,
++
++#define MAX_NUMBER_OF_FILTERS 64
++struct filters {
++	const char *name;
++	bool is_number;
++};
++
++struct filter_entry {
++	struct list_head list;
++	char *key;
++	char *value;
++};
++
++struct dev_map {
++	struct list_head list;
++	char *dev_name;
++	uint32_t num_ports;
++	uint32_t idx;
++};
++
++struct rd {
++	int argc;
++	char **argv;
++	char *filename;
++	bool show_details;
++	bool show_driver_details;
++	struct list_head dev_map_list;
++	uint32_t dev_idx;
++	uint32_t port_idx;
++	struct mnl_socket *nl;
++	struct nlmsghdr *nlh;
++	char *buff;
++	json_writer_t *jw;
++	bool json_output;
++	bool pretty_output;
++	struct list_head filter_list;
++};
++
++struct rd_cmd {
++	const char *cmd;
++	int (*func)(struct rd *rd);
++};
++
++/*
++ * Parser interface
++ */
++bool rd_no_arg(struct rd *rd);
++void rd_arg_inc(struct rd *rd);
++
++char *rd_argv(struct rd *rd);
++
++/*
++ * Commands interface
++ */
++int cmd_dev(struct rd *rd);
++int cmd_link(struct rd *rd);
++int cmd_res(struct rd *rd);
++int rd_exec_cmd(struct rd *rd, const struct rd_cmd *c, const char *str);
++int rd_exec_dev(struct rd *rd, int (*cb)(struct rd *rd));
++int rd_exec_require_dev(struct rd *rd, int (*cb)(struct rd *rd));
++int rd_exec_link(struct rd *rd, int (*cb)(struct rd *rd), bool strict_port);
++void rd_free(struct rd *rd);
++int rd_set_arg_to_devname(struct rd *rd);
++int rd_argc(struct rd *rd);
++
++int strcmpx(const char *str1, const char *str2);
++
++/*
++ * Device manipulation
++ */
++struct dev_map *dev_map_lookup(struct rd *rd, bool allow_port_index);
++
++/*
++ * Filter manipulation
++ */
++int rd_build_filter(struct rd *rd, const struct filters valid_filters[]);
++bool rd_check_is_filtered(struct rd *rd, const char *key, uint32_t val);
++bool rd_check_is_string_filtered(struct rd *rd, const char *key, const char *val);
++bool rd_check_is_key_exist(struct rd *rd, const char *key);
++/*
++ * Netlink
++ */
++int rd_send_msg(struct rd *rd);
++int rd_recv_msg(struct rd *rd, mnl_cb_t callback, void *data, uint32_t seq);
++void rd_prepare_msg(struct rd *rd, uint32_t cmd, uint32_t *seq, uint16_t flags);
++int rd_dev_init_cb(const struct nlmsghdr *nlh, void *data);
++int rd_attr_cb(const struct nlattr *attr, void *data);
++int rd_attr_check(const struct nlattr *attr, int *typep);
++
++/*
++ * Print helpers
++ */
++void print_driver_table(struct rd *rd, struct nlattr *tb);
++void newline(struct rd *rd);
++void newline_indent(struct rd *rd);
++#define MAX_LINE_LENGTH 80
++
++#endif /* _RDMA_TOOL_H_ */
+diff --git a/rdma/res.c b/rdma/res.c
+new file mode 100644
+index 0000000000000..cbb2efe6c7235
+--- /dev/null
++++ b/rdma/res.c
+@@ -0,0 +1,1111 @@
++/*
++ * res.c	RDMA tool
++ *
++ *              This program is free software; you can redistribute it and/or
++ *              modify it under the terms of the GNU General Public License
++ *              as published by the Free Software Foundation; either version
++ *              2 of the License, or (at your option) any later version.
++ *
++ * Authors:     Leon Romanovsky <leonro@mellanox.com>
++ */
++
++#include "rdma.h"
++#include <inttypes.h>
++
++static int res_help(struct rd *rd)
++{
++	pr_out("Usage: %s resource\n", rd->filename);
++	pr_out("          resource show [DEV]\n");
++	pr_out("          resource show [qp|cm_id|pd|mr|cq]\n");
++	pr_out("          resource show qp link [DEV/PORT]\n");
++	pr_out("          resource show qp link [DEV/PORT] [FILTER-NAME FILTER-VALUE]\n");
++	pr_out("          resource show cm_id link [DEV/PORT]\n");
++	pr_out("          resource show cm_id link [DEV/PORT] [FILTER-NAME FILTER-VALUE]\n");
++	pr_out("          resource show cq link [DEV/PORT]\n");
++	pr_out("          resource show cq link [DEV/PORT] [FILTER-NAME FILTER-VALUE]\n");
++	pr_out("          resource show pd dev [DEV]\n");
++	pr_out("          resource show pd dev [DEV] [FILTER-NAME FILTER-VALUE]\n");
++	pr_out("          resource show mr dev [DEV]\n");
++	pr_out("          resource show mr dev [DEV] [FILTER-NAME FILTER-VALUE]\n");
++	return 0;
++}
++
++static int res_print_summary(struct rd *rd, struct nlattr **tb)
++{
++	struct nlattr *nla_table = tb[RDMA_NLDEV_ATTR_RES_SUMMARY];
++	struct nlattr *nla_entry;
++	const char *name;
++	uint64_t curr;
++	int err;
++
++	mnl_attr_for_each_nested(nla_entry, nla_table) {
++		struct nlattr *nla_line[RDMA_NLDEV_ATTR_MAX] = {};
++		char json_name[32];
++
++		err = mnl_attr_parse_nested(nla_entry, rd_attr_cb, nla_line);
++		if (err != MNL_CB_OK)
++			return -EINVAL;
++
++		if (!nla_line[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME] ||
++		    !nla_line[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR]) {
++			return -EINVAL;
++		}
++
++		name = mnl_attr_get_str(nla_line[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME]);
++		curr = mnl_attr_get_u64(nla_line[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR]);
++		if (rd->json_output) {
++			snprintf(json_name, 32, "%s", name);
++			jsonw_lluint_field(rd->jw, json_name, curr);
++		} else {
++			pr_out("%s %"PRId64 " ", name, curr);
++		}
++	}
++	return 0;
++}
++
++static int res_no_args_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct rd *rd = data;
++	const char *name;
++	uint32_t idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
++	    !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
++	    !tb[RDMA_NLDEV_ATTR_RES_SUMMARY])
++		return MNL_CB_ERROR;
++
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	if (rd->json_output) {
++		jsonw_uint_field(rd->jw, "ifindex", idx);
++		jsonw_string_field(rd->jw, "ifname", name);
++	} else {
++		pr_out("%u: %s: ", idx, name);
++	}
++
++	res_print_summary(rd, tb);
++
++	if (!rd->json_output)
++		pr_out("\n");
++	return MNL_CB_OK;
++}
++
++static int _res_send_msg(struct rd *rd, uint32_t command, mnl_cb_t callback)
++{
++	uint32_t flags = NLM_F_REQUEST | NLM_F_ACK;
++	uint32_t seq;
++	int ret;
++
++	if (command != RDMA_NLDEV_CMD_RES_GET)
++		flags |= NLM_F_DUMP;
++
++	rd_prepare_msg(rd, command, &seq, flags);
++	mnl_attr_put_u32(rd->nlh, RDMA_NLDEV_ATTR_DEV_INDEX, rd->dev_idx);
++	if (rd->port_idx)
++		mnl_attr_put_u32(rd->nlh,
++				 RDMA_NLDEV_ATTR_PORT_INDEX, rd->port_idx);
++
++	ret = rd_send_msg(rd);
++	if (ret)
++		return ret;
++
++	if (rd->json_output)
++		jsonw_start_object(rd->jw);
++	ret = rd_recv_msg(rd, callback, rd, seq);
++	if (rd->json_output)
++		jsonw_end_object(rd->jw);
++	return ret;
++}
++
++#define RES_FUNC(name, command, valid_filters, strict_port) \
++	static int _##name(struct rd *rd)\
++	{ \
++		return _res_send_msg(rd, command, name##_parse_cb); \
++	} \
++	static int name(struct rd *rd) \
++	{\
++		int ret = rd_build_filter(rd, valid_filters); \
++		if (ret) \
++			return ret; \
++		if ((uintptr_t)valid_filters != (uintptr_t)NULL) { \
++			ret = rd_set_arg_to_devname(rd); \
++			if (ret) \
++				return ret;\
++		} \
++		if (strict_port) \
++			return rd_exec_dev(rd, _##name); \
++		else \
++			return rd_exec_link(rd, _##name, strict_port); \
++	}
++
++static const char *path_mig_to_str(uint8_t idx)
++{
++	static const char * const path_mig_str[] = { "MIGRATED",
++						     "REARM", "ARMED" };
++
++	if (idx < ARRAY_SIZE(path_mig_str))
++		return path_mig_str[idx];
++	return "UNKNOWN";
++}
++
++static const char *qp_states_to_str(uint8_t idx)
++{
++	static const char * const qp_states_str[] = { "RESET", "INIT",
++						      "RTR", "RTS", "SQD",
++						      "SQE", "ERR" };
++
++	if (idx < ARRAY_SIZE(qp_states_str))
++		return qp_states_str[idx];
++	return "UNKNOWN";
++}
++
++static const char *qp_types_to_str(uint8_t idx)
++{
++	static const char * const qp_types_str[] = { "SMI", "GSI", "RC",
++						     "UC", "UD", "RAW_IPV6",
++						     "RAW_ETHERTYPE",
++						     "UNKNOWN", "RAW_PACKET",
++						     "XRC_INI", "XRC_TGT" };
++
++	if (idx < ARRAY_SIZE(qp_types_str))
++		return qp_types_str[idx];
++	return "UNKNOWN";
++}
++
++static void print_lqpn(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "lqpn", val);
++	else
++		pr_out("lqpn %u ", val);
++}
++
++static void print_rqpn(struct rd *rd, uint32_t val, struct nlattr **nla_line)
++{
++	if (!nla_line[RDMA_NLDEV_ATTR_RES_RQPN])
++		return;
++
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "rqpn", val);
++	else
++		pr_out("rqpn %u ", val);
++}
++
++static void print_type(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "type",
++				   qp_types_to_str(val));
++	else
++		pr_out("type %s ", qp_types_to_str(val));
++}
++
++static void print_state(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "state",
++				   qp_states_to_str(val));
++	else
++		pr_out("state %s ", qp_states_to_str(val));
++}
++
++static void print_rqpsn(struct rd *rd, uint32_t val, struct nlattr **nla_line)
++{
++	if (!nla_line[RDMA_NLDEV_ATTR_RES_RQ_PSN])
++		return;
++
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "rq-psn", val);
++	else
++		pr_out("rq-psn %u ", val);
++}
++
++static void print_sqpsn(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "sq-psn", val);
++	else
++		pr_out("sq-psn %u ", val);
++}
++
++static void print_pathmig(struct rd *rd, uint32_t val,
++			  struct nlattr **nla_line)
++{
++	if (!nla_line[RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE])
++		return;
++
++	if (rd->json_output)
++		jsonw_string_field(rd->jw,
++				   "path-mig-state",
++				   path_mig_to_str(val));
++	else
++		pr_out("path-mig-state %s ", path_mig_to_str(val));
++}
++
++static void print_pid(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "pid", val);
++	else
++		pr_out("pid %u ", val);
++}
++
++static void print_comm(struct rd *rd, const char *str,
++		       struct nlattr **nla_line)
++{
++	char tmp[18];
++
++	if (rd->json_output) {
++		/* Don't beatify output in JSON format */
++		jsonw_string_field(rd->jw, "comm", str);
++		return;
++	}
++
++	if (nla_line[RDMA_NLDEV_ATTR_RES_PID])
++		snprintf(tmp, sizeof(tmp), "%s", str);
++	else
++		snprintf(tmp, sizeof(tmp), "[%s]", str);
++
++	pr_out("comm %s ", tmp);
++}
++
++static void print_dev(struct rd *rd, uint32_t idx, const char *name)
++{
++	if (rd->json_output) {
++		jsonw_uint_field(rd->jw, "ifindex", idx);
++		jsonw_string_field(rd->jw, "ifname", name);
++	} else {
++		pr_out("dev %s ", name);
++	}
++}
++
++static void print_link(struct rd *rd, uint32_t idx, const char *name,
++		       uint32_t port, struct nlattr **nla_line)
++{
++	if (rd->json_output) {
++		jsonw_uint_field(rd->jw, "ifindex", idx);
++
++		if (nla_line[RDMA_NLDEV_ATTR_PORT_INDEX])
++			jsonw_uint_field(rd->jw, "port", port);
++
++		jsonw_string_field(rd->jw, "ifname", name);
++	} else {
++		if (nla_line[RDMA_NLDEV_ATTR_PORT_INDEX])
++			pr_out("link %s/%u ", name, port);
++		else
++			pr_out("link %s/- ", name);
++	}
++}
++
++static char *get_task_name(uint32_t pid)
++{
++	char *comm;
++	FILE *f;
++
++	if (asprintf(&comm, "/proc/%d/comm", pid) < 0)
++		return NULL;
++
++	f = fopen(comm, "r");
++	free(comm);
++	if (!f)
++		return NULL;
++
++	if (fscanf(f, "%ms\n", &comm) != 1)
++		comm = NULL;
++
++	fclose(f);
++
++	return comm;
++}
++
++static int res_qp_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct nlattr *nla_table, *nla_entry;
++	struct rd *rd = data;
++	const char *name;
++	uint32_t idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
++	    !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
++	    !tb[RDMA_NLDEV_ATTR_RES_QP])
++		return MNL_CB_ERROR;
++
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	nla_table = tb[RDMA_NLDEV_ATTR_RES_QP];
++
++	mnl_attr_for_each_nested(nla_entry, nla_table) {
++		struct nlattr *nla_line[RDMA_NLDEV_ATTR_MAX] = {};
++		uint32_t lqpn, rqpn = 0, rq_psn = 0, sq_psn;
++		uint8_t type, state, path_mig_state = 0;
++		uint32_t port = 0, pid = 0;
++		char *comm = NULL;
++		int err;
++
++		err = mnl_attr_parse_nested(nla_entry, rd_attr_cb, nla_line);
++		if (err != MNL_CB_OK)
++			return MNL_CB_ERROR;
++
++		if (!nla_line[RDMA_NLDEV_ATTR_RES_LQPN] ||
++		    !nla_line[RDMA_NLDEV_ATTR_RES_SQ_PSN] ||
++		    !nla_line[RDMA_NLDEV_ATTR_RES_TYPE] ||
++		    !nla_line[RDMA_NLDEV_ATTR_RES_STATE] ||
++		    (!nla_line[RDMA_NLDEV_ATTR_RES_PID] &&
++		     !nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])) {
++			return MNL_CB_ERROR;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_PORT_INDEX])
++			port = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_PORT_INDEX]);
++
++		if (port != rd->port_idx)
++			continue;
++
++		lqpn = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_LQPN]);
++		if (rd_check_is_filtered(rd, "lqpn", lqpn))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_RQPN]) {
++			rqpn = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_RQPN]);
++			if (rd_check_is_filtered(rd, "rqpn", rqpn))
++				continue;
++		} else {
++			if (rd_check_is_key_exist(rd, "rqpn"))
++				continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_RQ_PSN]) {
++			rq_psn = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_RQ_PSN]);
++			if (rd_check_is_filtered(rd, "rq-psn", rq_psn))
++				continue;
++		} else {
++			if (rd_check_is_key_exist(rd, "rq-psn"))
++				continue;
++		}
++
++		sq_psn = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_SQ_PSN]);
++		if (rd_check_is_filtered(rd, "sq-psn", sq_psn))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE]) {
++			path_mig_state = mnl_attr_get_u8(nla_line[RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE]);
++			if (rd_check_is_string_filtered(rd, "path-mig-state", path_mig_to_str(path_mig_state)))
++				continue;
++		} else {
++			if (rd_check_is_key_exist(rd, "path-mig-state"))
++				continue;
++		}
++
++		type = mnl_attr_get_u8(nla_line[RDMA_NLDEV_ATTR_RES_TYPE]);
++		if (rd_check_is_string_filtered(rd, "type", qp_types_to_str(type)))
++			continue;
++
++		state = mnl_attr_get_u8(nla_line[RDMA_NLDEV_ATTR_RES_STATE]);
++		if (rd_check_is_string_filtered(rd, "state", qp_states_to_str(state)))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID]) {
++			pid = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_PID]);
++			comm = get_task_name(pid);
++		}
++
++		if (rd_check_is_filtered(rd, "pid", pid)) {
++			free(comm);
++			continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])
++			/* discard const from mnl_attr_get_str */
++			comm = (char *)mnl_attr_get_str(nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME]);
++
++		if (rd->json_output)
++			jsonw_start_array(rd->jw);
++
++		print_link(rd, idx, name, port, nla_line);
++
++		print_lqpn(rd, lqpn);
++		print_rqpn(rd, rqpn, nla_line);
++
++		print_type(rd, type);
++		print_state(rd, state);
++
++		print_rqpsn(rd, rq_psn, nla_line);
++		print_sqpsn(rd, sq_psn);
++
++		print_pathmig(rd, path_mig_state, nla_line);
++		print_pid(rd, pid);
++		print_comm(rd, comm, nla_line);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID])
++			free(comm);
++
++		print_driver_table(rd, nla_line[RDMA_NLDEV_ATTR_DRIVER]);
++		newline(rd);
++	}
++	return MNL_CB_OK;
++}
++
++static void print_qp_type(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_string_field(rd->jw, "qp-type",
++				   qp_types_to_str(val));
++	else
++		pr_out("qp-type %s ", qp_types_to_str(val));
++}
++
++static const char *cm_id_state_to_str(uint8_t idx)
++{
++	static const char * const cm_id_states_str[] = {
++		"IDLE", "ADDR_QUERY", "ADDR_RESOLVED", "ROUTE_QUERY",
++		"ROUTE_RESOLVED", "CONNECT", "DISCONNECT", "ADDR_BOUND",
++		"LISTEN", "DEVICE_REMOVAL", "DESTROYING" };
++
++	if (idx < ARRAY_SIZE(cm_id_states_str))
++		return cm_id_states_str[idx];
++	return "UNKNOWN";
++}
++
++static const char *cm_id_ps_to_str(uint32_t ps)
++{
++	switch (ps) {
++	case RDMA_PS_IPOIB:
++		return "IPoIB";
++	case RDMA_PS_IB:
++		return "IPoIB";
++	case RDMA_PS_TCP:
++		return "TCP";
++	case RDMA_PS_UDP:
++		return "UDP";
++	default:
++		return "---";
++	}
++}
++
++static void print_cm_id_state(struct rd *rd, uint8_t state)
++{
++	if (rd->json_output) {
++		jsonw_string_field(rd->jw, "state", cm_id_state_to_str(state));
++		return;
++	}
++	pr_out("state %s ", cm_id_state_to_str(state));
++}
++
++static void print_ps(struct rd *rd, uint32_t ps)
++{
++	if (rd->json_output) {
++		jsonw_string_field(rd->jw, "ps", cm_id_ps_to_str(ps));
++		return;
++	}
++	pr_out("ps %s ", cm_id_ps_to_str(ps));
++}
++
++static void print_ipaddr(struct rd *rd, const char *key, char *addrstr,
++			 uint16_t port)
++{
++	if (rd->json_output) {
++		int name_size = INET6_ADDRSTRLEN+strlen(":65535");
++		char json_name[name_size];
++
++		snprintf(json_name, name_size, "%s:%u", addrstr, port);
++		jsonw_string_field(rd->jw, key, json_name);
++		return;
++	}
++	pr_out("%s %s:%u ", key, addrstr, port);
++}
++
++static int ss_ntop(struct nlattr *nla_line, char *addr_str, uint16_t *port)
++{
++	struct __kernel_sockaddr_storage *addr;
++
++	addr = (struct __kernel_sockaddr_storage *)
++						mnl_attr_get_payload(nla_line);
++	switch (addr->ss_family) {
++	case AF_INET: {
++		struct sockaddr_in *sin = (struct sockaddr_in *)addr;
++
++		if (!inet_ntop(AF_INET, (const void *)&sin->sin_addr, addr_str,
++			       INET6_ADDRSTRLEN))
++			return -EINVAL;
++		*port = ntohs(sin->sin_port);
++		break;
++	}
++	case AF_INET6: {
++		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)addr;
++
++		if (!inet_ntop(AF_INET6, (const void *)&sin6->sin6_addr,
++			       addr_str, INET6_ADDRSTRLEN))
++			return -EINVAL;
++		*port = ntohs(sin6->sin6_port);
++		break;
++	}
++	default:
++		return -EINVAL;
++	}
++	return 0;
++}
++
++static int res_cm_id_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct nlattr *nla_table, *nla_entry;
++	struct rd *rd = data;
++	const char *name;
++	int idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
++	    !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
++	    !tb[RDMA_NLDEV_ATTR_RES_CM_ID])
++		return MNL_CB_ERROR;
++
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	nla_table = tb[RDMA_NLDEV_ATTR_RES_CM_ID];
++	mnl_attr_for_each_nested(nla_entry, nla_table) {
++		struct nlattr *nla_line[RDMA_NLDEV_ATTR_MAX] = {};
++		char src_addr_str[INET6_ADDRSTRLEN];
++		char dst_addr_str[INET6_ADDRSTRLEN];
++		uint16_t src_port, dst_port;
++		uint32_t port = 0, pid = 0;
++		uint8_t type = 0, state;
++		uint32_t lqpn = 0, ps;
++		char *comm = NULL;
++		int err;
++
++		err = mnl_attr_parse_nested(nla_entry, rd_attr_cb, nla_line);
++		if (err != MNL_CB_OK)
++			return -EINVAL;
++
++		if (!nla_line[RDMA_NLDEV_ATTR_RES_STATE] ||
++		    !nla_line[RDMA_NLDEV_ATTR_RES_PS] ||
++		    (!nla_line[RDMA_NLDEV_ATTR_RES_PID] &&
++		     !nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])) {
++			return MNL_CB_ERROR;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_PORT_INDEX])
++			port = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_PORT_INDEX]);
++
++		if (port && port != rd->port_idx)
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_LQPN]) {
++			lqpn = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_RES_LQPN]);
++			if (rd_check_is_filtered(rd, "lqpn", lqpn))
++				continue;
++		}
++		if (nla_line[RDMA_NLDEV_ATTR_RES_TYPE]) {
++			type = mnl_attr_get_u8(
++					nla_line[RDMA_NLDEV_ATTR_RES_TYPE]);
++			if (rd_check_is_string_filtered(rd, "qp-type",
++							qp_types_to_str(type)))
++				continue;
++		}
++
++		ps = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_PS]);
++		if (rd_check_is_string_filtered(rd, "ps", cm_id_ps_to_str(ps)))
++			continue;
++
++		state = mnl_attr_get_u8(nla_line[RDMA_NLDEV_ATTR_RES_STATE]);
++		if (rd_check_is_string_filtered(rd, "state",
++						cm_id_state_to_str(state)))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_SRC_ADDR]) {
++			if (ss_ntop(nla_line[RDMA_NLDEV_ATTR_RES_SRC_ADDR],
++				    src_addr_str, &src_port))
++				continue;
++			if (rd_check_is_string_filtered(rd, "src-addr",
++							src_addr_str))
++				continue;
++			if (rd_check_is_filtered(rd, "src-port", src_port))
++				continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_DST_ADDR]) {
++			if (ss_ntop(nla_line[RDMA_NLDEV_ATTR_RES_DST_ADDR],
++				    dst_addr_str, &dst_port))
++				continue;
++			if (rd_check_is_string_filtered(rd, "dst-addr",
++							dst_addr_str))
++				continue;
++			if (rd_check_is_filtered(rd, "dst-port", dst_port))
++				continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID]) {
++			pid = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_RES_PID]);
++			comm = get_task_name(pid);
++		}
++
++		if (rd_check_is_filtered(rd, "pid", pid)) {
++			free(comm);
++			continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME]) {
++			/* discard const from mnl_attr_get_str */
++			comm = (char *)mnl_attr_get_str(
++				nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME]);
++		}
++
++		if (rd->json_output)
++			jsonw_start_array(rd->jw);
++
++		print_link(rd, idx, name, port, nla_line);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_LQPN])
++			print_lqpn(rd, lqpn);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_TYPE])
++			print_qp_type(rd, type);
++		print_cm_id_state(rd, state);
++		print_ps(rd, ps);
++		print_pid(rd, pid);
++		print_comm(rd, comm, nla_line);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_SRC_ADDR])
++			print_ipaddr(rd, "src-addr", src_addr_str, src_port);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_DST_ADDR])
++			print_ipaddr(rd, "dst-addr", dst_addr_str, dst_port);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID])
++			free(comm);
++
++		print_driver_table(rd, nla_line[RDMA_NLDEV_ATTR_DRIVER]);
++		newline(rd);
++	}
++	return MNL_CB_OK;
++}
++
++static void print_cqe(struct rd *rd, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "cqe", val);
++	else
++		pr_out("cqe %u ", val);
++}
++
++static void print_users(struct rd *rd, uint64_t val)
++{
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "users", val);
++	else
++		pr_out("users %" PRIu64 " ", val);
++}
++
++static const char *poll_ctx_to_str(uint8_t idx)
++{
++	static const char * const cm_id_states_str[] = {
++		"DIRECT", "SOFTIRQ", "WORKQUEUE"};
++
++	if (idx < ARRAY_SIZE(cm_id_states_str))
++		return cm_id_states_str[idx];
++	return "UNKNOWN";
++}
++
++static void print_poll_ctx(struct rd *rd, uint8_t poll_ctx)
++{
++	if (rd->json_output) {
++		jsonw_string_field(rd->jw, "poll-ctx",
++				   poll_ctx_to_str(poll_ctx));
++		return;
++	}
++	pr_out("poll-ctx %s ", poll_ctx_to_str(poll_ctx));
++}
++
++static int res_cq_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct nlattr *nla_table, *nla_entry;
++	struct rd *rd = data;
++	const char *name;
++	uint32_t idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
++	    !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
++	    !tb[RDMA_NLDEV_ATTR_RES_CQ])
++		return MNL_CB_ERROR;
++
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	nla_table = tb[RDMA_NLDEV_ATTR_RES_CQ];
++
++	mnl_attr_for_each_nested(nla_entry, nla_table) {
++		struct nlattr *nla_line[RDMA_NLDEV_ATTR_MAX] = {};
++		char *comm = NULL;
++		uint32_t pid = 0;
++		uint8_t poll_ctx = 0;
++		uint64_t users;
++		uint32_t cqe;
++		int err;
++
++		err = mnl_attr_parse_nested(nla_entry, rd_attr_cb, nla_line);
++		if (err != MNL_CB_OK)
++			return MNL_CB_ERROR;
++
++		if (!nla_line[RDMA_NLDEV_ATTR_RES_CQE] ||
++		    !nla_line[RDMA_NLDEV_ATTR_RES_USECNT] ||
++		    (!nla_line[RDMA_NLDEV_ATTR_RES_PID] &&
++		     !nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])) {
++			return MNL_CB_ERROR;
++		}
++
++		cqe = mnl_attr_get_u32(nla_line[RDMA_NLDEV_ATTR_RES_CQE]);
++
++		users = mnl_attr_get_u64(nla_line[RDMA_NLDEV_ATTR_RES_USECNT]);
++		if (rd_check_is_filtered(rd, "users", users))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_POLL_CTX]) {
++			poll_ctx = mnl_attr_get_u8(
++					nla_line[RDMA_NLDEV_ATTR_RES_POLL_CTX]);
++			if (rd_check_is_string_filtered(rd, "poll-ctx",
++						poll_ctx_to_str(poll_ctx)))
++				continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID]) {
++			pid = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_RES_PID]);
++			comm = get_task_name(pid);
++		}
++
++		if (rd_check_is_filtered(rd, "pid", pid)) {
++			free(comm);
++			continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])
++			/* discard const from mnl_attr_get_str */
++			comm = (char *)mnl_attr_get_str(
++				nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME]);
++
++		if (rd->json_output)
++			jsonw_start_array(rd->jw);
++
++		print_dev(rd, idx, name);
++		print_cqe(rd, cqe);
++		print_users(rd, users);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_POLL_CTX])
++			print_poll_ctx(rd, poll_ctx);
++		print_pid(rd, pid);
++		print_comm(rd, comm, nla_line);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID])
++			free(comm);
++
++		print_driver_table(rd, nla_line[RDMA_NLDEV_ATTR_DRIVER]);
++		newline(rd);
++	}
++	return MNL_CB_OK;
++}
++
++static void print_key(struct rd *rd, const char *name, uint32_t val)
++{
++	if (rd->json_output)
++		jsonw_xint_field(rd->jw, name, val);
++	else
++		pr_out("%s 0x%x ", name, val);
++}
++
++static void print_iova(struct rd *rd, uint64_t val)
++{
++	if (rd->json_output)
++		jsonw_xint_field(rd->jw, "iova", val);
++	else
++		pr_out("iova 0x%" PRIx64 " ", val);
++}
++
++static void print_mrlen(struct rd *rd, uint64_t val)
++{
++	if (rd->json_output)
++		jsonw_uint_field(rd->jw, "mrlen", val);
++	else
++		pr_out("mrlen %" PRIu64 " ", val);
++}
++
++static int res_mr_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct nlattr *nla_table, *nla_entry;
++	struct rd *rd = data;
++	const char *name;
++	uint32_t idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
++	    !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
++	    !tb[RDMA_NLDEV_ATTR_RES_MR])
++		return MNL_CB_ERROR;
++
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	nla_table = tb[RDMA_NLDEV_ATTR_RES_MR];
++
++	mnl_attr_for_each_nested(nla_entry, nla_table) {
++		struct nlattr *nla_line[RDMA_NLDEV_ATTR_MAX] = {};
++		uint32_t rkey = 0, lkey = 0;
++		uint64_t iova = 0, mrlen;
++		char *comm = NULL;
++		uint32_t pid = 0;
++		int err;
++
++		err = mnl_attr_parse_nested(nla_entry, rd_attr_cb, nla_line);
++		if (err != MNL_CB_OK)
++			return MNL_CB_ERROR;
++
++		if (!nla_line[RDMA_NLDEV_ATTR_RES_MRLEN] ||
++		    (!nla_line[RDMA_NLDEV_ATTR_RES_PID] &&
++		     !nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])) {
++			return MNL_CB_ERROR;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_RKEY])
++			rkey = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_RES_RKEY]);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_LKEY])
++			lkey = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_RES_LKEY]);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_IOVA])
++			iova = mnl_attr_get_u64(
++					nla_line[RDMA_NLDEV_ATTR_RES_IOVA]);
++
++		mrlen = mnl_attr_get_u64(nla_line[RDMA_NLDEV_ATTR_RES_MRLEN]);
++		if (rd_check_is_filtered(rd, "mrlen", mrlen))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID]) {
++			pid = mnl_attr_get_u32(
++					nla_line[RDMA_NLDEV_ATTR_RES_PID]);
++			comm = get_task_name(pid);
++		}
++
++		if (rd_check_is_filtered(rd, "pid", pid)) {
++			free(comm);
++			continue;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])
++			/* discard const from mnl_attr_get_str */
++			comm = (char *)mnl_attr_get_str(
++				nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME]);
++
++		if (rd->json_output)
++			jsonw_start_array(rd->jw);
++
++		print_dev(rd, idx, name);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_RKEY])
++			print_key(rd, "rkey", rkey);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_LKEY])
++			print_key(rd, "lkey", lkey);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_IOVA])
++			print_iova(rd, iova);
++		print_mrlen(rd, mrlen);
++		print_pid(rd, pid);
++		print_comm(rd, comm, nla_line);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID])
++			free(comm);
++
++		print_driver_table(rd, nla_line[RDMA_NLDEV_ATTR_DRIVER]);
++		newline(rd);
++	}
++	return MNL_CB_OK;
++}
++
++static int res_pd_parse_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct nlattr *nla_table, *nla_entry;
++	struct rd *rd = data;
++	const char *name;
++	uint32_t idx;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_INDEX] ||
++	    !tb[RDMA_NLDEV_ATTR_DEV_NAME] ||
++	    !tb[RDMA_NLDEV_ATTR_RES_PD])
++		return MNL_CB_ERROR;
++
++	name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++	idx =  mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	nla_table = tb[RDMA_NLDEV_ATTR_RES_PD];
++
++	mnl_attr_for_each_nested(nla_entry, nla_table) {
++		uint32_t local_dma_lkey = 0, unsafe_global_rkey = 0;
++		struct nlattr *nla_line[RDMA_NLDEV_ATTR_MAX] = {};
++		char *comm = NULL;
++		uint32_t pid = 0;
++		uint64_t users;
++		int err;
++
++		err = mnl_attr_parse_nested(nla_entry, rd_attr_cb, nla_line);
++		if (err != MNL_CB_OK)
++			return MNL_CB_ERROR;
++
++		if (!nla_line[RDMA_NLDEV_ATTR_RES_USECNT] ||
++		    (!nla_line[RDMA_NLDEV_ATTR_RES_PID] &&
++		     !nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])) {
++			return MNL_CB_ERROR;
++		}
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY])
++			local_dma_lkey = mnl_attr_get_u32(
++				nla_line[RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY]);
++
++		users = mnl_attr_get_u64(nla_line[RDMA_NLDEV_ATTR_RES_USECNT]);
++		if (rd_check_is_filtered(rd, "users", users))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY])
++			unsafe_global_rkey = mnl_attr_get_u32(
++			      nla_line[RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY]);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID]) {
++			pid = mnl_attr_get_u32(
++				nla_line[RDMA_NLDEV_ATTR_RES_PID]);
++			comm = get_task_name(pid);
++		}
++
++		if (rd_check_is_filtered(rd, "pid", pid))
++			continue;
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME])
++			/* discard const from mnl_attr_get_str */
++			comm = (char *)mnl_attr_get_str(
++				nla_line[RDMA_NLDEV_ATTR_RES_KERN_NAME]);
++
++		if (rd->json_output)
++			jsonw_start_array(rd->jw);
++
++		print_dev(rd, idx, name);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY])
++			print_key(rd, "local_dma_lkey", local_dma_lkey);
++		print_users(rd, users);
++		if (nla_line[RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY])
++			print_key(rd, "unsafe_global_rkey", unsafe_global_rkey);
++		print_pid(rd, pid);
++		print_comm(rd, comm, nla_line);
++
++		if (nla_line[RDMA_NLDEV_ATTR_RES_PID])
++			free(comm);
++
++		print_driver_table(rd, nla_line[RDMA_NLDEV_ATTR_DRIVER]);
++		newline(rd);
++	}
++	return MNL_CB_OK;
++}
++
++RES_FUNC(res_no_args,	RDMA_NLDEV_CMD_RES_GET,	NULL, true);
++
++static const struct
++filters qp_valid_filters[MAX_NUMBER_OF_FILTERS] = {{ .name = "link",
++						   .is_number = false },
++						   { .name = "lqpn",
++						   .is_number = true },
++						   { .name = "rqpn",
++						   .is_number = true },
++						   { .name = "pid",
++						   .is_number = true },
++						   { .name = "sq-psn",
++						   .is_number = true },
++						   { .name = "rq-psn",
++						   .is_number = true },
++						   { .name = "type",
++						   .is_number = false },
++						   { .name = "path-mig-state",
++						   .is_number = false },
++						   { .name = "state",
++						   .is_number = false } };
++
++RES_FUNC(res_qp,	RDMA_NLDEV_CMD_RES_QP_GET, qp_valid_filters, false);
++
++static const
++struct filters cm_id_valid_filters[MAX_NUMBER_OF_FILTERS] = {
++	{ .name = "link", .is_number = false },
++	{ .name = "lqpn", .is_number = true },
++	{ .name = "qp-type", .is_number = false },
++	{ .name = "state", .is_number = false },
++	{ .name = "ps", .is_number = false },
++	{ .name = "dev-type", .is_number = false },
++	{ .name = "transport-type", .is_number = false },
++	{ .name = "pid", .is_number = true },
++	{ .name = "src-addr", .is_number = false },
++	{ .name = "src-port", .is_number = true },
++	{ .name = "dst-addr", .is_number = false },
++	{ .name = "dst-port", .is_number = true }
++};
++
++RES_FUNC(res_cm_id, RDMA_NLDEV_CMD_RES_CM_ID_GET, cm_id_valid_filters, false);
++
++static const
++struct filters cq_valid_filters[MAX_NUMBER_OF_FILTERS] = {
++	{ .name = "dev", .is_number = false },
++	{ .name = "users", .is_number = true },
++	{ .name = "poll-ctx", .is_number = false },
++	{ .name = "pid", .is_number = true }
++};
++
++RES_FUNC(res_cq, RDMA_NLDEV_CMD_RES_CQ_GET, cq_valid_filters, true);
++
++static const
++struct filters mr_valid_filters[MAX_NUMBER_OF_FILTERS] = {
++	{ .name = "dev", .is_number = false },
++	{ .name = "rkey", .is_number = true },
++	{ .name = "lkey", .is_number = true },
++	{ .name = "mrlen", .is_number = true },
++	{ .name = "pid", .is_number = true }
++};
++
++RES_FUNC(res_mr, RDMA_NLDEV_CMD_RES_MR_GET, mr_valid_filters, true);
++
++static const
++struct filters pd_valid_filters[MAX_NUMBER_OF_FILTERS] = {
++	{ .name = "dev", .is_number = false },
++	{ .name = "users", .is_number = true },
++	{ .name = "pid", .is_number = true }
++};
++
++RES_FUNC(res_pd, RDMA_NLDEV_CMD_RES_PD_GET, pd_valid_filters, true);
++
++static int res_show(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		res_no_args	},
++		{ "qp",		res_qp		},
++		{ "cm_id",	res_cm_id	},
++		{ "cq",		res_cq		},
++		{ "mr",		res_mr		},
++		{ "pd",		res_pd		},
++		{ 0 }
++	};
++
++	/*
++	 * Special case to support "rdma res show DEV_NAME"
++	 */
++	if (rd_argc(rd) == 1 && dev_map_lookup(rd, false))
++		return rd_exec_dev(rd, _res_no_args);
++
++	return rd_exec_cmd(rd, cmds, "parameter");
++}
++
++int cmd_res(struct rd *rd)
++{
++	const struct rd_cmd cmds[] = {
++		{ NULL,		res_show },
++		{ "show",	res_show },
++		{ "list",	res_show },
++		{ "help",	res_help },
++		{ 0 }
++	};
++
++	return rd_exec_cmd(rd, cmds, "resource command");
++}
+diff --git a/rdma/utils.c b/rdma/utils.c
+new file mode 100644
+index 0000000000000..069d44fece101
+--- /dev/null
++++ b/rdma/utils.c
+@@ -0,0 +1,868 @@
++/*
++ * utils.c	RDMA tool
++ *
++ *              This program is free software; you can redistribute it and/or
++ *              modify it under the terms of the GNU General Public License
++ *              as published by the Free Software Foundation; either version
++ *              2 of the License, or (at your option) any later version.
++ *
++ * Authors:     Leon Romanovsky <leonro@mellanox.com>
++ */
++
++#include "rdma.h"
++#include <ctype.h>
++#include <inttypes.h>
++
++int rd_argc(struct rd *rd)
++{
++	return rd->argc;
++}
++
++char *rd_argv(struct rd *rd)
++{
++	if (!rd_argc(rd))
++		return NULL;
++	return *rd->argv;
++}
++
++int strcmpx(const char *str1, const char *str2)
++{
++	if (strlen(str1) > strlen(str2))
++		return -1;
++	return strncmp(str1, str2, strlen(str1));
++}
++
++static bool rd_argv_match(struct rd *rd, const char *pattern)
++{
++	if (!rd_argc(rd))
++		return false;
++	return strcmpx(rd_argv(rd), pattern) == 0;
++}
++
++void rd_arg_inc(struct rd *rd)
++{
++	if (!rd_argc(rd))
++		return;
++	rd->argc--;
++	rd->argv++;
++}
++
++bool rd_no_arg(struct rd *rd)
++{
++	return rd_argc(rd) == 0;
++}
++
++/*
++ * Possible input:output
++ * dev/port    | first port | is_dump_all
++ * mlx5_1      | 0          | true
++ * mlx5_1/     | 0          | true
++ * mlx5_1/0    | 0          | false
++ * mlx5_1/1    | 1          | false
++ * mlx5_1/-    | 0          | false
++ *
++ * In strict mode, /- will return error.
++ */
++static int get_port_from_argv(struct rd *rd, uint32_t *port,
++			      bool *is_dump_all, bool strict_port)
++{
++	char *slash;
++
++	*port = 0;
++	*is_dump_all = true;
++
++	slash = strchr(rd_argv(rd), '/');
++	/* if no port found, return 0 */
++	if (slash++) {
++		if (*slash == '-') {
++			if (strict_port)
++				return -EINVAL;
++			*is_dump_all = false;
++			return 0;
++		}
++
++		if (isdigit(*slash)) {
++			*is_dump_all = false;
++			*port = atoi(slash);
++		}
++		if (!*port && strlen(slash))
++			return -EINVAL;
++	}
++	return 0;
++}
++
++static struct dev_map *dev_map_alloc(const char *dev_name)
++{
++	struct dev_map *dev_map;
++
++	dev_map = calloc(1, sizeof(*dev_map));
++	if (!dev_map)
++		return NULL;
++	dev_map->dev_name = strdup(dev_name);
++	if (!dev_map->dev_name) {
++		free(dev_map);
++		return NULL;
++	}
++
++	return dev_map;
++}
++
++static void dev_map_cleanup(struct rd *rd)
++{
++	struct dev_map *dev_map, *tmp;
++
++	list_for_each_entry_safe(dev_map, tmp,
++				 &rd->dev_map_list, list) {
++		list_del(&dev_map->list);
++		free(dev_map->dev_name);
++		free(dev_map);
++	}
++}
++
++static int add_filter(struct rd *rd, char *key, char *value,
++		      const struct filters valid_filters[])
++{
++	char cset[] = "1234567890,-";
++	struct filter_entry *fe;
++	bool key_found = false;
++	int idx = 0;
++	int ret;
++
++	fe = calloc(1, sizeof(*fe));
++	if (!fe)
++		return -ENOMEM;
++
++	while (idx < MAX_NUMBER_OF_FILTERS && valid_filters[idx].name) {
++		if (!strcmpx(key, valid_filters[idx].name)) {
++			key_found = true;
++			break;
++		}
++		idx++;
++	}
++	if (!key_found) {
++		pr_err("Unsupported filter option: %s\n", key);
++		ret = -EINVAL;
++		goto err;
++	}
++
++	/*
++	 * Check the filter validity, not optimal, but works
++	 *
++	 * Actually, there are three types of filters
++	 *  numeric - for example PID or QPN
++	 *  string  - for example states
++	 *  link    - user requested to filter on specific link
++	 *            e.g. mlx5_1/1, mlx5_1/-, mlx5_1 ...
++	 */
++	if (valid_filters[idx].is_number &&
++	    strspn(value, cset) != strlen(value)) {
++		pr_err("%s filter accepts \"%s\" characters only\n", key, cset);
++		ret = -EINVAL;
++		goto err;
++	}
++
++	fe->key = strdup(key);
++	fe->value = strdup(value);
++	if (!fe->key || !fe->value) {
++		ret = -ENOMEM;
++		goto err_alloc;
++	}
++
++	for (idx = 0; idx < strlen(fe->value); idx++)
++		fe->value[idx] = tolower(fe->value[idx]);
++
++	list_add_tail(&fe->list, &rd->filter_list);
++	return 0;
++
++err_alloc:
++	free(fe->value);
++	free(fe->key);
++err:
++	free(fe);
++	return ret;
++}
++
++int rd_build_filter(struct rd *rd, const struct filters valid_filters[])
++{
++	int ret = 0;
++	int idx = 0;
++
++	if (!valid_filters || !rd_argc(rd))
++		goto out;
++
++	if (rd_argc(rd) == 1) {
++		pr_err("No filter data was supplied to filter option %s\n", rd_argv(rd));
++		ret = -EINVAL;
++		goto out;
++	}
++
++	if (rd_argc(rd) % 2) {
++		pr_err("There is filter option without data\n");
++		ret = -EINVAL;
++		goto out;
++	}
++
++	while (idx != rd_argc(rd)) {
++		/*
++		 * We can do micro-optimization and skip "dev"
++		 * and "link" filters, but it is not worth of it.
++		 */
++		ret = add_filter(rd, *(rd->argv + idx),
++				 *(rd->argv + idx + 1), valid_filters);
++		if (ret)
++			goto out;
++		idx += 2;
++	}
++
++out:
++	return ret;
++}
++
++bool rd_check_is_key_exist(struct rd *rd, const char *key)
++{
++	struct filter_entry *fe;
++
++	list_for_each_entry(fe, &rd->filter_list, list) {
++		if (!strcmpx(fe->key, key))
++			return true;
++	}
++
++	return false;
++}
++
++/*
++ * Check if string entry is filtered:
++ *  * key doesn't exist -> user didn't request -> not filtered
++ */
++bool rd_check_is_string_filtered(struct rd *rd,
++				 const char *key, const char *val)
++{
++	bool key_is_filtered = false;
++	struct filter_entry *fe;
++	char *p = NULL;
++	char *str;
++
++	list_for_each_entry(fe, &rd->filter_list, list) {
++		if (!strcmpx(fe->key, key)) {
++			/* We found the key */
++			p = strdup(fe->value);
++			key_is_filtered = true;
++			if (!p) {
++				/*
++				 * Something extremely wrong if we fail
++				 * to allocate small amount of bytes.
++				 */
++				pr_err("Found key, but failed to allocate memory to store value\n");
++				return key_is_filtered;
++			}
++
++			/*
++			 * Need to check if value in range
++			 * It can come in the following formats
++			 * and their permutations:
++			 * str
++			 * str1,str2
++			 */
++			str = strtok(p, ",");
++			while (str) {
++				if (strlen(str) == strlen(val) &&
++				    !strcasecmp(str, val)) {
++					key_is_filtered = false;
++					goto out;
++				}
++				str = strtok(NULL, ",");
++			}
++			goto out;
++		}
++	}
++
++out:
++	free(p);
++	return key_is_filtered;
++}
++
++/*
++ * Check if key is filtered:
++ * key doesn't exist -> user didn't request -> not filtered
++ */
++bool rd_check_is_filtered(struct rd *rd, const char *key, uint32_t val)
++{
++	bool key_is_filtered = false;
++	struct filter_entry *fe;
++
++	list_for_each_entry(fe, &rd->filter_list, list) {
++		uint32_t left_val = 0, fe_value = 0;
++		bool range_check = false;
++		char *p = fe->value;
++
++		if (!strcmpx(fe->key, key)) {
++			/* We found the key */
++			key_is_filtered = true;
++			/*
++			 * Need to check if value in range
++			 * It can come in the following formats
++			 * (and their permutations):
++			 * numb
++			 * numb1,numb2
++			 * ,numb1,numb2
++			 * numb1-numb2
++			 * numb1,numb2-numb3,numb4-numb5
++			 */
++			while (*p) {
++				if (isdigit(*p)) {
++					fe_value = strtol(p, &p, 10);
++					if (fe_value == val ||
++					    (range_check && left_val < val &&
++					     val < fe_value)) {
++						key_is_filtered = false;
++						goto out;
++					}
++					range_check = false;
++				} else {
++					if (*p == '-') {
++						left_val = fe_value;
++						range_check = true;
++					}
++					p++;
++				}
++			}
++			goto out;
++		}
++	}
++
++out:
++	return key_is_filtered;
++}
++
++static void filters_cleanup(struct rd *rd)
++{
++	struct filter_entry *fe, *tmp;
++
++	list_for_each_entry_safe(fe, tmp,
++				 &rd->filter_list, list) {
++		list_del(&fe->list);
++		free(fe->key);
++		free(fe->value);
++		free(fe);
++	}
++}
++
++static const enum mnl_attr_data_type nldev_policy[RDMA_NLDEV_ATTR_MAX] = {
++	[RDMA_NLDEV_ATTR_DEV_INDEX] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_DEV_NAME] = MNL_TYPE_NUL_STRING,
++	[RDMA_NLDEV_ATTR_PORT_INDEX] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_CAP_FLAGS] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_FW_VERSION] = MNL_TYPE_NUL_STRING,
++	[RDMA_NLDEV_ATTR_NODE_GUID] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_SYS_IMAGE_GUID] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_LID] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_SM_LID] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_LMC] = MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_PORT_STATE] = MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_PORT_PHYS_STATE] = MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_DEV_NODE_TYPE] = MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_RES_SUMMARY]	= MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY]	= MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_NAME] = MNL_TYPE_NUL_STRING,
++	[RDMA_NLDEV_ATTR_RES_SUMMARY_ENTRY_CURR] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_RES_QP]		= MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_QP_ENTRY]		= MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_LQPN]	= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_RQPN]	= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_RQ_PSN]		= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_SQ_PSN]		= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_PATH_MIG_STATE]	= MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_RES_TYPE]		= MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_RES_STATE]		= MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_RES_PID]		= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_KERN_NAME]	= MNL_TYPE_NUL_STRING,
++	[RDMA_NLDEV_ATTR_RES_CM_ID]		= MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY]	= MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_PS]		= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_SRC_ADDR]		= MNL_TYPE_UNSPEC,
++	[RDMA_NLDEV_ATTR_RES_DST_ADDR]		= MNL_TYPE_UNSPEC,
++	[RDMA_NLDEV_ATTR_RES_CQ] = MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_CQ_ENTRY] = MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_CQE] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_USECNT] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_RES_POLL_CTX] = MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_RES_MR] = MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_MR_ENTRY] = MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_RES_RKEY] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_LKEY] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_RES_IOVA] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_RES_MRLEN] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_NDEV_INDEX]		= MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_NDEV_NAME]		= MNL_TYPE_NUL_STRING,
++	[RDMA_NLDEV_ATTR_DRIVER] = MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_DRIVER_ENTRY] = MNL_TYPE_NESTED,
++	[RDMA_NLDEV_ATTR_DRIVER_STRING] = MNL_TYPE_NUL_STRING,
++	[RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE] = MNL_TYPE_U8,
++	[RDMA_NLDEV_ATTR_DRIVER_S32] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_DRIVER_U32] = MNL_TYPE_U32,
++	[RDMA_NLDEV_ATTR_DRIVER_S64] = MNL_TYPE_U64,
++	[RDMA_NLDEV_ATTR_DRIVER_U64] = MNL_TYPE_U64,
++};
++
++int rd_attr_check(const struct nlattr *attr, int *typep)
++{
++	int type;
++
++	if (mnl_attr_type_valid(attr, RDMA_NLDEV_ATTR_MAX) < 0)
++		return MNL_CB_ERROR;
++
++	type = mnl_attr_get_type(attr);
++
++	if (mnl_attr_validate(attr, nldev_policy[type]) < 0)
++		return MNL_CB_ERROR;
++
++	*typep = nldev_policy[type];
++	return MNL_CB_OK;
++}
++
++int rd_attr_cb(const struct nlattr *attr, void *data)
++{
++	const struct nlattr **tb = data;
++	int type;
++
++	if (mnl_attr_type_valid(attr, RDMA_NLDEV_ATTR_MAX - 1) < 0)
++		/* We received unknown attribute */
++		return MNL_CB_OK;
++
++	type = mnl_attr_get_type(attr);
++
++	if (mnl_attr_validate(attr, nldev_policy[type]) < 0)
++		return MNL_CB_ERROR;
++
++	tb[type] = attr;
++	return MNL_CB_OK;
++}
++
++int rd_dev_init_cb(const struct nlmsghdr *nlh, void *data)
++{
++	struct nlattr *tb[RDMA_NLDEV_ATTR_MAX] = {};
++	struct dev_map *dev_map;
++	struct rd *rd = data;
++	const char *dev_name;
++
++	mnl_attr_parse(nlh, 0, rd_attr_cb, tb);
++	if (!tb[RDMA_NLDEV_ATTR_DEV_NAME] || !tb[RDMA_NLDEV_ATTR_DEV_INDEX])
++		return MNL_CB_ERROR;
++	if (!tb[RDMA_NLDEV_ATTR_PORT_INDEX]) {
++		pr_err("This tool doesn't support switches yet\n");
++		return MNL_CB_ERROR;
++	}
++
++	dev_name = mnl_attr_get_str(tb[RDMA_NLDEV_ATTR_DEV_NAME]);
++
++	dev_map = dev_map_alloc(dev_name);
++	if (!dev_map)
++		/* The main function will cleanup the allocations */
++		return MNL_CB_ERROR;
++	list_add_tail(&dev_map->list, &rd->dev_map_list);
++
++	dev_map->num_ports = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_PORT_INDEX]);
++	dev_map->idx = mnl_attr_get_u32(tb[RDMA_NLDEV_ATTR_DEV_INDEX]);
++	return MNL_CB_OK;
++}
++
++void rd_free(struct rd *rd)
++{
++	if (!rd)
++		return;
++	free(rd->buff);
++	dev_map_cleanup(rd);
++	filters_cleanup(rd);
++}
++
++int rd_set_arg_to_devname(struct rd *rd)
++{
++	int ret = 0;
++
++	while (!rd_no_arg(rd)) {
++		if (rd_argv_match(rd, "dev") || rd_argv_match(rd, "link")) {
++			rd_arg_inc(rd);
++			if (rd_no_arg(rd)) {
++				pr_err("No device name was supplied\n");
++				ret = -EINVAL;
++			}
++			goto out;
++		}
++		rd_arg_inc(rd);
++	}
++out:
++	return ret;
++}
++
++int rd_exec_link(struct rd *rd, int (*cb)(struct rd *rd), bool strict_port)
++{
++	struct dev_map *dev_map;
++	uint32_t port;
++	int ret = 0;
++
++	if (rd->json_output)
++		jsonw_start_array(rd->jw);
++	if (rd_no_arg(rd)) {
++		list_for_each_entry(dev_map, &rd->dev_map_list, list) {
++			rd->dev_idx = dev_map->idx;
++			port = (strict_port) ? 1 : 0;
++			for (; port < dev_map->num_ports + 1; port++) {
++				rd->port_idx = port;
++				ret = cb(rd);
++				if (ret)
++					goto out;
++			}
++		}
++
++	} else {
++		bool is_dump_all;
++
++		dev_map = dev_map_lookup(rd, true);
++		ret = get_port_from_argv(rd, &port, &is_dump_all, strict_port);
++		if (!dev_map || port > dev_map->num_ports || (!port && ret)) {
++			pr_err("Wrong device name\n");
++			ret = -ENOENT;
++			goto out;
++		}
++		rd_arg_inc(rd);
++		rd->dev_idx = dev_map->idx;
++		rd->port_idx = port;
++		for (; rd->port_idx < dev_map->num_ports + 1; rd->port_idx++) {
++			ret = cb(rd);
++			if (ret)
++				goto out;
++			if (!is_dump_all)
++				/*
++				 * We got request to show link for devname
++				 * with port index.
++				 */
++				break;
++		}
++	}
++
++out:
++	if (rd->json_output)
++		jsonw_end_array(rd->jw);
++	return ret;
++}
++
++int rd_exec_dev(struct rd *rd, int (*cb)(struct rd *rd))
++{
++	struct dev_map *dev_map;
++	int ret = 0;
++
++	if (rd->json_output)
++		jsonw_start_array(rd->jw);
++	if (rd_no_arg(rd)) {
++		list_for_each_entry(dev_map, &rd->dev_map_list, list) {
++			rd->dev_idx = dev_map->idx;
++			ret = cb(rd);
++			if (ret)
++				goto out;
++		}
++	} else {
++		dev_map = dev_map_lookup(rd, false);
++		if (!dev_map) {
++			pr_err("Wrong device name - %s\n", rd_argv(rd));
++			ret = -ENOENT;
++			goto out;
++		}
++		rd_arg_inc(rd);
++		rd->dev_idx = dev_map->idx;
++		ret = cb(rd);
++	}
++out:
++	if (rd->json_output)
++		jsonw_end_array(rd->jw);
++	return ret;
++}
++
++int rd_exec_require_dev(struct rd *rd, int (*cb)(struct rd *rd))
++{
++	if (rd_no_arg(rd)) {
++		pr_err("Please provide device name.\n");
++		return -EINVAL;
++	}
++
++	return rd_exec_dev(rd, cb);
++}
++
++int rd_exec_cmd(struct rd *rd, const struct rd_cmd *cmds, const char *str)
++{
++	const struct rd_cmd *c;
++
++	/* First argument in objs table is default variant */
++	if (rd_no_arg(rd))
++		return cmds->func(rd);
++
++	for (c = cmds + 1; c->cmd; ++c) {
++		if (rd_argv_match(rd, c->cmd)) {
++			/* Move to next argument */
++			rd_arg_inc(rd);
++			return c->func(rd);
++		}
++	}
++
++	pr_err("Unknown %s '%s'.\n", str, rd_argv(rd));
++	return 0;
++}
++
++void rd_prepare_msg(struct rd *rd, uint32_t cmd, uint32_t *seq, uint16_t flags)
++{
++	*seq = time(NULL);
++
++	rd->nlh = mnl_nlmsg_put_header(rd->buff);
++	rd->nlh->nlmsg_type = RDMA_NL_GET_TYPE(RDMA_NL_NLDEV, cmd);
++	rd->nlh->nlmsg_seq = *seq;
++	rd->nlh->nlmsg_flags = flags;
++}
++
++int rd_send_msg(struct rd *rd)
++{
++	int ret;
++
++	rd->nl = mnl_socket_open(NETLINK_RDMA);
++	if (!rd->nl) {
++		pr_err("Failed to open NETLINK_RDMA socket\n");
++		return -ENODEV;
++	}
++
++	ret = mnl_socket_bind(rd->nl, 0, MNL_SOCKET_AUTOPID);
++	if (ret < 0) {
++		pr_err("Failed to bind socket with err %d\n", ret);
++		goto err;
++	}
++
++	ret = mnl_socket_sendto(rd->nl, rd->nlh, rd->nlh->nlmsg_len);
++	if (ret < 0) {
++		pr_err("Failed to send to socket with err %d\n", ret);
++		goto err;
++	}
++	return 0;
++
++err:
++	mnl_socket_close(rd->nl);
++	return ret;
++}
++
++int rd_recv_msg(struct rd *rd, mnl_cb_t callback, void *data, unsigned int seq)
++{
++	int ret;
++	unsigned int portid;
++	char buf[MNL_SOCKET_BUFFER_SIZE];
++
++	portid = mnl_socket_get_portid(rd->nl);
++	do {
++		ret = mnl_socket_recvfrom(rd->nl, buf, sizeof(buf));
++		if (ret <= 0)
++			break;
++
++		ret = mnl_cb_run(buf, ret, seq, portid, callback, data);
++	} while (ret > 0);
++
++	mnl_socket_close(rd->nl);
++	return ret;
++}
++
++static struct dev_map *_dev_map_lookup(struct rd *rd, const char *dev_name)
++{
++	struct dev_map *dev_map;
++
++	list_for_each_entry(dev_map, &rd->dev_map_list, list)
++		if (strcmp(dev_name, dev_map->dev_name) == 0)
++			return dev_map;
++
++	return NULL;
++}
++
++struct dev_map *dev_map_lookup(struct rd *rd, bool allow_port_index)
++{
++	struct dev_map *dev_map;
++	char *dev_name;
++	char *slash;
++
++	if (rd_no_arg(rd))
++		return NULL;
++
++	dev_name = strdup(rd_argv(rd));
++	if (allow_port_index) {
++		slash = strrchr(dev_name, '/');
++		if (slash)
++			*slash = '\0';
++	}
++
++	dev_map = _dev_map_lookup(rd, dev_name);
++	free(dev_name);
++	return dev_map;
++}
++
++#define nla_type(attr) ((attr)->nla_type & NLA_TYPE_MASK)
++
++void newline(struct rd *rd)
++{
++	if (rd->json_output)
++		jsonw_end_array(rd->jw);
++	else
++		pr_out("\n");
++}
++
++void newline_indent(struct rd *rd)
++{
++	newline(rd);
++	if (!rd->json_output)
++		pr_out("    ");
++}
++
++static int print_driver_string(struct rd *rd, const char *key_str,
++				 const char *val_str)
++{
++	if (rd->json_output) {
++		jsonw_string_field(rd->jw, key_str, val_str);
++		return 0;
++	} else {
++		return pr_out("%s %s ", key_str, val_str);
++	}
++}
++
++static int print_driver_s32(struct rd *rd, const char *key_str, int32_t val,
++			      enum rdma_nldev_print_type print_type)
++{
++	if (rd->json_output) {
++		jsonw_int_field(rd->jw, key_str, val);
++		return 0;
++	}
++	switch (print_type) {
++	case RDMA_NLDEV_PRINT_TYPE_UNSPEC:
++		return pr_out("%s %d ", key_str, val);
++	case RDMA_NLDEV_PRINT_TYPE_HEX:
++		return pr_out("%s 0x%x ", key_str, val);
++	default:
++		return -EINVAL;
++	}
++}
++
++static int print_driver_u32(struct rd *rd, const char *key_str, uint32_t val,
++			      enum rdma_nldev_print_type print_type)
++{
++	if (rd->json_output) {
++		jsonw_int_field(rd->jw, key_str, val);
++		return 0;
++	}
++	switch (print_type) {
++	case RDMA_NLDEV_PRINT_TYPE_UNSPEC:
++		return pr_out("%s %u ", key_str, val);
++	case RDMA_NLDEV_PRINT_TYPE_HEX:
++		return pr_out("%s 0x%x ", key_str, val);
++	default:
++		return -EINVAL;
++	}
++}
++
++static int print_driver_s64(struct rd *rd, const char *key_str, int64_t val,
++			      enum rdma_nldev_print_type print_type)
++{
++	if (rd->json_output) {
++		jsonw_int_field(rd->jw, key_str, val);
++		return 0;
++	}
++	switch (print_type) {
++	case RDMA_NLDEV_PRINT_TYPE_UNSPEC:
++		return pr_out("%s %" PRId64 " ", key_str, val);
++	case RDMA_NLDEV_PRINT_TYPE_HEX:
++		return pr_out("%s 0x%" PRIx64 " ", key_str, val);
++	default:
++		return -EINVAL;
++	}
++}
++
++static int print_driver_u64(struct rd *rd, const char *key_str, uint64_t val,
++			      enum rdma_nldev_print_type print_type)
++{
++	if (rd->json_output) {
++		jsonw_int_field(rd->jw, key_str, val);
++		return 0;
++	}
++	switch (print_type) {
++	case RDMA_NLDEV_PRINT_TYPE_UNSPEC:
++		return pr_out("%s %" PRIu64 " ", key_str, val);
++	case RDMA_NLDEV_PRINT_TYPE_HEX:
++		return pr_out("%s 0x%" PRIx64 " ", key_str, val);
++	default:
++		return -EINVAL;
++	}
++}
++
++static int print_driver_entry(struct rd *rd, struct nlattr *key_attr,
++				struct nlattr *val_attr,
++				enum rdma_nldev_print_type print_type)
++{
++	const char *key_str = mnl_attr_get_str(key_attr);
++	int attr_type = nla_type(val_attr);
++
++	switch (attr_type) {
++	case RDMA_NLDEV_ATTR_DRIVER_STRING:
++		return print_driver_string(rd, key_str,
++				mnl_attr_get_str(val_attr));
++	case RDMA_NLDEV_ATTR_DRIVER_S32:
++		return print_driver_s32(rd, key_str,
++				mnl_attr_get_u32(val_attr), print_type);
++	case RDMA_NLDEV_ATTR_DRIVER_U32:
++		return print_driver_u32(rd, key_str,
++				mnl_attr_get_u32(val_attr), print_type);
++	case RDMA_NLDEV_ATTR_DRIVER_S64:
++		return print_driver_s64(rd, key_str,
++				mnl_attr_get_u64(val_attr), print_type);
++	case RDMA_NLDEV_ATTR_DRIVER_U64:
++		return print_driver_u64(rd, key_str,
++				mnl_attr_get_u64(val_attr), print_type);
++	}
++	return -EINVAL;
++}
++
++void print_driver_table(struct rd *rd, struct nlattr *tb)
++{
++	int print_type = RDMA_NLDEV_PRINT_TYPE_UNSPEC;
++	struct nlattr *tb_entry, *key = NULL, *val;
++	int type, cc = 0;
++	int ret;
++
++	if (!rd->show_driver_details || !tb)
++		return;
++
++	if (rd->pretty_output)
++		newline_indent(rd);
++
++	/*
++	 * Driver attrs are tuples of {key, [print-type], value}.
++	 * The key must be a string.  If print-type is present, it
++	 * defines an alternate printf format type vs the native format
++	 * for the attribute.  And the value can be any available
++	 * driver type.
++	 */
++	mnl_attr_for_each_nested(tb_entry, tb) {
++
++		if (cc > MAX_LINE_LENGTH) {
++			if (rd->pretty_output)
++				newline_indent(rd);
++			cc = 0;
++		}
++		if (rd_attr_check(tb_entry, &type) != MNL_CB_OK)
++			return;
++		if (!key) {
++			if (type != MNL_TYPE_NUL_STRING)
++				return;
++			key = tb_entry;
++		} else if (type == MNL_TYPE_U8) {
++			print_type = mnl_attr_get_u8(tb_entry);
++		} else {
++			val = tb_entry;
++			ret = print_driver_entry(rd, key, val, print_type);
++			if (ret < 0)
++				return;
++			cc += ret;
++			print_type = RDMA_NLDEV_PRINT_TYPE_UNSPEC;
++			key = NULL;
++		}
++	}
++	return;
++}
+-- 
+2.20.1
+

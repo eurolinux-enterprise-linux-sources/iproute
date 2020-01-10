@@ -1,0 +1,36 @@
+From 23e13f60728a68b2c4a5b3656a1ce79affaafc6d Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ss: Drop useless assignment
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit e469523e8e8d1
+
+commit e469523e8e8d1d31c3b35251105e2a843216d687
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:30 2017 +0200
+
+    ss: Drop useless assignment
+
+    After '*b = *a', 'b->next' already has the same value as 'a->next'.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index 38f4017e4a8c8..cc38fc499c210 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -1476,7 +1476,6 @@ static int remember_he(struct aafilter *a, struct hostent *he)
+ 			if ((b = malloc(sizeof(*b))) == NULL)
+ 				return cnt;
+ 			*b = *a;
+-			b->next = a->next;
+ 			a->next = b;
+ 		}
+ 		memcpy(b->addr.data, *ptr, len);
+-- 
+2.20.1
+

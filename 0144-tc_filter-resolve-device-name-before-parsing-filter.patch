@@ -1,0 +1,113 @@
+From 83b78ff645260a51ff5d643169009faeb3032d3c Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Tue, 18 Jun 2019 20:02:54 +0200
+Subject: [PATCH] tc_filter: resolve device name before parsing filter
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1721291
+Upstream Status: iproute2.git commit 01ea76b1cf545
+
+commit 01ea76b1cf54516c71a9a54fba672410ada2cccb
+Author: Jakub Kicinski <jakub.kicinski@netronome.com>
+Date:   Thu Nov 23 18:12:06 2017 -0800
+
+    tc_filter: resolve device name before parsing filter
+
+    Move resolving device name into an ifindex before calling filter
+    specific callbacks.  This way if filters need the ifindex, they
+    can read it from the request.
+
+    Signed-off-by: Jakub Kicinski <jakub.kicinski@netronome.com>
+    Reviewed-by: Quentin Monnet <quentin.monnet@netronome.com>
+    Acked-by: Daniel Borkmann <daniel@iogearbox.net>
+---
+ tc/tc_filter.c | 50 ++++++++++++++++++++++++--------------------------
+ 1 file changed, 24 insertions(+), 26 deletions(-)
+
+diff --git a/tc/tc_filter.c b/tc/tc_filter.c
+index 8dbebf1ffa32a..e479039159df6 100644
+--- a/tc/tc_filter.c
++++ b/tc/tc_filter.c
+@@ -161,6 +161,16 @@ static int tc_filter_modify(int cmd, unsigned int flags, int argc, char **argv)
+ 	if (k[0])
+ 		addattr_l(&req.n, sizeof(req), TCA_KIND, k, strlen(k)+1);
+ 
++	if (d[0])  {
++		ll_init_map(&rth);
++
++		req.t.tcm_ifindex = ll_name_to_index(d);
++		if (req.t.tcm_ifindex == 0) {
++			fprintf(stderr, "Cannot find device \"%s\"\n", d);
++			return 1;
++		}
++	}
++
+ 	if (q) {
+ 		if (q->parse_fopt(q, fhandle, argc, argv, &req.n))
+ 			return 1;
+@@ -183,17 +193,6 @@ static int tc_filter_modify(int cmd, unsigned int flags, int argc, char **argv)
+ 	if (est.ewma_log)
+ 		addattr_l(&req.n, sizeof(req), TCA_RATE, &est, sizeof(est));
+ 
+-
+-	if (d[0])  {
+-		ll_init_map(&rth);
+-
+-		req.t.tcm_ifindex = ll_name_to_index(d);
+-		if (req.t.tcm_ifindex == 0) {
+-			fprintf(stderr, "Cannot find device \"%s\"\n", d);
+-			return 1;
+-		}
+-	}
+-
+ 	if (rtnl_talk(&rth, &req.n, NULL) < 0) {
+ 		fprintf(stderr, "We have an error talking to the kernel\n");
+ 		return 2;
+@@ -453,10 +452,23 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
+ 		return -1;
+ 	}
+ 
++	if (d[0])  {
++		ll_init_map(&rth);
++
++		req.t.tcm_ifindex = ll_name_to_index(d);
++		if (req.t.tcm_ifindex  == 0) {
++			fprintf(stderr, "Cannot find device \"%s\"\n", d);
++			return 1;
++		}
++		filter_ifindex = req.t.tcm_ifindex;
++	} else {
++		fprintf(stderr, "Must specify netdevice \"dev\"\n");
++		return -1;
++	}
++
+ 	if (q->parse_fopt(q, fhandle, argc, argv, &req.n))
+ 		return 1;
+ 
+-
+ 	if (!fhandle) {
+ 		fprintf(stderr, "Must specify filter \"handle\"\n");
+ 		return -1;
+@@ -471,20 +483,6 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
+ 		return -1;
+ 	}
+ 
+-	if (d[0])  {
+-		ll_init_map(&rth);
+-
+-		req.t.tcm_ifindex = ll_name_to_index(d);
+-		if (req.t.tcm_ifindex  == 0) {
+-			fprintf(stderr, "Cannot find device \"%s\"\n", d);
+-			return 1;
+-		}
+-		filter_ifindex = req.t.tcm_ifindex;
+-	} else {
+-		fprintf(stderr, "Must specify netdevice \"dev\"\n");
+-		return -1;
+-	}
+-
+ 	if (rtnl_talk(&rth, &req.n, &answer) < 0) {
+ 		fprintf(stderr, "We have an error talking to the kernel\n");
+ 		return 2;
+-- 
+2.20.1
+

@@ -1,0 +1,45 @@
+From 3f74fdcd943982101775db3b4240a6f953d1198d Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] ifstat: Fix memleak in dump_kern_db() for json output
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit b530cef0e3bbd
+
+commit b530cef0e3bbd27510e19f5f720a7ec94f3fa723
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:29 2017 +0200
+
+    ifstat: Fix memleak in dump_kern_db() for json output
+
+    Looks like this was forgotten when converting to common json output
+    formatter.
+
+    Fixes: fcc16c2287bf8 ("provide common json output formatter")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ifstat.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/misc/ifstat.c b/misc/ifstat.c
+index 8fa354265a9a1..1be21703bf14c 100644
+--- a/misc/ifstat.c
++++ b/misc/ifstat.c
+@@ -535,8 +535,12 @@ static void dump_kern_db(FILE *fp)
+ 		else
+ 			print_one_if(fp, n, n->val);
+ 	}
+-	if (json_output)
+-		fprintf(fp, "\n} }\n");
++	if (jw) {
++		jsonw_end_object(jw);
++
++		jsonw_end_object(jw);
++		jsonw_destroy(&jw);
++	}
+ }
+ 
+ static void dump_incr_db(FILE *fp)
+-- 
+2.20.1
+

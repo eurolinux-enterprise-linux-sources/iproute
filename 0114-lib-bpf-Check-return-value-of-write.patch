@@ -1,0 +1,40 @@
+From 78f4b87c3f014e378377d3ecc55d1ec46cd57b51 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] lib/bpf: Check return value of write()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit b5c78e1b2c868
+
+commit b5c78e1b2c8681e82684f47563acd3d383893658
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:41:29 2017 +0200
+
+    lib/bpf: Check return value of write()
+
+    This is merely to silence the compiler warning. If write to stderr
+    failed, assume that printing an error message will fail as well so don't
+    even try.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ lib/bpf.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/lib/bpf.c b/lib/bpf.c
+index 33c5288e82187..7eb754ad7cb56 100644
+--- a/lib/bpf.c
++++ b/lib/bpf.c
+@@ -486,7 +486,8 @@ int bpf_trace_pipe(void)
+ 
+ 		ret = read(fd, buff, sizeof(buff) - 1);
+ 		if (ret > 0) {
+-			write(2, buff, ret);
++			if (write(STDERR_FILENO, buff, ret) != ret)
++				return -1;
+ 			fflush(stderr);
+ 		}
+ 	}
+-- 
+2.20.1
+

@@ -1,0 +1,44 @@
+From 04ecd76fa66c7745529b3b007ad04a307d2b7518 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 6 Feb 2019 14:31:10 +0100
+Subject: [PATCH] tc: m_tunnel_key: reformat the usage text
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1658506
+Upstream Status: iproute2.git commit 50907a8245ea3
+
+commit 50907a8245ea37875fb877d6f21f51a1f247b167
+Author: Jiri Benc <jbenc@redhat.com>
+Date:   Wed Jun 14 21:29:49 2017 +0200
+
+    tc: m_tunnel_key: reformat the usage text
+
+    Adding new tunnel key fields would cause the usage line overflow 80 chars.
+    Make the usage text similar to other commands.
+
+    Signed-off-by: Jiri Benc <jbenc@redhat.com>
+---
+ tc/m_tunnel_key.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/tc/m_tunnel_key.c b/tc/m_tunnel_key.c
+index 3ceec1c..5222c25 100644
+--- a/tc/m_tunnel_key.c
++++ b/tc/m_tunnel_key.c
+@@ -22,7 +22,13 @@
+ static void explain(void)
+ {
+ 	fprintf(stderr, "Usage: tunnel_key unset\n");
+-	fprintf(stderr, "       tunnel_key set id TUNNELID src_ip IP dst_ip IP dst_port UDP_PORT\n");
++	fprintf(stderr, "       tunnel_key set <TUNNEL_KEY>\n");
++	fprintf(stderr,
++		"Where TUNNEL_KEY is a combination of:\n"
++		"id <TUNNELID> (mandatory)\n"
++		"src_ip <IP> (mandatory)\n"
++		"dst_ip <IP> (mandatory)\n"
++		"dst_port <UDP_PORT>\n");
+ }
+ 
+ static void usage(void)
+-- 
+1.8.3.1
+

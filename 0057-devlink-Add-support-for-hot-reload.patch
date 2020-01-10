@@ -1,0 +1,81 @@
+From ceaa3a5ecffe0c558c990be6c4ba682be5ce85e8 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 11:40:57 +0100
+Subject: [PATCH] devlink: Add support for hot reload
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1644731
+Upstream Status: iproute2.git commit 06dd94f952e50
+
+commit 06dd94f952e50edeffe5ea8b7b95b5cd562b9365
+Author: Arkadi Sharshevsky <arkadis@mellanox.com>
+Date:   Wed Feb 14 10:55:19 2018 +0200
+
+    devlink: Add support for hot reload
+
+    Add support for hot reload. It should be used in order for resource
+    updates to take place.
+
+    Signed-off-by: Arkadi Sharshevsky <arkadis@mellanox.com>
+    Acked-by: Jiri Pirko <jiri@mellanox.com>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ devlink/devlink.c | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/devlink/devlink.c b/devlink/devlink.c
+index 7f47b79450094..fc3939e564bc8 100644
+--- a/devlink/devlink.c
++++ b/devlink/devlink.c
+@@ -1163,6 +1163,7 @@ static void cmd_dev_help(void)
+ 	pr_err("                               [ inline-mode { none | link | network | transport } ]\n");
+ 	pr_err("                               [ encap { disable | enable } ]\n");
+ 	pr_err("       devlink dev eswitch show DEV\n");
++	pr_err("       devlink dev reload DEV\n");
+ }
+ 
+ static bool cmp_arr_last_handle(struct dl *dl, const char *bus_name,
+@@ -1602,6 +1603,31 @@ static int cmd_dev_show(struct dl *dl)
+ 	return err;
+ }
+ 
++static void cmd_dev_reload_help(void)
++{
++	pr_err("Usage: devlink dev reload [ DEV ]\n");
++}
++
++static int cmd_dev_reload(struct dl *dl)
++{
++	struct nlmsghdr *nlh;
++	int err;
++
++	if (dl_argv_match(dl, "help") || dl_no_arg(dl)) {
++		cmd_dev_reload_help();
++		return 0;
++	}
++
++	nlh = mnlg_msg_prepare(dl->nlg, DEVLINK_CMD_RELOAD,
++			       NLM_F_REQUEST | NLM_F_ACK);
++
++	err = dl_argv_parse_put(nlh, dl, DL_OPT_HANDLE, 0);
++	if (err)
++		return err;
++
++	return _mnlg_socket_sndrcv(dl->nlg, nlh, NULL, NULL);
++}
++
+ static int cmd_dev(struct dl *dl)
+ {
+ 	if (dl_argv_match(dl, "help")) {
+@@ -1614,6 +1640,9 @@ static int cmd_dev(struct dl *dl)
+ 	} else if (dl_argv_match(dl, "eswitch")) {
+ 		dl_arg_inc(dl);
+ 		return cmd_dev_eswitch(dl);
++	} else if (dl_argv_match(dl, "reload")) {
++		dl_arg_inc(dl);
++		return cmd_dev_reload(dl);
+ 	}
+ 	pr_err("Command \"%s\" not found\n", dl_argv(dl));
+ 	return -ENOENT;
+-- 
+2.20.1
+

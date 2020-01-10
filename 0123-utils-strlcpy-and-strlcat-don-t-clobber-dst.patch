@@ -1,0 +1,62 @@
+From 866b995355894ab8f20d22a554d47322dcf1029a Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:09:13 +0200
+Subject: [PATCH] utils: strlcpy() and strlcat() don't clobber dst
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 50ea3c64384b1
+
+commit 50ea3c64384b1d1bfa9c96de86c21ac8e9fef183
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Sep 6 18:51:42 2017 +0200
+
+    utils: strlcpy() and strlcat() don't clobber dst
+
+    As David Laight correctly pointed out, the first version of strlcpy()
+    modified dst buffer behind the string copied into it. Fix this by
+    writing NUL to the byte immediately following src string instead of to
+    the last byte in dst. Doing so also allows to reduce overhead by using
+    memcpy().
+
+    Improve strlcat() by avoiding the call to strlcpy() if dst string is
+    already full, not just as sanity check.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ lib/utils.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/lib/utils.c b/lib/utils.c
+index c9ba2f332c2a7..228d97bfe5e9b 100644
+--- a/lib/utils.c
++++ b/lib/utils.c
+@@ -1231,18 +1231,22 @@ int get_real_family(int rtm_type, int rtm_family)
+ 
+ size_t strlcpy(char *dst, const char *src, size_t size)
+ {
++	size_t srclen = strlen(src);
++
+ 	if (size) {
+-		strncpy(dst, src, size - 1);
+-		dst[size - 1] = '\0';
++		size_t minlen = min(srclen, size - 1);
++
++		memcpy(dst, src, minlen);
++		dst[minlen] = '\0';
+ 	}
+-	return strlen(src);
++	return srclen;
+ }
+ 
+ size_t strlcat(char *dst, const char *src, size_t size)
+ {
+ 	size_t dlen = strlen(dst);
+ 
+-	if (dlen > size)
++	if (dlen >= size)
+ 		return dlen + strlen(src);
+ 
+ 	return dlen + strlcpy(dst + dlen, src, size - dlen);
+-- 
+2.20.1
+

@@ -1,0 +1,42 @@
+From 85bcdf3ca3a76ce3b4f62769aa64adcb1c849082 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:09:13 +0200
+Subject: [PATCH] tc: flower: No need to cache indev arg
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit ee474849c8511
+
+commit ee474849c85116ec36e387882447f737ac3fdefb
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Oct 2 13:46:36 2017 +0200
+
+    tc: flower: No need to cache indev arg
+
+    Since addattrstrz() will copy the provided string into the attribute
+    payload, there is no need to cache the data.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/f_flower.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index e2c7daa0b8e03..34249254603ff 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -642,11 +642,8 @@ static int flower_parse_opt(struct filter_util *qu, char *handle,
+ 		} else if (matches(*argv, "skip_sw") == 0) {
+ 			flags |= TCA_CLS_FLAGS_SKIP_SW;
+ 		} else if (matches(*argv, "indev") == 0) {
+-			char ifname[IFNAMSIZ] = {};
+-
+ 			NEXT_ARG();
+-			strncpy(ifname, *argv, sizeof(ifname) - 1);
+-			addattrstrz(n, MAX_MSG, TCA_FLOWER_INDEV, ifname);
++			addattrstrz(n, MAX_MSG, TCA_FLOWER_INDEV, *argv);
+ 		} else if (matches(*argv, "vlan_id") == 0) {
+ 			__u16 vid;
+ 
+-- 
+2.20.1
+

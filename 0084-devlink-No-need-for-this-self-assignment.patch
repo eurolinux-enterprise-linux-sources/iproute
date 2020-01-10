@@ -1,0 +1,39 @@
+From 1fe740ceabb0b965224678a69a02255e20d5a47a Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] devlink: No need for this self-assignment
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 8579a398c5ab0
+
+commit 8579a398c5ab0d26bce0ed9b4b6b6e5d62fcc89d
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:25 2017 +0200
+
+    devlink: No need for this self-assignment
+
+    dl_argv_handle_both() will either assign to handle_bit or error out in
+    which case the variable is not used by the caller.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Acked-by: Jiri Pirko <jiri@mellanox.com>
+---
+ devlink/devlink.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/devlink/devlink.c b/devlink/devlink.c
+index 2000db81aabb0..ae295b5632e8c 100644
+--- a/devlink/devlink.c
++++ b/devlink/devlink.c
+@@ -845,7 +845,7 @@ static int dl_argv_parse(struct dl *dl, uint32_t o_required,
+ 	int err;
+ 
+ 	if (o_required & DL_OPT_HANDLE && o_required & DL_OPT_HANDLEP) {
+-		uint32_t handle_bit = handle_bit;
++		uint32_t handle_bit;
+ 
+ 		err = dl_argv_handle_both(dl, &opts->bus_name, &opts->dev_name,
+ 					  &opts->port_index, &handle_bit);
+-- 
+2.20.1
+

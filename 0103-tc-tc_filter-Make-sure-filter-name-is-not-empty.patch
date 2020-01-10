@@ -1,0 +1,39 @@
+From a4c190565a85db814ad1185ada5382e7fb8707a0 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] tc/tc_filter: Make sure filter name is not empty
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 75716932a0af2
+
+commit 75716932a0af28da207aa57c212794ab28ce9036
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:46:33 2017 +0200
+
+    tc/tc_filter: Make sure filter name is not empty
+
+    The later check for 'k[0] != 0' requires a non-empty filter name,
+    otherwise NULL pointer dereference in 'q' might happen.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/tc_filter.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/tc/tc_filter.c b/tc/tc_filter.c
+index e640492b25ba6..a6bb73d12eaba 100644
+--- a/tc/tc_filter.c
++++ b/tc/tc_filter.c
+@@ -380,6 +380,9 @@ static int tc_filter_get(int cmd, unsigned int flags, int argc, char **argv)
+ 			usage();
+ 			return 0;
+ 		} else {
++			if (!**argv)
++				invarg("invalid filter name", *argv);
++
+ 			strncpy(k, *argv, sizeof(k)-1);
+ 
+ 			q = get_filter_kind(k);
+-- 
+2.20.1
+

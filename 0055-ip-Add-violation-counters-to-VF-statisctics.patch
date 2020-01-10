@@ -1,0 +1,78 @@
+From 1e22b512374d25b547212bdbe1530ac8de1defdf Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 18 Mar 2019 11:23:40 +0100
+Subject: [PATCH] ip: Add violation counters to VF statisctics
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1471680
+Upstream Status: unknown commit 8c7acf3a
+Conflicts: manually applied due to JSON support
+
+commit 8c7acf3a7ac265badc287f064614d60119a8072d
+Author: Eran Ben Elisha <eranbe@mellanox.com>
+Date:   Sun Jul 22 13:31:12 2018 +0300
+
+    ip: Add violation counters to VF statisctics
+
+    Extend VFs statistics by receive and transmit violation counters.
+
+    Example: "ip -s link show dev enp5s0f0"
+
+    6: enp5s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+        link/ether 24:8a:07:a5:28:f0 brd ff:ff:ff:ff:ff:ff
+        RX: bytes  packets  errors  dropped overrun mcast
+        0          0        0       0       0       2
+        TX: bytes  packets  errors  dropped carrier collsns
+        1406       17       0       0       0       0
+        vf 0 MAC 00:00:ca:fe:ca:fe, vlan 5, spoof checking off, link-state auto, trust off, query_rss off
+        RX: bytes  packets  mcast   bcast   dropped
+        1666       29       14         32      0
+        TX: bytes  packets   dropped
+        2880       44       2412
+
+    Signed-off-by: Eran Ben Elisha <eranbe@mellanox.com>
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+---
+ ip/ipaddress.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index 14e9e22..44111a2 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -471,21 +471,31 @@ static void print_vf_stats64(FILE *fp, struct rtattr *vfstats)
+ 
+ 	/* RX stats */
+ 	fprintf(fp, "%s", _SL_);
+-	fprintf(fp, "    RX: bytes  packets  mcast   bcast %s", _SL_);
++	fprintf(fp, "    RX: bytes  packets  mcast   bcast ");
++	if (vf[IFLA_VF_STATS_RX_DROPPED])
++		fprintf(fp, "  dropped ");
++	fprintf(fp, "%s", _SL_);
+ 	fprintf(fp, "    ");
+ 
+ 	print_num(fp, 10,  rta_getattr_u64(vf[IFLA_VF_STATS_RX_BYTES]));
+ 	print_num(fp, 8, rta_getattr_u64(vf[IFLA_VF_STATS_RX_PACKETS]));
+ 	print_num(fp, 7, rta_getattr_u64(vf[IFLA_VF_STATS_MULTICAST]));
+ 	print_num(fp, 7, rta_getattr_u64(vf[IFLA_VF_STATS_BROADCAST]));
++	if (vf[IFLA_VF_STATS_RX_DROPPED])
++		print_num(fp, 8, rta_getattr_u64(vf[IFLA_VF_STATS_RX_DROPPED]));
+ 
+ 	/* TX stats */
+ 	fprintf(fp, "%s", _SL_);
+-	fprintf(fp, "    TX: bytes  packets %s", _SL_);
++	fprintf(fp, "    TX: bytes  packets ");
++	if (vf[IFLA_VF_STATS_TX_DROPPED])
++		fprintf(fp, "  dropped ");
++	fprintf(fp, "%s", _SL_);
+ 	fprintf(fp, "    ");
+ 
+ 	print_num(fp, 10, rta_getattr_u64(vf[IFLA_VF_STATS_TX_BYTES]));
+ 	print_num(fp, 8, rta_getattr_u64(vf[IFLA_VF_STATS_TX_PACKETS]));
++	if (vf[IFLA_VF_STATS_TX_DROPPED])
++		print_num(fp, 8, rta_getattr_u64(vf[IFLA_VF_STATS_TX_DROPPED]));
+ }
+ 
+ static void print_link_stats64(FILE *fp, const struct rtnl_link_stats64 *s,
+-- 
+2.20.1
+

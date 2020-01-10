@@ -1,0 +1,44 @@
+From 5cdf4d78d15b127d0f4a7a09e4700d7df16dda19 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] lnstat_util: Simplify alloc_and_open() a bit
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit bc27878d21909
+
+commit bc27878d21909b110dd21eea0c3505d023f29dc2
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:51:48 2017 +0200
+
+    lnstat_util: Simplify alloc_and_open() a bit
+
+    Relying upon callers and using unsafe strcpy() is probably not the best
+    idea. Aside from that, using snprintf() allows to format the string for
+    lf->path in one go.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/lnstat_util.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/misc/lnstat_util.c b/misc/lnstat_util.c
+index cc54598fe1bef..ec19238c24b94 100644
+--- a/misc/lnstat_util.c
++++ b/misc/lnstat_util.c
+@@ -180,11 +180,8 @@ static struct lnstat_file *alloc_and_open(const char *path, const char *file)
+ 	}
+ 
+ 	/* initialize */
+-	/* de->d_name is guaranteed to be <= NAME_MAX */
+-	strcpy(lf->basename, file);
+-	strcpy(lf->path, path);
+-	strcat(lf->path, "/");
+-	strcat(lf->path, lf->basename);
++	snprintf(lf->basename, sizeof(lf->basename), "%s", file);
++	snprintf(lf->path, sizeof(lf->path), "%s/%s", path, file);
+ 
+ 	/* initialize to default */
+ 	lf->interval.tv_sec = 1;
+-- 
+2.20.1
+

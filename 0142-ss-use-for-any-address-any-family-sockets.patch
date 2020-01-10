@@ -1,0 +1,76 @@
+From 04453080a3a92071227fd79a039137f72fa82e15 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 12 Jun 2019 15:00:33 +0200
+Subject: [PATCH] ss: use [::] for any address/any family sockets
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1588122
+Upstream Status: RHEL-only
+
+commit d981824803999a339f4b8fb9ad36d9d5990d9eab
+Author: Andrea Claudi <aclaudi@redhat.com>
+Date:   Wed Jun 12 14:49:07 2019 +0200
+
+    ss: use [::] for any address/any family sockets
+
+    commit aba9c23a6e1cb ("ss: enclose IPv6 address in brackets")
+    brings in the unintended side effect of showing as "*" sockets
+    listening to any address in any family. This is consistent with
+    upstream iproute and RHEL 8 iproute version, but not with
+    previous versions of RHEL 7 iproute.
+
+    This commit partially reverts aba9c23a6e1cb using "[::]" for
+    any family sockets when -f inet6 is used.
+
+    Tested with
+    # ss -ln -f inet6
+
+    ("ss: enclose IPv6 address in brackets")
+---
+ misc/ss.c | 29 ++++++++++++-----------------
+ 1 file changed, 12 insertions(+), 17 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index 6aaae1b5390e4..8f184fb929d31 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -1090,25 +1090,20 @@ static void inet_addr_print(const inet_prefix *a, int port, unsigned int ifindex
+ 			ap = format_host(AF_INET, 4, a->data);
+ 		}
+ 	} else {
+-		if (!memcmp(a->data, &in6addr_any, sizeof(in6addr_any))) {
+-			buf[0] = '*';
+-			buf[1] = 0;
+-		} else {
+-			ap = format_host(a->family, 16, a->data);
+-
+-			/* Numeric IPv6 addresses should be bracketed */
+-			if (strchr(ap, ':')) {
+-				snprintf(buf, sizeof(buf),
+-					 "[%s]", ap);
+-				ap = buf;
+-			}
++		ap = format_host(a->family, 16, a->data);
+ 
+-			est_len = strlen(ap);
+-			if (est_len <= addr_width)
+-				est_len = addr_width;
+-			else
+-				est_len = addr_width + ((est_len-addr_width+3)/4)*4;
++		/* Numeric IPv6 addresses should be bracketed */
++		if (strchr(ap, ':')) {
++			snprintf(buf, sizeof(buf),
++				 "[%s]", ap);
++			ap = buf;
+ 		}
++
++		est_len = strlen(ap);
++		if (est_len <= addr_width)
++			est_len = addr_width;
++		else
++			est_len = addr_width + ((est_len-addr_width+3)/4)*4;
+ 	}
+ 
+ 	if (ifindex) {
+-- 
+2.20.1
+

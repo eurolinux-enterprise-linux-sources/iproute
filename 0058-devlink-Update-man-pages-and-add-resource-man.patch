@@ -1,0 +1,165 @@
+From edf1a3765c440bdd6a15ca7dd4d52a2264a67f69 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 11:40:57 +0100
+Subject: [PATCH] devlink: Update man pages and add resource man
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1644731
+Upstream Status: iproute2.git commit 58b48c5d75e29
+
+commit 58b48c5d75e2960dfcd947975911a170ae765975
+Author: Arkadi Sharshevsky <arkadis@mellanox.com>
+Date:   Wed Feb 14 10:55:22 2018 +0200
+
+    devlink: Update man pages and add resource man
+
+    Add resource man, and update dev manual for reload command.
+
+    Signed-off-by: Arkadi Sharshevsky <arkadis@mellanox.com>
+    Acked-by: Jiri Pirko <jiri@mellanox.com>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ man/man8/devlink-dev.8      | 15 +++++++
+ man/man8/devlink-resource.8 | 78 +++++++++++++++++++++++++++++++++++++
+ man/man8/devlink.8          |  1 +
+ 3 files changed, 94 insertions(+)
+ create mode 100644 man/man8/devlink-resource.8
+
+diff --git a/man/man8/devlink-dev.8 b/man/man8/devlink-dev.8
+index b074d57a19369..7c749ddabaeeb 100644
+--- a/man/man8/devlink-dev.8
++++ b/man/man8/devlink-dev.8
+@@ -42,6 +42,10 @@ devlink-dev \- devlink device configuration
+ .BR "devlink dev eswitch show"
+ .IR DEV
+ 
++.ti -8
++.BR "devlink dev reload"
++.IR DEV
++
+ .SH "DESCRIPTION"
+ .SS devlink dev show - display devlink device attributes
+ 
+@@ -94,6 +98,12 @@ Set eswitch encapsulation support
+ .I enable
+ - Enable encapsulation support
+ 
++.SS devlink dev reload - perform hot reload of the driver.
++
++.PP
++.I "DEV"
++- Specifies the devlink device to reload.
++
+ .SH "EXAMPLES"
+ .PP
+ devlink dev show
+@@ -114,6 +124,11 @@ Shows the eswitch mode of specified devlink device.
+ devlink dev eswitch set pci/0000:01:00.0 mode switchdev
+ .RS 4
+ Sets the eswitch mode of specified devlink device to switchdev.
++.RE
++.PP
++devlink dev reload pci/0000:01:00.0
++.RS 4
++Performs hot reload of specified devlink device.
+ 
+ .SH SEE ALSO
+ .BR devlink (8),
+diff --git a/man/man8/devlink-resource.8 b/man/man8/devlink-resource.8
+new file mode 100644
+index 0000000000000..b8f788060427b
+--- /dev/null
++++ b/man/man8/devlink-resource.8
+@@ -0,0 +1,78 @@
++.TH DEVLINK\-RESOURCE 8 "11 Feb 2018" "iproute2" "Linux"
++.SH NAME
++devlink-resource \- devlink device resource configuration
++.SH SYNOPSIS
++.sp
++.ad l
++.in +8
++.ti -8
++.B devlink
++.RI "[ " OPTIONS " ]"
++.B resource
++.RI  " { " COMMAND " | "
++.BR help " }"
++.sp
++
++.ti -8
++.IR OPTIONS " := { "
++\fB\-v\fR[\fIerbose\fR] }
++
++.ti -8
++.B devlink resource show
++.IR DEV
++
++.ti -8
++.B devlink resource help
++
++.ti -8
++.BR "devlink resource set"
++.IR DEV
++.BI path " RESOURCE_PATH"
++.BI size " RESOURCE_SIZE"
++
++.SH "DESCRIPTION"
++.SS devlink resource show - display devlink device's resosources
++
++.PP
++.I "DEV"
++- specifies the devlink device to show.
++
++.in +4
++Format is:
++.in +2
++BUS_NAME/BUS_ADDRESS
++
++.SS devlink resource set - sets resource size of specific resource
++
++.PP
++.I "DEV"
++- specifies the devlink device.
++
++.TP
++.BI path " RESOURCE_PATH"
++Resource's path.
++
++.TP
++.BI size " RESOURCE_SIZE"
++The new resource's size.
++
++.SH "EXAMPLES"
++.PP
++devlink resource show pci/0000:01:00.0
++.RS 4
++Shows the resources of the specified devlink device.
++.RE
++.PP
++devlink resource set pci/0000:01:00.0 /kvd/linear 98304
++.RS 4
++Sets the size of the specified resource for the specified devlink device.
++
++.SH SEE ALSO
++.BR devlink (8),
++.BR devlink-port (8),
++.BR devlink-sb (8),
++.BR devlink-monitor (8),
++.br
++
++.SH AUTHOR
++Arkadi Sharshevsky <arkadis@mellanox.com>
+diff --git a/man/man8/devlink.8 b/man/man8/devlink.8
+index a480766cbbdbe..6bf398274a612 100644
+--- a/man/man8/devlink.8
++++ b/man/man8/devlink.8
+@@ -87,6 +87,7 @@ Exit status is 0 if command was successful or a positive integer upon failure.
+ .BR devlink-port (8),
+ .BR devlink-monitor (8),
+ .BR devlink-sb (8),
++.BR devlink-resource (8),
+ .br
+ 
+ .SH REPORTING BUGS
+-- 
+2.20.1
+

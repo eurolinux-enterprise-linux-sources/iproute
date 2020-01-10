@@ -1,0 +1,49 @@
+From 4c775c035e2751b1aec52dcc2ca0e4fc99bac793 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] iplink_can: Prevent overstepping array bounds
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 258b7c0fa70c2
+
+commit 258b7c0fa70c2d6b5f9776cc35c38c80b4ee5752
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 11:27:00 2017 +0200
+
+    iplink_can: Prevent overstepping array bounds
+
+    can_state_names array contains at most CAN_STATE_MAX fields, so allowing
+    an index to it to be equal to that number is wrong. While here, also
+    make sure the array is indeed that big so nothing bad happens if
+    CAN_STATE_MAX ever increases.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/iplink_can.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/ip/iplink_can.c b/ip/iplink_can.c
+index 20d4d37d0d087..4133a658a059e 100644
+--- a/ip/iplink_can.c
++++ b/ip/iplink_can.c
+@@ -241,7 +241,7 @@ static int can_parse_opt(struct link_util *lu, int argc, char **argv,
+ 	return 0;
+ }
+ 
+-static const char *can_state_names[] = {
++static const char *can_state_names[CAN_STATE_MAX] = {
+ 	[CAN_STATE_ERROR_ACTIVE] = "ERROR-ACTIVE",
+ 	[CAN_STATE_ERROR_WARNING] = "ERROR-WARNING",
+ 	[CAN_STATE_ERROR_PASSIVE] = "ERROR-PASSIVE",
+@@ -265,7 +265,7 @@ static void can_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 	if (tb[IFLA_CAN_STATE]) {
+ 		uint32_t state = rta_getattr_u32(tb[IFLA_CAN_STATE]);
+ 
+-		fprintf(f, "state %s ", state <= CAN_STATE_MAX ?
++		fprintf(f, "state %s ", state < CAN_STATE_MAX ?
+ 			can_state_names[state] : "UNKNOWN");
+ 	}
+ 
+-- 
+2.20.1
+

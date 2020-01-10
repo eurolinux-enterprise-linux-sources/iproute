@@ -1,0 +1,58 @@
+From ca6a2e6f21fc48b494216a095f5bd792a0c6e35d Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] ss: Make struct tcpstat fields 'timer' and 'timeout' unsigned
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 4cbf5224f2b50
+
+commit 4cbf5224f2b50a24e1873508e7a0f1f81cc81a81
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:41:26 2017 +0200
+
+    ss: Make struct tcpstat fields 'timer' and 'timeout' unsigned
+
+    Both 'timer' and 'timeout' variables of struct tcpstat are either
+    scanned as unsigned values from /proc/net/tcp{,6} or copied from
+    'idiag_timer' and 'idiag_expries' fields of struct inet_diag_msg, which
+    itself are unsigned. Therefore they may be unsigned as well, which
+    eliminates the need to check for negative values.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index 7a38e9d830e8d..2a981d8b06918 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -716,8 +716,8 @@ struct dctcpstat {
+ 
+ struct tcpstat {
+ 	struct sockstat	    ss;
+-	int		    timer;
+-	int		    timeout;
++	unsigned int	    timer;
++	unsigned int	    timeout;
+ 	int		    probes;
+ 	char		    cong_alg[16];
+ 	double		    rto, ato, rtt, rttvar;
+@@ -903,13 +903,11 @@ static void sock_addr_print(const char *addr, char *delim, const char *port,
+ 	sock_addr_print_width(addr_width, addr, delim, serv_width, port, ifname);
+ }
+ 
+-static const char *print_ms_timer(int timeout)
++static const char *print_ms_timer(unsigned int timeout)
+ {
+ 	static char buf[64];
+ 	int secs, msecs, minutes;
+ 
+-	if (timeout < 0)
+-		timeout = 0;
+ 	secs = timeout/1000;
+ 	minutes = secs/60;
+ 	secs = secs%60;
+-- 
+2.20.1
+

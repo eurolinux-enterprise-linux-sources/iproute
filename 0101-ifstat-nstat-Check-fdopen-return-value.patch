@@ -1,0 +1,84 @@
+From 5ae0f31d9c5d40dbf9eaf00435b9df1968109f5e Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] ifstat, nstat: Check fdopen() return value
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 6d02518fdc37e
+
+commit 6d02518fdc37eb12abff67b6f8c741fbd81dce72
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:46:31 2017 +0200
+
+    ifstat, nstat: Check fdopen() return value
+
+    Prevent passing NULL FILE pointer to fgets() later.
+
+    Fix both tools in a single patch since the code changes are basically
+    identical.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ifstat.c | 16 +++++++++++-----
+ misc/nstat.c  | 16 +++++++++++-----
+ 2 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/misc/ifstat.c b/misc/ifstat.c
+index 1be21703bf14c..ac3eff6b870a9 100644
+--- a/misc/ifstat.c
++++ b/misc/ifstat.c
+@@ -992,12 +992,18 @@ int main(int argc, char *argv[])
+ 	    && verify_forging(fd) == 0) {
+ 		FILE *sfp = fdopen(fd, "r");
+ 
+-		load_raw_table(sfp);
+-		if (hist_db && source_mismatch) {
+-			fprintf(stderr, "ifstat: history is stale, ignoring it.\n");
+-			hist_db = NULL;
++		if (!sfp) {
++			fprintf(stderr, "ifstat: fdopen failed: %s\n",
++				strerror(errno));
++			close(fd);
++		} else  {
++			load_raw_table(sfp);
++			if (hist_db && source_mismatch) {
++				fprintf(stderr, "ifstat: history is stale, ignoring it.\n");
++				hist_db = NULL;
++			}
++			fclose(sfp);
+ 		}
+-		fclose(sfp);
+ 	} else {
+ 		if (fd >= 0)
+ 			close(fd);
+diff --git a/misc/nstat.c b/misc/nstat.c
+index 1212b1f2c8128..a4dd405d43a93 100644
+--- a/misc/nstat.c
++++ b/misc/nstat.c
+@@ -706,12 +706,18 @@ int main(int argc, char *argv[])
+ 	    && verify_forging(fd) == 0) {
+ 		FILE *sfp = fdopen(fd, "r");
+ 
+-		load_good_table(sfp);
+-		if (hist_db && source_mismatch) {
+-			fprintf(stderr, "nstat: history is stale, ignoring it.\n");
+-			hist_db = NULL;
++		if (!sfp) {
++			fprintf(stderr, "nstat: fdopen failed: %s\n",
++				strerror(errno));
++			close(fd);
++		} else {
++			load_good_table(sfp);
++			if (hist_db && source_mismatch) {
++				fprintf(stderr, "nstat: history is stale, ignoring it.\n");
++				hist_db = NULL;
++			}
++			fclose(sfp);
+ 		}
+-		fclose(sfp);
+ 	} else {
+ 		if (fd >= 0)
+ 			close(fd);
+-- 
+2.20.1
+

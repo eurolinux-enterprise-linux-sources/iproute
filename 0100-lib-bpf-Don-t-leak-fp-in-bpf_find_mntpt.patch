@@ -1,0 +1,43 @@
+From bafabe7a067e647f97ae0df277bded8b9349db50 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:07 +0200
+Subject: [PATCH] lib/bpf: Don't leak fp in bpf_find_mntpt()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit c3724e4bc3a6c
+
+commit c3724e4bc3a6c40dc846f0c3b02934d711bf81fb
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 21 16:46:51 2017 +0200
+
+    lib/bpf: Don't leak fp in bpf_find_mntpt()
+
+    If fopen() succeeded but len != PATH_MAX, the function leaks the open
+    FILE pointer. Fix this by checking len value before calling fopen().
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Acked-by: Daniel Borkmann <daniel@iogearbox.net>
+---
+ lib/bpf.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/lib/bpf.c b/lib/bpf.c
+index 3aabf44d1abf8..33c5288e82187 100644
+--- a/lib/bpf.c
++++ b/lib/bpf.c
+@@ -432,8 +432,11 @@ static const char *bpf_find_mntpt(const char *fstype, unsigned long magic,
+ 		}
+ 	}
+ 
++	if (len != PATH_MAX)
++		return NULL;
++
+ 	fp = fopen("/proc/mounts", "r");
+-	if (fp == NULL || len != PATH_MAX)
++	if (fp == NULL)
+ 		return NULL;
+ 
+ 	while (fscanf(fp, "%*s %" textify(PATH_MAX) "s %99s %*s %*d %*d\n",
+-- 
+2.20.1
+

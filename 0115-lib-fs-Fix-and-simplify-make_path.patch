@@ -1,0 +1,65 @@
+From 7ab899539b920609712ad24f871b50a19fd8189f Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] lib/fs: Fix and simplify make_path()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit ac3415f5c1b1d
+
+commit ac3415f5c1b1df2d6a4bf770ad52e2e14c09e58e
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:41:30 2017 +0200
+
+    lib/fs: Fix and simplify make_path()
+
+    Calling stat() before mkdir() is racey: The entry might change in
+    between. Also, the call to stat() seems to exist only to check if the
+    directory exists already. So simply call mkdir() unconditionally and
+    catch only errors other than EEXIST.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ lib/fs.c | 20 +++++---------------
+ 1 file changed, 5 insertions(+), 15 deletions(-)
+
+diff --git a/lib/fs.c b/lib/fs.c
+index 1ff881ecfcd8c..ebe05cd44e11b 100644
+--- a/lib/fs.c
++++ b/lib/fs.c
+@@ -102,7 +102,6 @@ out:
+ int make_path(const char *path, mode_t mode)
+ {
+ 	char *dir, *delim;
+-	struct stat sbuf;
+ 	int rc = -1;
+ 
+ 	delim = dir = strdup(path);
+@@ -120,20 +119,11 @@ int make_path(const char *path, mode_t mode)
+ 		if (delim)
+ 			*delim = '\0';
+ 
+-		if (stat(dir, &sbuf) != 0) {
+-			if (errno != ENOENT) {
+-				fprintf(stderr,
+-					"stat failed for %s: %s\n",
+-					dir, strerror(errno));
+-				goto out;
+-			}
+-
+-			if (mkdir(dir, mode) != 0) {
+-				fprintf(stderr,
+-					"mkdir failed for %s: %s\n",
+-					dir, strerror(errno));
+-				goto out;
+-			}
++		rc = mkdir(dir, mode);
++		if (mkdir(dir, mode) != 0 && errno != EEXIST) {
++			fprintf(stderr, "mkdir failed for %s: %s\n",
++				dir, strerror(errno));
++			goto out;
+ 		}
+ 
+ 		if (delim == NULL)
+-- 
+2.20.1
+

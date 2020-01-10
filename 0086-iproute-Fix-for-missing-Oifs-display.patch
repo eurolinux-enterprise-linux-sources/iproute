@@ -1,0 +1,55 @@
+From 2cb971cefe001a66677c2d1d23b1596cbffb3989 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:07:22 +0200
+Subject: [PATCH] iproute: Fix for missing 'Oifs:' display
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 2a866256197f8
+
+commit 2a866256197f8b86e61fa1afc99b11d7056d5686
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 17 19:09:27 2017 +0200
+
+    iproute: Fix for missing 'Oifs:' display
+
+    Covscan complained about dead code but after reading it, I assume the
+    author's intention was to prefix the interface list with 'Oifs: '.
+    Initializing first to 1 and setting it to 0 after above prefix was
+    printed should fix it.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/iproute.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/ip/iproute.c b/ip/iproute.c
+index d4db035fc7b24..6ebc6214c45ee 100644
+--- a/ip/iproute.c
++++ b/ip/iproute.c
+@@ -618,7 +618,7 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 	}
+ 	if (tb[RTA_MULTIPATH]) {
+ 		struct rtnexthop *nh = RTA_DATA(tb[RTA_MULTIPATH]);
+-		int first = 0;
++		int first = 1;
+ 
+ 		len = RTA_PAYLOAD(tb[RTA_MULTIPATH]);
+ 
+@@ -628,10 +628,12 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 			if (nh->rtnh_len > len)
+ 				break;
+ 			if (r->rtm_flags&RTM_F_CLONED && r->rtm_type == RTN_MULTICAST) {
+-				if (first)
++				if (first) {
+ 					fprintf(fp, "Oifs: ");
+-				else
++					first = 0;
++				} else {
+ 					fprintf(fp, " ");
++				}
+ 			} else
+ 				fprintf(fp, "%s\tnexthop ", _SL_);
+ 			if (nh->rtnh_len > sizeof(*nh)) {
+-- 
+2.20.1
+

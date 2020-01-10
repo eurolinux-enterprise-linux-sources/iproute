@@ -1,0 +1,218 @@
+From 266b19dec4b79c4f63118dd6151c1b0a80f521f7 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Wed, 5 Jun 2019 13:08:00 +0200
+Subject: [PATCH] man: ip link: document GRE tunnels
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1714660
+Upstream Status: iproute2.git commit d21c028cf7414
+Conflicts: context change due to missing commit 1eccc5734148c
+           ("ip: add vxcan/veth to ip-link man page")
+
+commit d21c028cf74147360c530a4c53063bbe677dbe73
+Author: Sabrina Dubroca <sd@queasysnail.net>
+Date:   Fri Apr 20 10:31:59 2018 +0200
+
+    man: ip link: document GRE tunnels
+
+    GRE tunnels are currently only documented together with IPIP and SIT
+    tunnels, but they actually have very different configuration
+    options. Let's separate them.
+
+    Signed-off-by: Sabrina Dubroca <sd@queasysnail.net>
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+---
+ man/man8/ip-link.8.in | 152 ++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 148 insertions(+), 4 deletions(-)
+
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index 48417dbce80aa..cfea1bdfdc030 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -643,15 +643,88 @@ keyword.
+ .in -8
+ 
+ .TP
+-GRE, IPIP, SIT Type Support
+-For a link of types
+-.I GRE/IPIP/SIT
++IPIP, SIT Type Support
++For a link of type
++.IR IPIP or SIT
++the following additional arguments are supported:
++
++.BI "ip link add " DEVICE
++.BR type " { " ipip " | " sit " }"
++.BI " remote " ADDR " local " ADDR
++[
++.BR encap " { " fou " | " gue " | " none " }"
++] [
++.BR encap-sport " { " \fIPORT " | " auto " }"
++] [
++.BI "encap-dport " PORT
++] [
++.RB [ no ] encap-csum
++] [
++.RB [ no ] encap-remcsum
++]
++
++.in +8
++.sp
++.BI  remote " ADDR "
++- specifies the remote address of the tunnel.
++
++.sp
++.BI  local " ADDR "
++- specifies the fixed local address for tunneled packets.
++It must be an address on another interface on this host.
++
++.sp
++.BR encap " { " fou " | " gue " | " none " }"
++- specifies type of secondary UDP encapsulation. "fou" indicates
++Foo-Over-UDP, "gue" indicates Generic UDP Encapsulation.
++
++.sp
++.BR encap-sport " { " \fIPORT " | " auto " }"
++- specifies the source port in UDP encapsulation.
++.IR PORT
++indicates the port by number, "auto"
++indicates that the port number should be chosen automatically
++(the kernel picks a flow based on the flow hash of the
++encapsulated packet).
++
++.sp
++.RB [ no ] encap-csum
++- specifies if UDP checksums are enabled in the secondary
++encapsulation.
++
++.sp
++.RB [ no ] encap-remcsum
++- specifies if Remote Checksum Offload is enabled. This is only
++applicable for Generic UDP Encapsulation.
++
++.in -8
++.TP
++GRE Type Support
++For a link of type
++.IR GRE " or " GRETAP
+ the following additional arguments are supported:
+ 
+ .BI "ip link add " DEVICE
+-.BR type " { " gre " | " ipip " | " sit " }"
++.BR type " { " gre " | " gretap " }"
+ .BI " remote " ADDR " local " ADDR
+ [
++.RB [ i | o ] seq
++] [
++.RB [ i | o ] key
++.I KEY
++] [
++.RB [ i | o ] csum
++] [
++.BI ttl " TTL "
++] [
++.BI tos " TOS "
++] [
++.RB [ no ] pmtudisc
++] [
++.RB [ no ] ignore-df
++] [
++.BI dev " PHYS_DEV "
++] [
+ .BR encap " { " fou " | " gue " | " none " }"
+ ] [
+ .BR encap-sport " { " \fIPORT " | " auto " }"
+@@ -661,6 +734,8 @@ the following additional arguments are supported:
+ .RB [ no ] encap-csum
+ ] [
+ .RB [ no ] encap-remcsum
++] [
++.BR external
+ ]
+ 
+ .in +8
+@@ -673,6 +748,70 @@ the following additional arguments are supported:
+ - specifies the fixed local address for tunneled packets.
+ It must be an address on another interface on this host.
+ 
++.sp
++.RB [ i | o ] seq
++- serialize packets.
++The
++.B oseq
++flag enables sequencing of outgoing packets.
++The
++.B iseq
++flag requires that all input packets are serialized.
++
++.sp
++.RB [ i | o ] key
++.I KEY
++- use keyed GRE with key
++.IR KEY ". "KEY
++is either a number or an IPv4 address-like dotted quad.
++The
++.B key
++parameter specifies the same key to use in both directions.
++The
++.BR ikey " and " okey
++parameters specify different keys for input and output.
++
++.sp
++.RB  [ i | o ] csum
++- generate/require checksums for tunneled packets.
++The
++.B ocsum
++flag calculates checksums for outgoing packets.
++The
++.B icsum
++flag requires that all input packets have the correct
++checksum. The
++.B csum
++flag is equivalent to the combination
++.B "icsum ocsum" .
++
++.sp
++.BI ttl " TTL"
++- specifies the TTL value to use in outgoing packets.
++
++.sp
++.BI tos " TOS"
++- specifies the TOS value to use in outgoing packets.
++
++.sp
++.RB [ no ] pmtudisc
++- enables/disables Path MTU Discovery on this tunnel.
++It is enabled by default. Note that a fixed ttl is incompatible
++with this option: tunneling with a fixed ttl always makes pmtu
++discovery.
++
++.sp
++.RB [ no ] ignore-df
++- enables/disables IPv4 DF suppression on this tunnel.
++Normally datagrams that exceed the MTU will be fragmented; the presence
++of the DF flag inhibits this, resulting instead in an ICMP Unreachable
++(Fragmentation Required) message.  Enabling this attribute casues the
++DF flag to be ignored.
++
++.sp
++.BI dev " PHYS_DEV"
++- specifies the physical device to use for tunnel endpoint communication.
++
+ .sp
+ .BR encap " { " fou " | " gue " | " none " }"
+ - specifies type of secondary UDP encapsulation. "fou" indicates
+@@ -697,6 +836,11 @@ encapsulation.
+ - specifies if Remote Checksum Offload is enabled. This is only
+ applicable for Generic UDP Encapsulation.
+ 
++.sp
++.BR external
++- make this tunnel externally controlled
++.RB "(e.g. " "ip route encap" ).
++
+ .in -8
+ 
+ .TP
+-- 
+2.20.1
+

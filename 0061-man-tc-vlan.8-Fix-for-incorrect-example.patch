@@ -1,0 +1,39 @@
+From 58fe50b2e23c1b77ed93d242545d0f274f819681 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 25 Mar 2019 11:57:41 +0100
+Subject: [PATCH] man: tc-vlan.8: Fix for incorrect example
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1593630
+Upstream Status: iproute2.git commit 8ee38d833ccb1
+
+commit 8ee38d833ccb1863f06634e12c5236b0ef7c2d76
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Mar 23 21:18:56 2018 +0100
+
+    man: tc-vlan.8: Fix for incorrect example
+
+    This has to be a second match statement to the same u32 filter, not a
+    second one (which tc-filter doesn't support at all).
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ man/man8/tc-vlan.8 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/tc-vlan.8 b/man/man8/tc-vlan.8
+index af3de1c54e343..a526f66b60b4c 100644
+--- a/man/man8/tc-vlan.8
++++ b/man/man8/tc-vlan.8
+@@ -103,7 +103,7 @@ into VLAN ID 123:
+ #tc qdisc add dev eth0 handle ffff: ingress
+ #tc filter add dev eth0 parent ffff: pref 11 protocol ip \\
+ 	u32 match ip protocol 1 0xff flowid 1:1 \\
+-	u32 match ip src 10.0.0.2 flowid 1:1 \\
++	    match ip src 10.0.0.2 flowid 1:1 \\
+ 	action vlan push id 123
+ .EE
+ .RE
+-- 
+2.20.1
+

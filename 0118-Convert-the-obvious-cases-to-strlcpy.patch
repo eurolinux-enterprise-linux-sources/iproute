@@ -1,0 +1,135 @@
+From e557cf7984d2f06aff158a9089e714e5f445d3ac Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] Convert the obvious cases to strlcpy()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 18f156bfecda2
+Conflicts:
+* on iproute_lwtunnel.c, due to missing commit
+  e8493916a8ede ("iproute: add support for SR-IPv6 lwtunnel encapsulation")
+* on lib/bpf.c, due to missing commit
+  95ae9a4870e7d ("bpf: fix mnt path when from env")
+  fix bpf_find_mntpt() in this case, instead.
+
+commit 18f156bfecda20166c2fb543ba8c9c6559edef9c
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Sep 1 18:52:52 2017 +0200
+
+    Convert the obvious cases to strlcpy()
+
+    This converts the typical idiom of manually terminating the buffer after
+    a call to strncpy().
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/ipnetns.c     | 3 +--
+ ip/ipvrf.c       | 3 +--
+ lib/bpf.c        | 3 +--
+ lib/fs.c         | 3 +--
+ lib/inet_proto.c | 3 +--
+ misc/ss.c        | 3 +--
+ tc/em_ipset.c    | 3 +--
+ 7 files changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/ip/ipnetns.c b/ip/ipnetns.c
+index 1c0ade90dee5e..427b59c57381d 100644
+--- a/ip/ipnetns.c
++++ b/ip/ipnetns.c
+@@ -523,8 +523,7 @@ int netns_identify_pid(const char *pidstr, char *name, int len)
+ 
+ 		if ((st.st_dev == netst.st_dev) &&
+ 		    (st.st_ino == netst.st_ino)) {
+-			strncpy(name, entry->d_name, len - 1);
+-			name[len - 1] = '\0';
++			strlcpy(name, entry->d_name, len);
+ 		}
+ 	}
+ 	closedir(dir);
+diff --git a/ip/ipvrf.c b/ip/ipvrf.c
+index ae3b48fa81996..f58c8df728265 100644
+--- a/ip/ipvrf.c
++++ b/ip/ipvrf.c
+@@ -333,8 +333,7 @@ static int vrf_path(char *vpath, size_t len)
+ 		if (vrf)
+ 			*vrf = '\0';
+ 
+-		strncpy(vpath, start, len - 1);
+-		vpath[len - 1] = '\0';
++		strlcpy(vpath, start, len);
+ 
+ 		/* if vrf path is just / then return nothing */
+ 		if (!strcmp(vpath, "/"))
+diff --git a/lib/bpf.c b/lib/bpf.c
+index 7eb754ad7cb56..e072cba214067 100644
+--- a/lib/bpf.c
++++ b/lib/bpf.c
+@@ -424,8 +424,7 @@ static const char *bpf_find_mntpt(const char *fstype, unsigned long magic,
+ 		ptr = known_mnts;
+ 		while (*ptr) {
+ 			if (bpf_valid_mntpt(*ptr, magic) == 0) {
+-				strncpy(mnt, *ptr, len - 1);
+-				mnt[len - 1] = 0;
++				strlcpy(mnt, *ptr, len);
+ 				return mnt;
+ 			}
+ 			ptr++;
+diff --git a/lib/fs.c b/lib/fs.c
+index ebe05cd44e11b..86efd4ed2ed80 100644
+--- a/lib/fs.c
++++ b/lib/fs.c
+@@ -172,8 +172,7 @@ int get_command_name(const char *pid, char *comm, size_t len)
+ 		if (nl)
+ 			*nl = '\0';
+ 
+-		strncpy(comm, name, len - 1);
+-		comm[len - 1] = '\0';
++		strlcpy(comm, name, len);
+ 		break;
+ 	}
+ 
+diff --git a/lib/inet_proto.c b/lib/inet_proto.c
+index 53c029039b6d5..bdfd52fdafe5a 100644
+--- a/lib/inet_proto.c
++++ b/lib/inet_proto.c
+@@ -38,8 +38,7 @@ const char *inet_proto_n2a(int proto, char *buf, int len)
+ 			free(ncache);
+ 		icache = proto;
+ 		ncache = strdup(pe->p_name);
+-		strncpy(buf, pe->p_name, len - 1);
+-		buf[len - 1] = '\0';
++		strlcpy(buf, pe->p_name, len);
+ 		return buf;
+ 	}
+ 	snprintf(buf, len, "ipproto-%d", proto);
+diff --git a/misc/ss.c b/misc/ss.c
+index fdb00a9f3f696..6aaae1b5390e4 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -444,8 +444,7 @@ static void user_ent_hash_build(void)
+ 
+ 	user_ent_hash_build_init = 1;
+ 
+-	strncpy(name, root, sizeof(name)-1);
+-	name[sizeof(name)-1] = 0;
++	strlcpy(name, root, sizeof(name));
+ 
+ 	if (strlen(name) == 0 || name[strlen(name)-1] != '/')
+ 		strcat(name, "/");
+diff --git a/tc/em_ipset.c b/tc/em_ipset.c
+index b59756515d239..48b287f5ba3b2 100644
+--- a/tc/em_ipset.c
++++ b/tc/em_ipset.c
+@@ -145,8 +145,7 @@ get_set_byname(const char *setname, struct xt_set_info *info)
+ 	int res;
+ 
+ 	req.op = IP_SET_OP_GET_BYNAME;
+-	strncpy(req.set.name, setname, IPSET_MAXNAMELEN);
+-	req.set.name[IPSET_MAXNAMELEN - 1] = '\0';
++	strlcpy(req.set.name, setname, IPSET_MAXNAMELEN);
+ 	res = do_getsockopt(&req);
+ 	if (res != 0)
+ 		return -1;
+-- 
+2.20.1
+

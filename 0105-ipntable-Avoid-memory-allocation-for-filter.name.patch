@@ -1,0 +1,58 @@
+From c176919cbf8f11f666c2281785e58fd147ecfea0 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Mon, 29 Apr 2019 20:08:08 +0200
+Subject: [PATCH] ipntable: Avoid memory allocation for filter.name
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1465646
+Upstream Status: iproute2.git commit 45c2ec9e95fef
+
+commit 45c2ec9e95fef8eb6f0807d9a7e5f14c14313c7e
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 24 11:51:45 2017 +0200
+
+    ipntable: Avoid memory allocation for filter.name
+
+    The original issue was that filter.name might end up unterminated if
+    user provided string was too long. But in fact it is not necessary to
+    copy the commandline parameter at all: just make filter.name point to it
+    instead.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/ipntable.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/ip/ipntable.c b/ip/ipntable.c
+index ae8c74ead2cb8..2f72c989f35df 100644
+--- a/ip/ipntable.c
++++ b/ip/ipntable.c
+@@ -37,7 +37,7 @@ static struct
+ 	int family;
+ 	int index;
+ #define NONE_DEV	(-1)
+-	char name[1024];
++	const char *name;
+ } filter;
+ 
+ static void usage(void) __attribute__((noreturn));
+@@ -367,7 +367,7 @@ static int print_ntable(const struct sockaddr_nl *who, struct nlmsghdr *n, void
+ 	if (tb[NDTA_NAME]) {
+ 		const char *name = rta_getattr_str(tb[NDTA_NAME]);
+ 
+-		if (strlen(filter.name) > 0 && strcmp(filter.name, name))
++		if (filter.name && strcmp(filter.name, name))
+ 			return 0;
+ 	}
+ 	if (tb[NDTA_PARMS]) {
+@@ -631,7 +631,7 @@ static int ipntable_show(int argc, char **argv)
+ 		} else if (strcmp(*argv, "name") == 0) {
+ 			NEXT_ARG();
+ 
+-			strncpy(filter.name, *argv, sizeof(filter.name));
++			filter.name = *argv;
+ 		} else
+ 			invarg("unknown", *argv);
+ 
+-- 
+2.20.1
+
