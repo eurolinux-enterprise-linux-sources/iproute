@@ -26,7 +26,7 @@ Signed-off-by: Kamal Heib <kheib@redhat.com>
  2 files changed, 4 insertions(+), 2 deletions(-)
 
 diff --git a/ip/iplink.c b/ip/iplink.c
-index b08d227..193997c 100644
+index b08d227d44bee..193997cad2a35 100644
 --- a/ip/iplink.c
 +++ b/ip/iplink.c
 @@ -91,6 +91,8 @@ void iplink_usage(void)
@@ -39,7 +39,7 @@ index b08d227..193997c 100644
  		"				  object FILE [ section NAME ] [ verbose ] |\n"
  		"				  pinned FILE } ]\n"
 diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
-index a5ddfe7..48417db 100644
+index a5ddfe7a106e7..48417dbce80aa 100644
 --- a/man/man8/ip-link.8.in
 +++ b/man/man8/ip-link.8.in
 @@ -1564,10 +1564,10 @@ sent by the VF.
@@ -56,5 +56,5 @@ index a5ddfe7..48417db 100644
  
  .TP
 -- 
-1.8.3.1
+2.21.0
 

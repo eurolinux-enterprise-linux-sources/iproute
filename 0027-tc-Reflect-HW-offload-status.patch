@@ -36,7 +36,7 @@ Signed-off-by: Kamal Heib <kheib@redhat.com>
  4 files changed, 20 insertions(+)
 
 diff --git a/tc/f_bpf.c b/tc/f_bpf.c
-index df8a259..75c44c0 100644
+index df8a259e18712..75c44c06cc88f 100644
 --- a/tc/f_bpf.c
 +++ b/tc/f_bpf.c
 @@ -210,6 +210,11 @@ static int bpf_print_opt(struct filter_util *qu, FILE *f,
@@ -52,7 +52,7 @@ index df8a259..75c44c0 100644
  
  	if (tb[TCA_BPF_OPS] && tb[TCA_BPF_OPS_LEN])
 diff --git a/tc/f_flower.c b/tc/f_flower.c
-index 5aac4a0..ebc63ca 100644
+index 5aac4a0837f40..ebc63ca6b2a27 100644
 --- a/tc/f_flower.c
 +++ b/tc/f_flower.c
 @@ -1171,6 +1171,11 @@ static int flower_print_opt(struct filter_util *qu, FILE *f,
@@ -68,7 +68,7 @@ index 5aac4a0..ebc63ca 100644
  
  	if (tb[TCA_FLOWER_ACT])
 diff --git a/tc/f_matchall.c b/tc/f_matchall.c
-index ac48630..5a51e75 100644
+index ac4863083767d..5a51e7553e82a 100644
 --- a/tc/f_matchall.c
 +++ b/tc/f_matchall.c
 @@ -137,6 +137,11 @@ static int matchall_print_opt(struct filter_util *qu, FILE *f,
@@ -84,7 +84,7 @@ index ac48630..5a51e75 100644
  
  	if (tb[TCA_MATCHALL_ACT])
 diff --git a/tc/f_u32.c b/tc/f_u32.c
-index 92c1fcd..ff700e9 100644
+index 92c1fcd4512c0..ff700e9f4a2d7 100644
 --- a/tc/f_u32.c
 +++ b/tc/f_u32.c
 @@ -1264,6 +1264,11 @@ static int u32_print_opt(struct filter_util *qu, FILE *f, struct rtattr *opt,
@@ -100,5 +100,5 @@ index 92c1fcd..ff700e9 100644
  
  	if (tb[TCA_U32_PCNT]) {
 -- 
-1.8.3.1
+2.21.0
 

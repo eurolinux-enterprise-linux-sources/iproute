@@ -1,4 +1,4 @@
-From 04453080a3a92071227fd79a039137f72fa82e15 Mon Sep 17 00:00:00 2001
+From 6837e43a9fb249e83a55a88e0523b3fab6db4dc6 Mon Sep 17 00:00:00 2001
 From: Andrea Claudi <aclaudi@redhat.com>
 Date: Wed, 12 Jun 2019 15:00:33 +0200
 Subject: [PATCH] ss: use [::] for any address/any family sockets
@@ -23,8 +23,6 @@ Date:   Wed Jun 12 14:49:07 2019 +0200
 
     Tested with
     # ss -ln -f inet6
-
-    ("ss: enclose IPv6 address in brackets")
 ---
  misc/ss.c | 29 ++++++++++++-----------------
  1 file changed, 12 insertions(+), 17 deletions(-)
@@ -72,5 +70,5 @@ index 6aaae1b5390e4..8f184fb929d31 100644
  
  	if (ifindex) {
 -- 
-2.20.1
+2.21.0
 

@@ -23,7 +23,7 @@ Signed-off-by: Kamal Heib <kheib@redhat.com>
  2 files changed, 8 insertions(+), 1 deletion(-)
 
 diff --git a/man/man8/tc-pedit.8 b/man/man8/tc-pedit.8
-index 7f482ea..9c4d57b 100644
+index 7f482eafc6c71..9c4d57b972cc8 100644
 --- a/man/man8/tc-pedit.8
 +++ b/man/man8/tc-pedit.8
 @@ -266,7 +266,8 @@ Keep the addressed data as is.
@@ -37,7 +37,7 @@ index 7f482ea..9c4d57b 100644
  .I CONTROL
  The following keywords allow to control how the tree of qdisc, classes,
 diff --git a/tc/m_pedit.c b/tc/m_pedit.c
-index 7ef2acc..9b74c96 100644
+index 7ef2acc52bce5..9b74c965932e0 100644
 --- a/tc/m_pedit.c
 +++ b/tc/m_pedit.c
 @@ -353,6 +353,12 @@ int parse_cmd(int *argc_p, char ***argv_p, __u32 len, int type, __u32 retain,
@@ -54,5 +54,5 @@ index 7ef2acc..9b74c96 100644
  		res = pack_mac(sel, tkey, (__u8 *)val);
  		goto done;
 -- 
-1.8.3.1
+2.21.0
 

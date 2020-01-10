@@ -20,11 +20,11 @@ Date:   Wed May 3 13:25:22 2017 +0200
 
 Signed-off-by: Kamal Heib <kheib@redhat.com>
 ---
- devlink/devlink.c | 103 ++++++++++++++++--------------------------------------
+ devlink/devlink.c | 103 ++++++++++++++--------------------------------
  1 file changed, 30 insertions(+), 73 deletions(-)
 
 diff --git a/devlink/devlink.c b/devlink/devlink.c
-index e90226e..35220d8 100644
+index e90226e48369b..35220d802a618 100644
 --- a/devlink/devlink.c
 +++ b/devlink/devlink.c
 @@ -232,88 +232,45 @@ static bool dl_no_arg(struct dl *dl)
@@ -147,5 +147,5 @@ index e90226e..35220d8 100644
  	return MNL_CB_OK;
  }
 -- 
-1.8.3.1
+2.21.0
 

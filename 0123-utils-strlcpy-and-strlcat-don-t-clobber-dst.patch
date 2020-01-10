@@ -58,5 +58,5 @@ index c9ba2f332c2a7..228d97bfe5e9b 100644
  
  	return dlen + strlcpy(dst + dlen, src, size - dlen);
 -- 
-2.20.1
+2.21.0
 

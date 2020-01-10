@@ -61,5 +61,5 @@ index fc9c575ba0c7d..c9ba2f332c2a7 100644
 +	return dlen + strlcpy(dst + dlen, src, size - dlen);
 +}
 -- 
-2.20.1
+2.21.0
 

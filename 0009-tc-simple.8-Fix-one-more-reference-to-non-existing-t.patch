@@ -13,7 +13,7 @@ Previous fix missed to update the SEE ALSO section as well.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/man/man8/tc-simple.8 b/man/man8/tc-simple.8
-index a0deb0b..beab313 100644
+index a0deb0b13a82f..beab3132ee90e 100644
 --- a/man/man8/tc-simple.8
 +++ b/man/man8/tc-simple.8
 @@ -96,4 +96,4 @@ display stats again and observe increment by 1
@@ -23,5 +23,5 @@ index a0deb0b..beab313 100644
 -.BR tc-actions (8)
 +.BR tc-pedit (8)
 -- 
-1.8.3.1
+2.21.0
 

@@ -11,127 +11,127 @@ This updates kernel headers to upstream commit
 Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1641909
 Upstream Status: RHEL-only
 ---
- include/uapi/linux/atm.h                       |    1 +
- include/uapi/linux/atmapi.h                    |    1 +
- include/uapi/linux/atmarp.h                    |    1 +
- include/uapi/linux/atmdev.h                    |    1 +
- include/uapi/linux/atmioc.h                    |    1 +
- include/uapi/linux/atmsap.h                    |    1 +
- include/uapi/linux/bpf.h                       | 2481 ++++++++++++++++++++----
- include/uapi/linux/bpf_common.h                |    8 +-
- include/uapi/linux/btf.h                       |  113 ++
- include/uapi/linux/can.h                       |    1 +
- include/uapi/linux/can/netlink.h               |    2 +
- include/uapi/linux/can/vxcan.h                 |    1 +
- include/uapi/linux/devlink.h                   |   82 +
- include/uapi/linux/elf-em.h                    |    1 +
- include/uapi/linux/fib_rules.h                 |   12 +-
- include/uapi/linux/filter.h                    |    1 +
- include/uapi/linux/fou.h                       |    1 +
- include/uapi/linux/gen_stats.h                 |    1 +
- include/uapi/linux/genetlink.h                 |    1 +
- include/uapi/linux/hdlc/ioctl.h                |    1 +
- include/uapi/linux/icmpv6.h                    |    1 +
- include/uapi/linux/if.h                        |    1 +
- include/uapi/linux/if_addr.h                   |    2 +
- include/uapi/linux/if_addrlabel.h              |    1 +
- include/uapi/linux/if_alg.h                    |    1 +
- include/uapi/linux/if_arp.h                    |    1 +
- include/uapi/linux/if_bonding.h                |    1 +
- include/uapi/linux/if_bridge.h                 |    1 +
- include/uapi/linux/if_ether.h                  |   11 +
- include/uapi/linux/if_link.h                   |   59 +
- include/uapi/linux/if_macsec.h                 |   10 +-
- include/uapi/linux/if_packet.h                 |    1 +
- include/uapi/linux/if_tun.h                    |    5 +
- include/uapi/linux/if_tunnel.h                 |    5 +
- include/uapi/linux/if_vlan.h                   |    1 +
- include/uapi/linux/ife.h                       |    1 +
- include/uapi/linux/ila.h                       |   23 +
- include/uapi/linux/in.h                        |    1 +
- include/uapi/linux/in6.h                       |    2 +
- include/uapi/linux/in_route.h                  |    1 +
- include/uapi/linux/inet_diag.h                 |    3 +
- include/uapi/linux/ip.h                        |    1 +
- include/uapi/linux/ip6_tunnel.h                |    3 +
- include/uapi/linux/ipsec.h                     |    1 +
- include/uapi/linux/kernel.h                    |    1 +
- include/uapi/linux/l2tp.h                      |    7 +-
- include/uapi/linux/libc-compat.h               |   56 +-
- include/uapi/linux/limits.h                    |    1 +
- include/uapi/linux/lwtunnel.h                  |    1 +
- include/uapi/linux/magic.h                     |    2 +
- include/uapi/linux/mpls.h                      |    1 +
- include/uapi/linux/mpls_iptunnel.h             |    1 +
- include/uapi/linux/neighbour.h                 |    1 +
- include/uapi/linux/net_namespace.h             |    1 +
- include/uapi/linux/netconf.h                   |    1 +
- include/uapi/linux/netdevice.h                 |    1 +
- include/uapi/linux/netfilter.h                 |    1 +
- include/uapi/linux/netfilter/ipset/ip_set.h    |    1 +
- include/uapi/linux/netfilter/x_tables.h        |    1 +
- include/uapi/linux/netfilter/xt_set.h          |    1 +
- include/uapi/linux/netfilter/xt_tcpudp.h       |    1 +
- include/uapi/linux/netfilter_ipv4.h            |    2 +
- include/uapi/linux/netfilter_ipv4/ip_tables.h  |    1 +
- include/uapi/linux/netfilter_ipv6.h            |    2 +
- include/uapi/linux/netfilter_ipv6/ip6_tables.h |    1 +
- include/uapi/linux/netlink.h                   |    1 +
- include/uapi/linux/netlink_diag.h              |    1 +
- include/uapi/linux/packet_diag.h               |    1 +
- include/uapi/linux/param.h                     |    1 +
- include/uapi/linux/pfkeyv2.h                   |    1 +
- include/uapi/linux/pkt_cls.h                   |   15 +-
- include/uapi/linux/pkt_sched.h                 |  198 ++
- include/uapi/linux/posix_types.h               |    1 +
- include/uapi/linux/rtnetlink.h                 |   24 +
- include/uapi/linux/sctp.h                      |   71 +-
- include/uapi/linux/seg6.h                      |    5 +-
- include/uapi/linux/seg6_genl.h                 |    1 +
- include/uapi/linux/seg6_hmac.h                 |    1 +
- include/uapi/linux/seg6_iptunnel.h             |    1 +
- include/uapi/linux/seg6_local.h                |   12 +
- include/uapi/linux/sock_diag.h                 |    1 +
- include/uapi/linux/socket.h                    |    1 +
- include/uapi/linux/sockios.h                   |    1 +
- include/uapi/linux/stddef.h                    |    1 +
- include/uapi/linux/sysinfo.h                   |    1 +
- include/uapi/linux/tc_act/tc_bpf.h             |    1 +
- include/uapi/linux/tc_act/tc_connmark.h        |    1 +
- include/uapi/linux/tc_act/tc_csum.h            |    1 +
- include/uapi/linux/tc_act/tc_defact.h          |    1 +
- include/uapi/linux/tc_act/tc_gact.h            |    1 +
- include/uapi/linux/tc_act/tc_ife.h             |    1 +
- include/uapi/linux/tc_act/tc_ipt.h             |    1 +
- include/uapi/linux/tc_act/tc_mirred.h          |    7 +-
- include/uapi/linux/tc_act/tc_nat.h             |    1 +
- include/uapi/linux/tc_act/tc_pedit.h           |   10 +-
- include/uapi/linux/tc_act/tc_sample.h          |    1 +
- include/uapi/linux/tc_act/tc_skbedit.h         |    3 +
- include/uapi/linux/tc_act/tc_skbmod.h          |    1 +
- include/uapi/linux/tc_act/tc_tunnel_key.h      |   29 +
- include/uapi/linux/tc_act/tc_vlan.h            |    1 +
- include/uapi/linux/tc_ematch/tc_em_cmp.h       |    1 +
- include/uapi/linux/tc_ematch/tc_em_ipt.h       |   20 +
- include/uapi/linux/tc_ematch/tc_em_meta.h      |    1 +
- include/uapi/linux/tc_ematch/tc_em_nbyte.h     |    1 +
- include/uapi/linux/tcp.h                       |   22 +
- include/uapi/linux/tcp_metrics.h               |    1 +
- include/uapi/linux/tipc.h                      |  188 +-
- include/uapi/linux/tipc_netlink.h              |   37 +
- include/uapi/linux/tipc_sockets_diag.h         |   17 +
- include/uapi/linux/types.h                     |    3 +
- include/uapi/linux/unix_diag.h                 |    1 +
- include/uapi/linux/veth.h                      |    1 +
- include/uapi/linux/vm_sockets_diag.h           |    1 +
- include/uapi/linux/xfrm.h                      |    1 +
+ include/uapi/linux/atm.h                      |    1 +
+ include/uapi/linux/atmapi.h                   |    1 +
+ include/uapi/linux/atmarp.h                   |    1 +
+ include/uapi/linux/atmdev.h                   |    1 +
+ include/uapi/linux/atmioc.h                   |    1 +
+ include/uapi/linux/atmsap.h                   |    1 +
+ include/uapi/linux/bpf.h                      | 2481 ++++++++++++++---
+ include/uapi/linux/bpf_common.h               |    8 +-
+ include/uapi/linux/btf.h                      |  113 +
+ include/uapi/linux/can.h                      |    1 +
+ include/uapi/linux/can/netlink.h              |    2 +
+ include/uapi/linux/can/vxcan.h                |    1 +
+ include/uapi/linux/devlink.h                  |   82 +
+ include/uapi/linux/elf-em.h                   |    1 +
+ include/uapi/linux/fib_rules.h                |   12 +-
+ include/uapi/linux/filter.h                   |    1 +
+ include/uapi/linux/fou.h                      |    1 +
+ include/uapi/linux/gen_stats.h                |    1 +
+ include/uapi/linux/genetlink.h                |    1 +
+ include/uapi/linux/hdlc/ioctl.h               |    1 +
+ include/uapi/linux/icmpv6.h                   |    1 +
+ include/uapi/linux/if.h                       |    1 +
+ include/uapi/linux/if_addr.h                  |    2 +
+ include/uapi/linux/if_addrlabel.h             |    1 +
+ include/uapi/linux/if_alg.h                   |    1 +
+ include/uapi/linux/if_arp.h                   |    1 +
+ include/uapi/linux/if_bonding.h               |    1 +
+ include/uapi/linux/if_bridge.h                |    1 +
+ include/uapi/linux/if_ether.h                 |   11 +
+ include/uapi/linux/if_link.h                  |   59 +
+ include/uapi/linux/if_macsec.h                |   10 +-
+ include/uapi/linux/if_packet.h                |    1 +
+ include/uapi/linux/if_tun.h                   |    5 +
+ include/uapi/linux/if_tunnel.h                |    5 +
+ include/uapi/linux/if_vlan.h                  |    1 +
+ include/uapi/linux/ife.h                      |    1 +
+ include/uapi/linux/ila.h                      |   23 +
+ include/uapi/linux/in.h                       |    1 +
+ include/uapi/linux/in6.h                      |    2 +
+ include/uapi/linux/in_route.h                 |    1 +
+ include/uapi/linux/inet_diag.h                |    3 +
+ include/uapi/linux/ip.h                       |    1 +
+ include/uapi/linux/ip6_tunnel.h               |    3 +
+ include/uapi/linux/ipsec.h                    |    1 +
+ include/uapi/linux/kernel.h                   |    1 +
+ include/uapi/linux/l2tp.h                     |    7 +-
+ include/uapi/linux/libc-compat.h              |   56 +-
+ include/uapi/linux/limits.h                   |    1 +
+ include/uapi/linux/lwtunnel.h                 |    1 +
+ include/uapi/linux/magic.h                    |    2 +
+ include/uapi/linux/mpls.h                     |    1 +
+ include/uapi/linux/mpls_iptunnel.h            |    1 +
+ include/uapi/linux/neighbour.h                |    1 +
+ include/uapi/linux/net_namespace.h            |    1 +
+ include/uapi/linux/netconf.h                  |    1 +
+ include/uapi/linux/netdevice.h                |    1 +
+ include/uapi/linux/netfilter.h                |    1 +
+ include/uapi/linux/netfilter/ipset/ip_set.h   |    1 +
+ include/uapi/linux/netfilter/x_tables.h       |    1 +
+ include/uapi/linux/netfilter/xt_set.h         |    1 +
+ include/uapi/linux/netfilter/xt_tcpudp.h      |    1 +
+ include/uapi/linux/netfilter_ipv4.h           |    2 +
+ include/uapi/linux/netfilter_ipv4/ip_tables.h |    1 +
+ include/uapi/linux/netfilter_ipv6.h           |    2 +
+ .../uapi/linux/netfilter_ipv6/ip6_tables.h    |    1 +
+ include/uapi/linux/netlink.h                  |    1 +
+ include/uapi/linux/netlink_diag.h             |    1 +
+ include/uapi/linux/packet_diag.h              |    1 +
+ include/uapi/linux/param.h                    |    1 +
+ include/uapi/linux/pfkeyv2.h                  |    1 +
+ include/uapi/linux/pkt_cls.h                  |   15 +-
+ include/uapi/linux/pkt_sched.h                |  198 ++
+ include/uapi/linux/posix_types.h              |    1 +
+ include/uapi/linux/rtnetlink.h                |   24 +
+ include/uapi/linux/sctp.h                     |   71 +-
+ include/uapi/linux/seg6.h                     |    5 +-
+ include/uapi/linux/seg6_genl.h                |    1 +
+ include/uapi/linux/seg6_hmac.h                |    1 +
+ include/uapi/linux/seg6_iptunnel.h            |    1 +
+ include/uapi/linux/seg6_local.h               |   12 +
+ include/uapi/linux/sock_diag.h                |    1 +
+ include/uapi/linux/socket.h                   |    1 +
+ include/uapi/linux/sockios.h                  |    1 +
+ include/uapi/linux/stddef.h                   |    1 +
+ include/uapi/linux/sysinfo.h                  |    1 +
+ include/uapi/linux/tc_act/tc_bpf.h            |    1 +
+ include/uapi/linux/tc_act/tc_connmark.h       |    1 +
+ include/uapi/linux/tc_act/tc_csum.h           |    1 +
+ include/uapi/linux/tc_act/tc_defact.h         |    1 +
+ include/uapi/linux/tc_act/tc_gact.h           |    1 +
+ include/uapi/linux/tc_act/tc_ife.h            |    1 +
+ include/uapi/linux/tc_act/tc_ipt.h            |    1 +
+ include/uapi/linux/tc_act/tc_mirred.h         |    7 +-
+ include/uapi/linux/tc_act/tc_nat.h            |    1 +
+ include/uapi/linux/tc_act/tc_pedit.h          |   10 +-
+ include/uapi/linux/tc_act/tc_sample.h         |    1 +
+ include/uapi/linux/tc_act/tc_skbedit.h        |    3 +
+ include/uapi/linux/tc_act/tc_skbmod.h         |    1 +
+ include/uapi/linux/tc_act/tc_tunnel_key.h     |   29 +
+ include/uapi/linux/tc_act/tc_vlan.h           |    1 +
+ include/uapi/linux/tc_ematch/tc_em_cmp.h      |    1 +
+ include/uapi/linux/tc_ematch/tc_em_ipt.h      |   20 +
+ include/uapi/linux/tc_ematch/tc_em_meta.h     |    1 +
+ include/uapi/linux/tc_ematch/tc_em_nbyte.h    |    1 +
+ include/uapi/linux/tcp.h                      |   22 +
+ include/uapi/linux/tcp_metrics.h              |    1 +
+ include/uapi/linux/tipc.h                     |  188 +-
+ include/uapi/linux/tipc_netlink.h             |   37 +
+ include/uapi/linux/tipc_sockets_diag.h        |   17 +
+ include/uapi/linux/types.h                    |    3 +
+ include/uapi/linux/unix_diag.h                |    1 +
+ include/uapi/linux/veth.h                     |    1 +
+ include/uapi/linux/vm_sockets_diag.h          |    1 +
+ include/uapi/linux/xfrm.h                     |    1 +
  114 files changed, 3201 insertions(+), 427 deletions(-)
  create mode 100644 include/uapi/linux/btf.h
  create mode 100644 include/uapi/linux/tc_ematch/tc_em_ipt.h
  create mode 100644 include/uapi/linux/tipc_sockets_diag.h
 
 diff --git a/include/uapi/linux/atm.h b/include/uapi/linux/atm.h
-index 08e27be..e33ff6b 100644
+index 08e27bebaacfb..e33ff6b5bf152 100644
 --- a/include/uapi/linux/atm.h
 +++ b/include/uapi/linux/atm.h
 @@ -1,3 +1,4 @@
@@ -140,7 +140,7 @@ index 08e27be..e33ff6b 100644
   
  /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 diff --git a/include/uapi/linux/atmapi.h b/include/uapi/linux/atmapi.h
-index 8fe54d9..c9bf5c2 100644
+index 8fe54d90d95b1..c9bf5c23a71f6 100644
 --- a/include/uapi/linux/atmapi.h
 +++ b/include/uapi/linux/atmapi.h
 @@ -1,3 +1,4 @@
@@ -149,7 +149,7 @@ index 8fe54d9..c9bf5c2 100644
   
  /* Written 1999,2000 by Werner Almesberger, EPFL ICA */
 diff --git a/include/uapi/linux/atmarp.h b/include/uapi/linux/atmarp.h
-index 231f4bd..8e44d12 100644
+index 231f4bdec730e..8e44d121fde1a 100644
 --- a/include/uapi/linux/atmarp.h
 +++ b/include/uapi/linux/atmarp.h
 @@ -1,3 +1,4 @@
@@ -158,7 +158,7 @@ index 231f4bd..8e44d12 100644
   
  /* Written 1995-1999 by Werner Almesberger, EPFL LRC/ICA */
 diff --git a/include/uapi/linux/atmdev.h b/include/uapi/linux/atmdev.h
-index 8faa8b9..9bdb96a 100644
+index 8faa8b94091ce..9bdb96a4bbe04 100644
 --- a/include/uapi/linux/atmdev.h
 +++ b/include/uapi/linux/atmdev.h
 @@ -1,3 +1,4 @@
@@ -167,7 +167,7 @@ index 8faa8b9..9bdb96a 100644
   
  /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
 diff --git a/include/uapi/linux/atmioc.h b/include/uapi/linux/atmioc.h
-index 37f67aa..cd7655e 100644
+index 37f67aa8f1c16..cd7655e40c77a 100644
 --- a/include/uapi/linux/atmioc.h
 +++ b/include/uapi/linux/atmioc.h
 @@ -1,3 +1,4 @@
@@ -176,7 +176,7 @@ index 37f67aa..cd7655e 100644
   
  /* Written 1995-1999 by Werner Almesberger, EPFL LRC/ICA */
 diff --git a/include/uapi/linux/atmsap.h b/include/uapi/linux/atmsap.h
-index 799b104..fc05248 100644
+index 799b104515d77..fc052481eae05 100644
 --- a/include/uapi/linux/atmsap.h
 +++ b/include/uapi/linux/atmsap.h
 @@ -1,3 +1,4 @@
@@ -185,7 +185,7 @@ index 799b104..fc05248 100644
  
  /* Written 1995-1999 by Werner Almesberger, EPFL LRC/ICA */
 diff --git a/include/uapi/linux/bpf.h b/include/uapi/linux/bpf.h
-index 0895a52..b9a6367 100644
+index 0895a529cc90b..b9a63672b297c 100644
 --- a/include/uapi/linux/bpf.h
 +++ b/include/uapi/linux/bpf.h
 @@ -1,3 +1,4 @@
@@ -2896,7 +2896,7 @@ index 0895a52..b9a6367 100644
 +
  #endif /* __LINUX_BPF_H__ */
 diff --git a/include/uapi/linux/bpf_common.h b/include/uapi/linux/bpf_common.h
-index afe7433..f0fe139 100644
+index afe7433b9891f..f0fe1394971d1 100644
 --- a/include/uapi/linux/bpf_common.h
 +++ b/include/uapi/linux/bpf_common.h
 @@ -1,3 +1,4 @@
@@ -2920,7 +2920,7 @@ index afe7433..f0fe139 100644
  #define		BPF_ABS		0x20
 diff --git a/include/uapi/linux/btf.h b/include/uapi/linux/btf.h
 new file mode 100644
-index 0000000..5dd580a
+index 0000000000000..5dd580a6726cd
 --- /dev/null
 +++ b/include/uapi/linux/btf.h
 @@ -0,0 +1,113 @@
@@ -3038,7 +3038,7 @@ index 0000000..5dd580a
 +
 +#endif /* __LINUX_BTF_H__ */
 diff --git a/include/uapi/linux/can.h b/include/uapi/linux/can.h
-index f7a810d..4d1ab8e 100644
+index f7a810debb0e8..4d1ab8e7a4984 100644
 --- a/include/uapi/linux/can.h
 +++ b/include/uapi/linux/can.h
 @@ -1,3 +1,4 @@
@@ -3047,7 +3047,7 @@ index f7a810d..4d1ab8e 100644
   * linux/can.h
   *
 diff --git a/include/uapi/linux/can/netlink.h b/include/uapi/linux/can/netlink.h
-index b9214bd..f0c5e58 100644
+index b9214bd7aa2bc..f0c5e58b8ee76 100644
 --- a/include/uapi/linux/can/netlink.h
 +++ b/include/uapi/linux/can/netlink.h
 @@ -1,3 +1,4 @@
@@ -3064,7 +3064,7 @@ index b9214bd..f0c5e58 100644
  };
  
 diff --git a/include/uapi/linux/can/vxcan.h b/include/uapi/linux/can/vxcan.h
-index 5b29e8a..b364d77 100644
+index 5b29e8a7bc274..b364d775553c6 100644
 --- a/include/uapi/linux/can/vxcan.h
 +++ b/include/uapi/linux/can/vxcan.h
 @@ -1,3 +1,4 @@
@@ -3073,7 +3073,7 @@ index 5b29e8a..b364d77 100644
  #define _CAN_VXCAN_H
  
 diff --git a/include/uapi/linux/devlink.h b/include/uapi/linux/devlink.h
-index a62695e..5ee0e73 100644
+index a62695e2d86e8..5ee0e7397591a 100644
 --- a/include/uapi/linux/devlink.h
 +++ b/include/uapi/linux/devlink.h
 @@ -1,3 +1,4 @@
@@ -3189,7 +3189,7 @@ index a62695e..5ee0e73 100644
 +
  #endif /* _LINUX_DEVLINK_H_ */
 diff --git a/include/uapi/linux/elf-em.h b/include/uapi/linux/elf-em.h
-index 9cd1de9..31aa101 100644
+index 9cd1de954c0ac..31aa101783351 100644
 --- a/include/uapi/linux/elf-em.h
 +++ b/include/uapi/linux/elf-em.h
 @@ -1,3 +1,4 @@
@@ -3198,7 +3198,7 @@ index 9cd1de9..31aa101 100644
  #define _LINUX_ELF_EM_H
  
 diff --git a/include/uapi/linux/fib_rules.h b/include/uapi/linux/fib_rules.h
-index bbf02a6..232df14 100644
+index bbf02a63a0113..232df14e1287a 100644
 --- a/include/uapi/linux/fib_rules.h
 +++ b/include/uapi/linux/fib_rules.h
 @@ -1,3 +1,4 @@
@@ -3239,7 +3239,7 @@ index bbf02a6..232df14 100644
  };
  
 diff --git a/include/uapi/linux/filter.h b/include/uapi/linux/filter.h
-index e4f2f74..eaef459 100644
+index e4f2f74cfc168..eaef459e7bd44 100644
 --- a/include/uapi/linux/filter.h
 +++ b/include/uapi/linux/filter.h
 @@ -1,3 +1,4 @@
@@ -3248,7 +3248,7 @@ index e4f2f74..eaef459 100644
   * Linux Socket Filter Data Structures
   */
 diff --git a/include/uapi/linux/fou.h b/include/uapi/linux/fou.h
-index 744c323..bf022c6 100644
+index 744c32380e6dc..bf022c63d5ff6 100644
 --- a/include/uapi/linux/fou.h
 +++ b/include/uapi/linux/fou.h
 @@ -1,3 +1,4 @@
@@ -3257,7 +3257,7 @@ index 744c323..bf022c6 100644
  
  #ifndef _LINUX_FOU_H
 diff --git a/include/uapi/linux/gen_stats.h b/include/uapi/linux/gen_stats.h
-index 52deccc..24a861c 100644
+index 52deccc2128ee..24a861c0d29d3 100644
 --- a/include/uapi/linux/gen_stats.h
 +++ b/include/uapi/linux/gen_stats.h
 @@ -1,3 +1,4 @@
@@ -3266,7 +3266,7 @@ index 52deccc..24a861c 100644
  #define __LINUX_GEN_STATS_H
  
 diff --git a/include/uapi/linux/genetlink.h b/include/uapi/linux/genetlink.h
-index 08239d8..1317119 100644
+index 08239d8ead41d..1317119cbff8f 100644
 --- a/include/uapi/linux/genetlink.h
 +++ b/include/uapi/linux/genetlink.h
 @@ -1,3 +1,4 @@
@@ -3275,7 +3275,7 @@ index 08239d8..1317119 100644
  #define __LINUX_GENERIC_NETLINK_H
  
 diff --git a/include/uapi/linux/hdlc/ioctl.h b/include/uapi/linux/hdlc/ioctl.h
-index 04bc027..0fe4238 100644
+index 04bc0274a1898..0fe4238e82462 100644
 --- a/include/uapi/linux/hdlc/ioctl.h
 +++ b/include/uapi/linux/hdlc/ioctl.h
 @@ -1,3 +1,4 @@
@@ -3284,7 +3284,7 @@ index 04bc027..0fe4238 100644
  #define __HDLC_IOCTL_H__
  
 diff --git a/include/uapi/linux/icmpv6.h b/include/uapi/linux/icmpv6.h
-index a2e839e..cb247a5 100644
+index a2e839ee96485..cb247a5df6ea6 100644
 --- a/include/uapi/linux/icmpv6.h
 +++ b/include/uapi/linux/icmpv6.h
 @@ -1,3 +1,4 @@
@@ -3293,7 +3293,7 @@ index a2e839e..cb247a5 100644
  #define _LINUX_ICMPV6_H
  
 diff --git a/include/uapi/linux/if.h b/include/uapi/linux/if.h
-index b4ba020..495cdd2 100644
+index b4ba020791f86..495cdd2324428 100644
 --- a/include/uapi/linux/if.h
 +++ b/include/uapi/linux/if.h
 @@ -1,3 +1,4 @@
@@ -3302,7 +3302,7 @@ index b4ba020..495cdd2 100644
   * INET		An implementation of the TCP/IP protocol suite for the LINUX
   *		operating system.  INET is implemented using the  BSD Socket
 diff --git a/include/uapi/linux/if_addr.h b/include/uapi/linux/if_addr.h
-index 26f0ecf..a924606 100644
+index 26f0ecff9f13d..a924606f36e56 100644
 --- a/include/uapi/linux/if_addr.h
 +++ b/include/uapi/linux/if_addr.h
 @@ -1,3 +1,4 @@
@@ -3319,7 +3319,7 @@ index 26f0ecf..a924606 100644
  };
  
 diff --git a/include/uapi/linux/if_addrlabel.h b/include/uapi/linux/if_addrlabel.h
-index 54580c2..d1f5974 100644
+index 54580c298187c..d1f5974c76e10 100644
 --- a/include/uapi/linux/if_addrlabel.h
 +++ b/include/uapi/linux/if_addrlabel.h
 @@ -1,3 +1,4 @@
@@ -3328,7 +3328,7 @@ index 54580c2..d1f5974 100644
   * if_addrlabel.h - netlink interface for address labels
   *
 diff --git a/include/uapi/linux/if_alg.h b/include/uapi/linux/if_alg.h
-index f2acd2f..bc2bcde 100644
+index f2acd2fde1f3a..bc2bcdec377b4 100644
 --- a/include/uapi/linux/if_alg.h
 +++ b/include/uapi/linux/if_alg.h
 @@ -1,3 +1,4 @@
@@ -3337,7 +3337,7 @@ index f2acd2f..bc2bcde 100644
   * if_alg: User-space algorithm interface
   *
 diff --git a/include/uapi/linux/if_arp.h b/include/uapi/linux/if_arp.h
-index 199f253..cd136a6 100644
+index 199f253bd1f66..cd136a6f821bb 100644
 --- a/include/uapi/linux/if_arp.h
 +++ b/include/uapi/linux/if_arp.h
 @@ -1,3 +1,4 @@
@@ -3346,7 +3346,7 @@ index 199f253..cd136a6 100644
   * INET		An implementation of the TCP/IP protocol suite for the LINUX
   *		operating system.  INET is implemented using the  BSD Socket
 diff --git a/include/uapi/linux/if_bonding.h b/include/uapi/linux/if_bonding.h
-index 9635a62..61a1bf6 100644
+index 9635a62f6f89c..61a1bf6e865e8 100644
 --- a/include/uapi/linux/if_bonding.h
 +++ b/include/uapi/linux/if_bonding.h
 @@ -1,3 +1,4 @@
@@ -3355,7 +3355,7 @@ index 9635a62..61a1bf6 100644
   * Bond several ethernet interfaces into a Cisco, running 'Etherchannel'.
   *
 diff --git a/include/uapi/linux/if_bridge.h b/include/uapi/linux/if_bridge.h
-index 156f443..bdfecf9 100644
+index 156f4434ca325..bdfecf9411320 100644
 --- a/include/uapi/linux/if_bridge.h
 +++ b/include/uapi/linux/if_bridge.h
 @@ -1,3 +1,4 @@
@@ -3364,7 +3364,7 @@ index 156f443..bdfecf9 100644
   *	Linux ethernet bridge
   *
 diff --git a/include/uapi/linux/if_ether.h b/include/uapi/linux/if_ether.h
-index 7dde037..8c36f63 100644
+index 7dde037a0cca6..8c36f63e6a38f 100644
 --- a/include/uapi/linux/if_ether.h
 +++ b/include/uapi/linux/if_ether.h
 @@ -1,3 +1,4 @@
@@ -3416,7 +3416,7 @@ index 7dde037..8c36f63 100644
  
  #endif /* _LINUX_IF_ETHER_H */
 diff --git a/include/uapi/linux/if_link.h b/include/uapi/linux/if_link.h
-index 1f97d05..1c64ed4 100644
+index 1f97d0560b6cb..1c64ed45353d5 100644
 --- a/include/uapi/linux/if_link.h
 +++ b/include/uapi/linux/if_link.h
 @@ -1,3 +1,4 @@
@@ -3544,7 +3544,7 @@ index 1f97d05..1c64ed4 100644
 +
  #endif /* _LINUX_IF_LINK_H */
 diff --git a/include/uapi/linux/if_macsec.h b/include/uapi/linux/if_macsec.h
-index 22939a3..7743993 100644
+index 22939a3ec8ea2..77439932561b9 100644
 --- a/include/uapi/linux/if_macsec.h
 +++ b/include/uapi/linux/if_macsec.h
 @@ -1,3 +1,4 @@
@@ -3569,7 +3569,7 @@ index 22939a3..7743993 100644
  #define MACSEC_MIN_ICV_LEN 8
  #define MACSEC_MAX_ICV_LEN 32
 diff --git a/include/uapi/linux/if_packet.h b/include/uapi/linux/if_packet.h
-index 4df96a7..67b61d9 100644
+index 4df96a7dd4fae..67b61d91d89bf 100644
 --- a/include/uapi/linux/if_packet.h
 +++ b/include/uapi/linux/if_packet.h
 @@ -1,3 +1,4 @@
@@ -3578,7 +3578,7 @@ index 4df96a7..67b61d9 100644
  #define __LINUX_IF_PACKET_H
  
 diff --git a/include/uapi/linux/if_tun.h b/include/uapi/linux/if_tun.h
-index d5ecb42..be9b744 100644
+index d5ecb42541819..be9b744a16458 100644
 --- a/include/uapi/linux/if_tun.h
 +++ b/include/uapi/linux/if_tun.h
 @@ -1,3 +1,4 @@
@@ -3602,7 +3602,7 @@ index d5ecb42..be9b744 100644
  /* This flag has no real effect */
  #define IFF_ONE_QUEUE	0x2000
 diff --git a/include/uapi/linux/if_tunnel.h b/include/uapi/linux/if_tunnel.h
-index 21834ca..ecdc766 100644
+index 21834cac4c0d5..ecdc76669cfdd 100644
 --- a/include/uapi/linux/if_tunnel.h
 +++ b/include/uapi/linux/if_tunnel.h
 @@ -1,3 +1,4 @@
@@ -3629,7 +3629,7 @@ index 21834ca..ecdc766 100644
  };
  
 diff --git a/include/uapi/linux/if_vlan.h b/include/uapi/linux/if_vlan.h
-index 24ae007..18a15da 100644
+index 24ae007160a17..18a15dad5547b 100644
 --- a/include/uapi/linux/if_vlan.h
 +++ b/include/uapi/linux/if_vlan.h
 @@ -1,3 +1,4 @@
@@ -3638,7 +3638,7 @@ index 24ae007..18a15da 100644
   * VLAN		An implementation of 802.1Q VLAN tagging.
   *
 diff --git a/include/uapi/linux/ife.h b/include/uapi/linux/ife.h
-index 2954da3..bdd953c 100644
+index 2954da32e012e..bdd953c67db12 100644
 --- a/include/uapi/linux/ife.h
 +++ b/include/uapi/linux/ife.h
 @@ -1,3 +1,4 @@
@@ -3647,7 +3647,7 @@ index 2954da3..bdd953c 100644
  #define __UAPI_IFE_H
  
 diff --git a/include/uapi/linux/ila.h b/include/uapi/linux/ila.h
-index 7e328d7..6a6c97c 100644
+index 7e328d72c518f..6a6c97cf2c40c 100644
 --- a/include/uapi/linux/ila.h
 +++ b/include/uapi/linux/ila.h
 @@ -1,3 +1,4 @@
@@ -3699,7 +3699,7 @@ index 7e328d7..6a6c97c 100644
  
  #endif /* _LINUX_ILA_H */
 diff --git a/include/uapi/linux/in.h b/include/uapi/linux/in.h
-index 9439efa..a4f143b 100644
+index 9439efaaa0c84..a4f143b301582 100644
 --- a/include/uapi/linux/in.h
 +++ b/include/uapi/linux/in.h
 @@ -1,3 +1,4 @@
@@ -3708,7 +3708,7 @@ index 9439efa..a4f143b 100644
   * INET		An implementation of the TCP/IP protocol suite for the LINUX
   *		operating system.  INET is implemented using the  BSD Socket
 diff --git a/include/uapi/linux/in6.h b/include/uapi/linux/in6.h
-index 6f3bdee..409bb3f 100644
+index 6f3bdee7c0aba..409bb3f3aed67 100644
 --- a/include/uapi/linux/in6.h
 +++ b/include/uapi/linux/in6.h
 @@ -1,3 +1,4 @@
@@ -3725,7 +3725,7 @@ index 6f3bdee..409bb3f 100644
  /*
   * Multicast Routing:
 diff --git a/include/uapi/linux/in_route.h b/include/uapi/linux/in_route.h
-index b261b8c..0cc2c23 100644
+index b261b8c915f01..0cc2c23b47f84 100644
 --- a/include/uapi/linux/in_route.h
 +++ b/include/uapi/linux/in_route.h
 @@ -1,3 +1,4 @@
@@ -3734,7 +3734,7 @@ index b261b8c..0cc2c23 100644
  #define _LINUX_IN_ROUTE_H
  
 diff --git a/include/uapi/linux/inet_diag.h b/include/uapi/linux/inet_diag.h
-index bada4d7..f98d82d 100644
+index bada4d7b6c8e6..f98d82d4b2c03 100644
 --- a/include/uapi/linux/inet_diag.h
 +++ b/include/uapi/linux/inet_diag.h
 @@ -1,3 +1,4 @@
@@ -3752,7 +3752,7 @@ index bada4d7..f98d82d 100644
  
  struct inet_diag_hostcond {
 diff --git a/include/uapi/linux/ip.h b/include/uapi/linux/ip.h
-index 1907284..883fd33 100644
+index 1907284cb3745..883fd334496ab 100644
 --- a/include/uapi/linux/ip.h
 +++ b/include/uapi/linux/ip.h
 @@ -1,3 +1,4 @@
@@ -3761,7 +3761,7 @@ index 1907284..883fd33 100644
   * INET		An implementation of the TCP/IP protocol suite for the LINUX
   *		operating system.  INET is implemented using the  BSD Socket
 diff --git a/include/uapi/linux/ip6_tunnel.h b/include/uapi/linux/ip6_tunnel.h
-index 425926c..0245269 100644
+index 425926c467d7a..0245269b037c8 100644
 --- a/include/uapi/linux/ip6_tunnel.h
 +++ b/include/uapi/linux/ip6_tunnel.h
 @@ -1,3 +1,4 @@
@@ -3779,7 +3779,7 @@ index 425926c..0245269 100644
  struct ip6_tnl_parm {
  	char name[IFNAMSIZ];	/* name of tunnel device */
 diff --git a/include/uapi/linux/ipsec.h b/include/uapi/linux/ipsec.h
-index d17a630..50d8ee1 100644
+index d17a6302a0e96..50d8ee1791e2a 100644
 --- a/include/uapi/linux/ipsec.h
 +++ b/include/uapi/linux/ipsec.h
 @@ -1,3 +1,4 @@
@@ -3788,7 +3788,7 @@ index d17a630..50d8ee1 100644
  #define _LINUX_IPSEC_H
  
 diff --git a/include/uapi/linux/kernel.h b/include/uapi/linux/kernel.h
-index 527549f..d99ffa1 100644
+index 527549f5db572..d99ffa1a0abdb 100644
 --- a/include/uapi/linux/kernel.h
 +++ b/include/uapi/linux/kernel.h
 @@ -1,3 +1,4 @@
@@ -3797,7 +3797,7 @@ index 527549f..d99ffa1 100644
  #define _LINUX_KERNEL_H
  
 diff --git a/include/uapi/linux/l2tp.h b/include/uapi/linux/l2tp.h
-index 8a80007..1fe52a7 100644
+index 8a80007bb1ec6..1fe52a7dd4a94 100644
 --- a/include/uapi/linux/l2tp.h
 +++ b/include/uapi/linux/l2tp.h
 @@ -1,3 +1,4 @@
@@ -3828,7 +3828,7 @@ index 8a80007..1fe52a7 100644
  	L2TP_ATTR_IFNAME,		/* string */
  	L2TP_ATTR_CONN_ID,		/* u32 */
 diff --git a/include/uapi/linux/libc-compat.h b/include/uapi/linux/libc-compat.h
-index f38571d..a159991 100644
+index f38571dabd8d8..a1599911e7a94 100644
 --- a/include/uapi/linux/libc-compat.h
 +++ b/include/uapi/linux/libc-compat.h
 @@ -1,3 +1,4 @@
@@ -3938,7 +3938,7 @@ index f38571d..a159991 100644
  #endif /* __GLIBC__ */
  
 diff --git a/include/uapi/linux/limits.h b/include/uapi/linux/limits.h
-index 2d0f941..c3547f0 100644
+index 2d0f94162fb34..c3547f07605c9 100644
 --- a/include/uapi/linux/limits.h
 +++ b/include/uapi/linux/limits.h
 @@ -1,3 +1,4 @@
@@ -3947,7 +3947,7 @@ index 2d0f941..c3547f0 100644
  #define _LINUX_LIMITS_H
  
 diff --git a/include/uapi/linux/lwtunnel.h b/include/uapi/linux/lwtunnel.h
-index 3298426..3f3fe6f 100644
+index 329842627162b..3f3fe6f30df0b 100644
 --- a/include/uapi/linux/lwtunnel.h
 +++ b/include/uapi/linux/lwtunnel.h
 @@ -1,3 +1,4 @@
@@ -3956,7 +3956,7 @@ index 3298426..3f3fe6f 100644
  #define _LWTUNNEL_H_
  
 diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
-index e439565..1a6fee9 100644
+index e439565df838a..1a6fee974116a 100644
 --- a/include/uapi/linux/magic.h
 +++ b/include/uapi/linux/magic.h
 @@ -1,3 +1,4 @@
@@ -3973,7 +3973,7 @@ index e439565..1a6fee9 100644
  #define REISERFS_SUPER_MAGIC	0x52654973	/* used by gcc */
  					/* used by file system utilities that
 diff --git a/include/uapi/linux/mpls.h b/include/uapi/linux/mpls.h
-index bf5b625..9effbf9 100644
+index bf5b6259058f1..9effbf99dde6b 100644
 --- a/include/uapi/linux/mpls.h
 +++ b/include/uapi/linux/mpls.h
 @@ -1,3 +1,4 @@
@@ -3982,7 +3982,7 @@ index bf5b625..9effbf9 100644
  #define _MPLS_H
  
 diff --git a/include/uapi/linux/mpls_iptunnel.h b/include/uapi/linux/mpls_iptunnel.h
-index 1a0e57b..2c69b7d 100644
+index 1a0e57b45a8ce..2c69b7ddbc87b 100644
 --- a/include/uapi/linux/mpls_iptunnel.h
 +++ b/include/uapi/linux/mpls_iptunnel.h
 @@ -1,3 +1,4 @@
@@ -3991,7 +3991,7 @@ index 1a0e57b..2c69b7d 100644
   *	mpls tunnel api
   *
 diff --git a/include/uapi/linux/neighbour.h b/include/uapi/linux/neighbour.h
-index 3199d28..904db61 100644
+index 3199d28980b35..904db61484766 100644
 --- a/include/uapi/linux/neighbour.h
 +++ b/include/uapi/linux/neighbour.h
 @@ -1,3 +1,4 @@
@@ -4000,7 +4000,7 @@ index 3199d28..904db61 100644
  #define __LINUX_NEIGHBOUR_H
  
 diff --git a/include/uapi/linux/net_namespace.h b/include/uapi/linux/net_namespace.h
-index 9a92b7e..6d64d07 100644
+index 9a92b7e14a199..6d64d0716800f 100644
 --- a/include/uapi/linux/net_namespace.h
 +++ b/include/uapi/linux/net_namespace.h
 @@ -1,3 +1,4 @@
@@ -4009,7 +4009,7 @@ index 9a92b7e..6d64d07 100644
   * Author: Nicolas Dichtel <nicolas.dichtel@6wind.com>
   *
 diff --git a/include/uapi/linux/netconf.h b/include/uapi/linux/netconf.h
-index 4afbd7d..86ac1eb 100644
+index 4afbd7dbd05de..86ac1eb4c06e3 100644
 --- a/include/uapi/linux/netconf.h
 +++ b/include/uapi/linux/netconf.h
 @@ -1,3 +1,4 @@
@@ -4018,7 +4018,7 @@ index 4afbd7d..86ac1eb 100644
  #define _LINUX_NETCONF_H_
  
 diff --git a/include/uapi/linux/netdevice.h b/include/uapi/linux/netdevice.h
-index 66fceb4..86d961c 100644
+index 66fceb4423392..86d961c91136c 100644
 --- a/include/uapi/linux/netdevice.h
 +++ b/include/uapi/linux/netdevice.h
 @@ -1,3 +1,4 @@
@@ -4027,7 +4027,7 @@ index 66fceb4..86d961c 100644
   * INET		An implementation of the TCP/IP protocol suite for the LINUX
   *		operating system.  INET is implemented using the  BSD Socket
 diff --git a/include/uapi/linux/netfilter.h b/include/uapi/linux/netfilter.h
-index ff4a4a5..36378a0 100644
+index ff4a4a523c128..36378a0a81399 100644
 --- a/include/uapi/linux/netfilter.h
 +++ b/include/uapi/linux/netfilter.h
 @@ -1,3 +1,4 @@
@@ -4036,7 +4036,7 @@ index ff4a4a5..36378a0 100644
  #define __LINUX_NETFILTER_H
  
 diff --git a/include/uapi/linux/netfilter/ipset/ip_set.h b/include/uapi/linux/netfilter/ipset/ip_set.h
-index a6c96b0..13eeada 100644
+index a6c96b0024250..13eeada594dbb 100644
 --- a/include/uapi/linux/netfilter/ipset/ip_set.h
 +++ b/include/uapi/linux/netfilter/ipset/ip_set.h
 @@ -1,3 +1,4 @@
@@ -4045,7 +4045,7 @@ index a6c96b0..13eeada 100644
   *                         Patrick Schaaf <bof@bof.de>
   *                         Martin Josefsson <gandalf@wlug.westbo.se>
 diff --git a/include/uapi/linux/netfilter/x_tables.h b/include/uapi/linux/netfilter/x_tables.h
-index 4120970..ae2fd12 100644
+index 4120970072771..ae2fd12799399 100644
 --- a/include/uapi/linux/netfilter/x_tables.h
 +++ b/include/uapi/linux/netfilter/x_tables.h
 @@ -1,3 +1,4 @@
@@ -4054,7 +4054,7 @@ index 4120970..ae2fd12 100644
  #define _X_TABLES_H
  #include <linux/kernel.h>
 diff --git a/include/uapi/linux/netfilter/xt_set.h b/include/uapi/linux/netfilter/xt_set.h
-index d4e0234..8c1ca66 100644
+index d4e02348384c6..8c1ca66c8a060 100644
 --- a/include/uapi/linux/netfilter/xt_set.h
 +++ b/include/uapi/linux/netfilter/xt_set.h
 @@ -1,3 +1,4 @@
@@ -4063,7 +4063,7 @@ index d4e0234..8c1ca66 100644
  #define _XT_SET_H
  
 diff --git a/include/uapi/linux/netfilter/xt_tcpudp.h b/include/uapi/linux/netfilter/xt_tcpudp.h
-index 38aa7b3..658c169 100644
+index 38aa7b399021f..658c169998197 100644
 --- a/include/uapi/linux/netfilter/xt_tcpudp.h
 +++ b/include/uapi/linux/netfilter/xt_tcpudp.h
 @@ -1,3 +1,4 @@
@@ -4072,7 +4072,7 @@ index 38aa7b3..658c169 100644
  #define _XT_TCPUDP_H
  
 diff --git a/include/uapi/linux/netfilter_ipv4.h b/include/uapi/linux/netfilter_ipv4.h
-index a5f4dc7..074e2c8 100644
+index a5f4dc784baa7..074e2c8b923ad 100644
 --- a/include/uapi/linux/netfilter_ipv4.h
 +++ b/include/uapi/linux/netfilter_ipv4.h
 @@ -1,3 +1,4 @@
@@ -4089,7 +4089,7 @@ index a5f4dc7..074e2c8 100644
  	NF_IP_PRI_RAW = -300,
  	NF_IP_PRI_SELINUX_FIRST = -225,
 diff --git a/include/uapi/linux/netfilter_ipv4/ip_tables.h b/include/uapi/linux/netfilter_ipv4/ip_tables.h
-index 456fb86..409cff7 100644
+index 456fb863e0fde..409cff71bd238 100644
 --- a/include/uapi/linux/netfilter_ipv4/ip_tables.h
 +++ b/include/uapi/linux/netfilter_ipv4/ip_tables.h
 @@ -1,3 +1,4 @@
@@ -4098,7 +4098,7 @@ index 456fb86..409cff7 100644
   * 25-Jul-1998 Major changes to allow for ip chain table
   *
 diff --git a/include/uapi/linux/netfilter_ipv6.h b/include/uapi/linux/netfilter_ipv6.h
-index 8483d1d..92701fe 100644
+index 8483d1d415199..92701fe853ada 100644
 --- a/include/uapi/linux/netfilter_ipv6.h
 +++ b/include/uapi/linux/netfilter_ipv6.h
 @@ -1,3 +1,4 @@
@@ -4115,7 +4115,7 @@ index 8483d1d..92701fe 100644
  	NF_IP6_PRI_RAW = -300,
  	NF_IP6_PRI_SELINUX_FIRST = -225,
 diff --git a/include/uapi/linux/netfilter_ipv6/ip6_tables.h b/include/uapi/linux/netfilter_ipv6/ip6_tables.h
-index fcc8cca..7ae314b 100644
+index fcc8ccaff94e9..7ae314ba260f3 100644
 --- a/include/uapi/linux/netfilter_ipv6/ip6_tables.h
 +++ b/include/uapi/linux/netfilter_ipv6/ip6_tables.h
 @@ -1,3 +1,4 @@
@@ -4124,7 +4124,7 @@ index fcc8cca..7ae314b 100644
   * 25-Jul-1998 Major changes to allow for ip chain table
   *
 diff --git a/include/uapi/linux/netlink.h b/include/uapi/linux/netlink.h
-index ec0690b..0b2c29b 100644
+index ec0690b506471..0b2c29bd081fa 100644
 --- a/include/uapi/linux/netlink.h
 +++ b/include/uapi/linux/netlink.h
 @@ -1,3 +1,4 @@
@@ -4133,7 +4133,7 @@ index ec0690b..0b2c29b 100644
  #define __LINUX_NETLINK_H
  
 diff --git a/include/uapi/linux/netlink_diag.h b/include/uapi/linux/netlink_diag.h
-index c8c8c7d..4cd0657 100644
+index c8c8c7d2e530b..4cd0657859636 100644
 --- a/include/uapi/linux/netlink_diag.h
 +++ b/include/uapi/linux/netlink_diag.h
 @@ -1,3 +1,4 @@
@@ -4142,7 +4142,7 @@ index c8c8c7d..4cd0657 100644
  #define __NETLINK_DIAG_H__
  
 diff --git a/include/uapi/linux/packet_diag.h b/include/uapi/linux/packet_diag.h
-index 0c5d5dd..349ddf0 100644
+index 0c5d5dd61b6ab..349ddf0a96af5 100644
 --- a/include/uapi/linux/packet_diag.h
 +++ b/include/uapi/linux/packet_diag.h
 @@ -1,3 +1,4 @@
@@ -4151,7 +4151,7 @@ index 0c5d5dd..349ddf0 100644
  #define __PACKET_DIAG_H__
  
 diff --git a/include/uapi/linux/param.h b/include/uapi/linux/param.h
-index 092e92f..94e0c57 100644
+index 092e92f67b500..94e0c57a75b7a 100644
 --- a/include/uapi/linux/param.h
 +++ b/include/uapi/linux/param.h
 @@ -1,3 +1,4 @@
@@ -4160,7 +4160,7 @@ index 092e92f..94e0c57 100644
  #define _LINUX_PARAM_H
  
 diff --git a/include/uapi/linux/pfkeyv2.h b/include/uapi/linux/pfkeyv2.h
-index ada7f01..d65b117 100644
+index ada7f0171cccd..d65b117852604 100644
 --- a/include/uapi/linux/pfkeyv2.h
 +++ b/include/uapi/linux/pfkeyv2.h
 @@ -1,3 +1,4 @@
@@ -4169,7 +4169,7 @@ index ada7f01..d65b117 100644
   * do not make arbitrary modifications or else this header
   * file will not be compliant.
 diff --git a/include/uapi/linux/pkt_cls.h b/include/uapi/linux/pkt_cls.h
-index d5e2bf6..b451225 100644
+index d5e2bf68d0d40..b4512254036b9 100644
 --- a/include/uapi/linux/pkt_cls.h
 +++ b/include/uapi/linux/pkt_cls.h
 @@ -1,3 +1,4 @@
@@ -4220,7 +4220,7 @@ index d5e2bf6..b451225 100644
  enum {
  	TCF_EM_PROG_TC
 diff --git a/include/uapi/linux/pkt_sched.h b/include/uapi/linux/pkt_sched.h
-index 099bf55..d9cc9dc 100644
+index 099bf5528fed3..d9cc9dc4f547c 100644
 --- a/include/uapi/linux/pkt_sched.h
 +++ b/include/uapi/linux/pkt_sched.h
 @@ -1,3 +1,4 @@
@@ -4466,7 +4466,7 @@ index 099bf55..d9cc9dc 100644
 +
  #endif
 diff --git a/include/uapi/linux/posix_types.h b/include/uapi/linux/posix_types.h
-index 988f76e..9a7a740 100644
+index 988f76e636e36..9a7a740b35a2c 100644
 --- a/include/uapi/linux/posix_types.h
 +++ b/include/uapi/linux/posix_types.h
 @@ -1,3 +1,4 @@
@@ -4475,7 +4475,7 @@ index 988f76e..9a7a740 100644
  #define _LINUX_POSIX_TYPES_H
  
 diff --git a/include/uapi/linux/rtnetlink.h b/include/uapi/linux/rtnetlink.h
-index 813e9e0..c3a7d8e 100644
+index 813e9e0767d33..c3a7d8ecc7b97 100644
 --- a/include/uapi/linux/rtnetlink.h
 +++ b/include/uapi/linux/rtnetlink.h
 @@ -1,3 +1,4 @@
@@ -4545,7 +4545,7 @@ index 813e9e0..c3a7d8e 100644
  };
  
 diff --git a/include/uapi/linux/sctp.h b/include/uapi/linux/sctp.h
-index fec24c4..dd164d7 100644
+index fec24c41405b9..dd164d7f4f41a 100644
 --- a/include/uapi/linux/sctp.h
 +++ b/include/uapi/linux/sctp.h
 @@ -1,3 +1,4 @@
@@ -4706,7 +4706,7 @@ index fec24c4..dd164d7 100644
 +
  #endif /* _SCTP_H */
 diff --git a/include/uapi/linux/seg6.h b/include/uapi/linux/seg6.h
-index 0715279..329163e 100644
+index 07152792e61d2..329163e4a08d2 100644
 --- a/include/uapi/linux/seg6.h
 +++ b/include/uapi/linux/seg6.h
 @@ -1,3 +1,4 @@
@@ -4727,7 +4727,7 @@ index 0715279..329163e 100644
  	struct in6_addr segments[0];
  };
 diff --git a/include/uapi/linux/seg6_genl.h b/include/uapi/linux/seg6_genl.h
-index 99382f9..0c23052 100644
+index 99382f94fa0a3..0c230524e0a15 100644
 --- a/include/uapi/linux/seg6_genl.h
 +++ b/include/uapi/linux/seg6_genl.h
 @@ -1,3 +1,4 @@
@@ -4736,7 +4736,7 @@ index 99382f9..0c23052 100644
  #define _LINUX_SEG6_GENL_H
  
 diff --git a/include/uapi/linux/seg6_hmac.h b/include/uapi/linux/seg6_hmac.h
-index 704f93e..3fb3412 100644
+index 704f93e80b417..3fb3412e1eb2d 100644
 --- a/include/uapi/linux/seg6_hmac.h
 +++ b/include/uapi/linux/seg6_hmac.h
 @@ -1,3 +1,4 @@
@@ -4745,7 +4745,7 @@ index 704f93e..3fb3412 100644
  #define _LINUX_SEG6_HMAC_H
  
 diff --git a/include/uapi/linux/seg6_iptunnel.h b/include/uapi/linux/seg6_iptunnel.h
-index a5dc05a..3004e98 100644
+index a5dc05a1cbba3..3004e982c23dc 100644
 --- a/include/uapi/linux/seg6_iptunnel.h
 +++ b/include/uapi/linux/seg6_iptunnel.h
 @@ -1,3 +1,4 @@
@@ -4754,7 +4754,7 @@ index a5dc05a..3004e98 100644
   *  SR-IPv6 implementation
   *
 diff --git a/include/uapi/linux/seg6_local.h b/include/uapi/linux/seg6_local.h
-index 76b90d6..5312de8 100644
+index 76b90d60c7ea7..5312de80bcfae 100644
 --- a/include/uapi/linux/seg6_local.h
 +++ b/include/uapi/linux/seg6_local.h
 @@ -25,6 +25,7 @@ enum {
@@ -4788,7 +4788,7 @@ index 76b90d6..5312de8 100644
 +
  #endif
 diff --git a/include/uapi/linux/sock_diag.h b/include/uapi/linux/sock_diag.h
-index 901231e..a69cf20 100644
+index 901231e648963..a69cf20ff174a 100644
 --- a/include/uapi/linux/sock_diag.h
 +++ b/include/uapi/linux/sock_diag.h
 @@ -1,3 +1,4 @@
@@ -4797,7 +4797,7 @@ index 901231e..a69cf20 100644
  #define __SOCK_DIAG_H__
  
 diff --git a/include/uapi/linux/socket.h b/include/uapi/linux/socket.h
-index 8c1e501..268b948 100644
+index 8c1e5017741d1..268b9482461a4 100644
 --- a/include/uapi/linux/socket.h
 +++ b/include/uapi/linux/socket.h
 @@ -1,3 +1,4 @@
@@ -4806,7 +4806,7 @@ index 8c1e501..268b948 100644
  #define _LINUX_SOCKET_H
  
 diff --git a/include/uapi/linux/sockios.h b/include/uapi/linux/sockios.h
-index 79d029d..d393e9e 100644
+index 79d029d253100..d393e9ed39642 100644
 --- a/include/uapi/linux/sockios.h
 +++ b/include/uapi/linux/sockios.h
 @@ -1,3 +1,4 @@
@@ -4815,7 +4815,7 @@ index 79d029d..d393e9e 100644
   * INET		An implementation of the TCP/IP protocol suite for the LINUX
   *		operating system.  INET is implemented using the  BSD Socket
 diff --git a/include/uapi/linux/stddef.h b/include/uapi/linux/stddef.h
-index 4bb69de..23e025f 100644
+index 4bb69decd468b..23e025fec0419 100644
 --- a/include/uapi/linux/stddef.h
 +++ b/include/uapi/linux/stddef.h
 @@ -1,3 +1,4 @@
@@ -4824,7 +4824,7 @@ index 4bb69de..23e025f 100644
  
  #ifndef __always_inline
 diff --git a/include/uapi/linux/sysinfo.h b/include/uapi/linux/sysinfo.h
-index 934335a..435d5c2 100644
+index 934335a22522c..435d5c23f0c0e 100644
 --- a/include/uapi/linux/sysinfo.h
 +++ b/include/uapi/linux/sysinfo.h
 @@ -1,3 +1,4 @@
@@ -4833,7 +4833,7 @@ index 934335a..435d5c2 100644
  #define _LINUX_SYSINFO_H
  
 diff --git a/include/uapi/linux/tc_act/tc_bpf.h b/include/uapi/linux/tc_act/tc_bpf.h
-index 8dc2ac0..6e89a5d 100644
+index 8dc2ac05eecf0..6e89a5df49a46 100644
 --- a/include/uapi/linux/tc_act/tc_bpf.h
 +++ b/include/uapi/linux/tc_act/tc_bpf.h
 @@ -1,3 +1,4 @@
@@ -4842,7 +4842,7 @@ index 8dc2ac0..6e89a5d 100644
   * Copyright (c) 2015 Jiri Pirko <jiri@resnulli.us>
   *
 diff --git a/include/uapi/linux/tc_act/tc_connmark.h b/include/uapi/linux/tc_act/tc_connmark.h
-index 62a5e94..80caa47 100644
+index 62a5e944c5548..80caa47b19334 100644
 --- a/include/uapi/linux/tc_act/tc_connmark.h
 +++ b/include/uapi/linux/tc_act/tc_connmark.h
 @@ -1,3 +1,4 @@
@@ -4851,7 +4851,7 @@ index 62a5e94..80caa47 100644
  #define __UAPI_TC_CONNMARK_H
  
 diff --git a/include/uapi/linux/tc_act/tc_csum.h b/include/uapi/linux/tc_act/tc_csum.h
-index a11bb35..0ecf4d2 100644
+index a11bb355dbfb2..0ecf4d29e2f31 100644
 --- a/include/uapi/linux/tc_act/tc_csum.h
 +++ b/include/uapi/linux/tc_act/tc_csum.h
 @@ -1,3 +1,4 @@
@@ -4860,7 +4860,7 @@ index a11bb35..0ecf4d2 100644
  #define __LINUX_TC_CSUM_H
  
 diff --git a/include/uapi/linux/tc_act/tc_defact.h b/include/uapi/linux/tc_act/tc_defact.h
-index d2a3abb..e3ecd8b 100644
+index d2a3abb77aebd..e3ecd8bf37de2 100644
 --- a/include/uapi/linux/tc_act/tc_defact.h
 +++ b/include/uapi/linux/tc_act/tc_defact.h
 @@ -1,3 +1,4 @@
@@ -4869,7 +4869,7 @@ index d2a3abb..e3ecd8b 100644
  #define __LINUX_TC_DEF_H
  
 diff --git a/include/uapi/linux/tc_act/tc_gact.h b/include/uapi/linux/tc_act/tc_gact.h
-index 70b536a..94273c3 100644
+index 70b536a8f8b26..94273c3b81b0b 100644
 --- a/include/uapi/linux/tc_act/tc_gact.h
 +++ b/include/uapi/linux/tc_act/tc_gact.h
 @@ -1,3 +1,4 @@
@@ -4878,7 +4878,7 @@ index 70b536a..94273c3 100644
  #define __LINUX_TC_GACT_H
  
 diff --git a/include/uapi/linux/tc_act/tc_ife.h b/include/uapi/linux/tc_act/tc_ife.h
-index 7c28178..2f48490 100644
+index 7c2817866c97e..2f48490ef3867 100644
 --- a/include/uapi/linux/tc_act/tc_ife.h
 +++ b/include/uapi/linux/tc_act/tc_ife.h
 @@ -1,3 +1,4 @@
@@ -4887,7 +4887,7 @@ index 7c28178..2f48490 100644
  #define __UAPI_TC_IFE_H
  
 diff --git a/include/uapi/linux/tc_act/tc_ipt.h b/include/uapi/linux/tc_act/tc_ipt.h
-index 7c6e155..b743c8b 100644
+index 7c6e155dd981d..b743c8bddd13d 100644
 --- a/include/uapi/linux/tc_act/tc_ipt.h
 +++ b/include/uapi/linux/tc_act/tc_ipt.h
 @@ -1,3 +1,4 @@
@@ -4896,7 +4896,7 @@ index 7c6e155..b743c8b 100644
  #define __LINUX_TC_IPT_H
  
 diff --git a/include/uapi/linux/tc_act/tc_mirred.h b/include/uapi/linux/tc_act/tc_mirred.h
-index 3d7a2b3..5dd671c 100644
+index 3d7a2b352a62c..5dd671cf57765 100644
 --- a/include/uapi/linux/tc_act/tc_mirred.h
 +++ b/include/uapi/linux/tc_act/tc_mirred.h
 @@ -1,3 +1,4 @@
@@ -4928,7 +4928,7 @@ index 3d7a2b3..5dd671c 100644
 +
  #endif
 diff --git a/include/uapi/linux/tc_act/tc_nat.h b/include/uapi/linux/tc_act/tc_nat.h
-index 923457c..086be84 100644
+index 923457c9ebf0c..086be842587bd 100644
 --- a/include/uapi/linux/tc_act/tc_nat.h
 +++ b/include/uapi/linux/tc_act/tc_nat.h
 @@ -1,3 +1,4 @@
@@ -4937,7 +4937,7 @@ index 923457c..086be84 100644
  #define __LINUX_TC_NAT_H
  
 diff --git a/include/uapi/linux/tc_act/tc_pedit.h b/include/uapi/linux/tc_act/tc_pedit.h
-index 143d2b3..24ec792 100644
+index 143d2b31a3166..24ec792dacc18 100644
 --- a/include/uapi/linux/tc_act/tc_pedit.h
 +++ b/include/uapi/linux/tc_act/tc_pedit.h
 @@ -1,3 +1,4 @@
@@ -4995,7 +4995,7 @@ index 143d2b3..24ec792 100644
  
  #endif
 diff --git a/include/uapi/linux/tc_act/tc_sample.h b/include/uapi/linux/tc_act/tc_sample.h
-index edc9058..bd7e9f0 100644
+index edc9058bb30d3..bd7e9f03abd2e 100644
 --- a/include/uapi/linux/tc_act/tc_sample.h
 +++ b/include/uapi/linux/tc_act/tc_sample.h
 @@ -1,3 +1,4 @@
@@ -5004,7 +5004,7 @@ index edc9058..bd7e9f0 100644
  #define __LINUX_TC_SAMPLE_H
  
 diff --git a/include/uapi/linux/tc_act/tc_skbedit.h b/include/uapi/linux/tc_act/tc_skbedit.h
-index 2884425..6de6071 100644
+index 2884425738ce7..6de6071ebed60 100644
 --- a/include/uapi/linux/tc_act/tc_skbedit.h
 +++ b/include/uapi/linux/tc_act/tc_skbedit.h
 @@ -1,3 +1,4 @@
@@ -5029,7 +5029,7 @@ index 2884425..6de6071 100644
  };
  #define TCA_SKBEDIT_MAX (__TCA_SKBEDIT_MAX - 1)
 diff --git a/include/uapi/linux/tc_act/tc_skbmod.h b/include/uapi/linux/tc_act/tc_skbmod.h
-index 10fc07d..38c072f 100644
+index 10fc07da6c699..38c072f66f2fc 100644
 --- a/include/uapi/linux/tc_act/tc_skbmod.h
 +++ b/include/uapi/linux/tc_act/tc_skbmod.h
 @@ -1,3 +1,4 @@
@@ -5038,7 +5038,7 @@ index 10fc07d..38c072f 100644
   * Copyright (c) 2016, Jamal Hadi Salim
   *
 diff --git a/include/uapi/linux/tc_act/tc_tunnel_key.h b/include/uapi/linux/tc_act/tc_tunnel_key.h
-index afcd4be..be384d6 100644
+index afcd4be953e27..be384d63e1b56 100644
 --- a/include/uapi/linux/tc_act/tc_tunnel_key.h
 +++ b/include/uapi/linux/tc_act/tc_tunnel_key.h
 @@ -1,3 +1,4 @@
@@ -5085,7 +5085,7 @@ index afcd4be..be384d6 100644
 +
  #endif
 diff --git a/include/uapi/linux/tc_act/tc_vlan.h b/include/uapi/linux/tc_act/tc_vlan.h
-index bddb272..0d7b5fd 100644
+index bddb272b843f5..0d7b5fd6605b0 100644
 --- a/include/uapi/linux/tc_act/tc_vlan.h
 +++ b/include/uapi/linux/tc_act/tc_vlan.h
 @@ -1,3 +1,4 @@
@@ -5094,7 +5094,7 @@ index bddb272..0d7b5fd 100644
   * Copyright (c) 2014 Jiri Pirko <jiri@resnulli.us>
   *
 diff --git a/include/uapi/linux/tc_ematch/tc_em_cmp.h b/include/uapi/linux/tc_ematch/tc_em_cmp.h
-index f34bb1b..2549d9d 100644
+index f34bb1bae083e..2549d9d6e0310 100644
 --- a/include/uapi/linux/tc_ematch/tc_em_cmp.h
 +++ b/include/uapi/linux/tc_ematch/tc_em_cmp.h
 @@ -1,3 +1,4 @@
@@ -5104,7 +5104,7 @@ index f34bb1b..2549d9d 100644
  
 diff --git a/include/uapi/linux/tc_ematch/tc_em_ipt.h b/include/uapi/linux/tc_ematch/tc_em_ipt.h
 new file mode 100644
-index 0000000..49a6553
+index 0000000000000..49a65530992c1
 --- /dev/null
 +++ b/include/uapi/linux/tc_ematch/tc_em_ipt.h
 @@ -0,0 +1,20 @@
@@ -5129,7 +5129,7 @@ index 0000000..49a6553
 +
 +#endif
 diff --git a/include/uapi/linux/tc_ematch/tc_em_meta.h b/include/uapi/linux/tc_ematch/tc_em_meta.h
-index b11f8ce..cf30b5b 100644
+index b11f8ce2d3c0a..cf30b5bc4eaf2 100644
 --- a/include/uapi/linux/tc_ematch/tc_em_meta.h
 +++ b/include/uapi/linux/tc_ematch/tc_em_meta.h
 @@ -1,3 +1,4 @@
@@ -5138,7 +5138,7 @@ index b11f8ce..cf30b5b 100644
  #define __LINUX_TC_EM_META_H
  
 diff --git a/include/uapi/linux/tc_ematch/tc_em_nbyte.h b/include/uapi/linux/tc_ematch/tc_em_nbyte.h
-index 7172cfb..c76333f 100644
+index 7172cfb999c15..c76333f7f6f26 100644
 --- a/include/uapi/linux/tc_ematch/tc_em_nbyte.h
 +++ b/include/uapi/linux/tc_ematch/tc_em_nbyte.h
 @@ -1,3 +1,4 @@
@@ -5147,7 +5147,7 @@ index 7172cfb..c76333f 100644
  #define __LINUX_TC_EM_NBYTE_H
  
 diff --git a/include/uapi/linux/tcp.h b/include/uapi/linux/tcp.h
-index 8edad3f..2e766cf 100644
+index 8edad3f942686..2e766cf303fbe 100644
 --- a/include/uapi/linux/tcp.h
 +++ b/include/uapi/linux/tcp.h
 @@ -1,3 +1,4 @@
@@ -5203,7 +5203,7 @@ index 8edad3f..2e766cf 100644
 +};
  #endif /* _LINUX_TCP_H */
 diff --git a/include/uapi/linux/tcp_metrics.h b/include/uapi/linux/tcp_metrics.h
-index 80ad90d..7cb4a17 100644
+index 80ad90d0cfc23..7cb4a172feeda 100644
 --- a/include/uapi/linux/tcp_metrics.h
 +++ b/include/uapi/linux/tcp_metrics.h
 @@ -1,3 +1,4 @@
@@ -5212,7 +5212,7 @@ index 80ad90d..7cb4a17 100644
  
  #ifndef _LINUX_TCP_METRICS_H
 diff --git a/include/uapi/linux/tipc.h b/include/uapi/linux/tipc.h
-index 924fb5c..7a166a0 100644
+index 924fb5cf1d468..7a166a0f93802 100644
 --- a/include/uapi/linux/tipc.h
 +++ b/include/uapi/linux/tipc.h
 @@ -1,3 +1,4 @@
@@ -5491,7 +5491,7 @@ index 924fb5c..7a166a0 100644
 +
  #endif
 diff --git a/include/uapi/linux/tipc_netlink.h b/include/uapi/linux/tipc_netlink.h
-index f9edd20..0ebe02e 100644
+index f9edd20fe9ba8..0ebe02ef1a86b 100644
 --- a/include/uapi/linux/tipc_netlink.h
 +++ b/include/uapi/linux/tipc_netlink.h
 @@ -1,3 +1,4 @@
@@ -5572,7 +5572,7 @@ index f9edd20..0ebe02e 100644
  	TIPC_NLA_PROP_MAX = __TIPC_NLA_PROP_MAX - 1
 diff --git a/include/uapi/linux/tipc_sockets_diag.h b/include/uapi/linux/tipc_sockets_diag.h
 new file mode 100644
-index 0000000..21b766e
+index 0000000000000..21b766ec7e202
 --- /dev/null
 +++ b/include/uapi/linux/tipc_sockets_diag.h
 @@ -0,0 +1,17 @@
@@ -5594,7 +5594,7 @@ index 0000000..21b766e
 +};
 +#endif /* __TIPC_SOCKETS_DIAG_H__ */
 diff --git a/include/uapi/linux/types.h b/include/uapi/linux/types.h
-index c640657..999cb0f 100644
+index c640657a7da33..999cb0fa88ebd 100644
 --- a/include/uapi/linux/types.h
 +++ b/include/uapi/linux/types.h
 @@ -1,3 +1,4 @@
@@ -5611,7 +5611,7 @@ index c640657..999cb0f 100644
  #endif /*  __ASSEMBLY__ */
  #endif /* _LINUX_TYPES_H */
 diff --git a/include/uapi/linux/unix_diag.h b/include/uapi/linux/unix_diag.h
-index 1eb0b8d..5c502fd 100644
+index 1eb0b8dd18308..5c502fdf7a42c 100644
 --- a/include/uapi/linux/unix_diag.h
 +++ b/include/uapi/linux/unix_diag.h
 @@ -1,3 +1,4 @@
@@ -5620,7 +5620,7 @@ index 1eb0b8d..5c502fd 100644
  #define __UNIX_DIAG_H__
  
 diff --git a/include/uapi/linux/veth.h b/include/uapi/linux/veth.h
-index 3354c1e..52b58e5 100644
+index 3354c1eb424e6..52b58e587e236 100644
 --- a/include/uapi/linux/veth.h
 +++ b/include/uapi/linux/veth.h
 @@ -1,3 +1,4 @@
@@ -5629,7 +5629,7 @@ index 3354c1e..52b58e5 100644
  #define __NET_VETH_H_
  
 diff --git a/include/uapi/linux/vm_sockets_diag.h b/include/uapi/linux/vm_sockets_diag.h
-index a732a6f..6da42f9 100644
+index a732a6f591b97..6da42f99a425b 100644
 --- a/include/uapi/linux/vm_sockets_diag.h
 +++ b/include/uapi/linux/vm_sockets_diag.h
 @@ -1,3 +1,4 @@
@@ -5638,7 +5638,7 @@ index a732a6f..6da42f9 100644
  
  #ifndef __VM_SOCKETS_DIAG_H__
 diff --git a/include/uapi/linux/xfrm.h b/include/uapi/linux/xfrm.h
-index 5790293..93fb192 100644
+index 5790293b7fc46..93fb1920101a2 100644
 --- a/include/uapi/linux/xfrm.h
 +++ b/include/uapi/linux/xfrm.h
 @@ -1,3 +1,4 @@
@@ -5647,5 +5647,5 @@ index 5790293..93fb192 100644
  #define _LINUX_XFRM_H
  
 -- 
-1.8.3.1
+2.21.0
 

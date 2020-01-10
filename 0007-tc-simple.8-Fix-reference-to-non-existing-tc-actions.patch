@@ -14,7 +14,7 @@ description.
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/man/man8/tc-simple.8 b/man/man8/tc-simple.8
-index 7363ab5..a0deb0b 100644
+index 7363ab563e189..a0deb0b13a82f 100644
 --- a/man/man8/tc-simple.8
 +++ b/man/man8/tc-simple.8
 @@ -36,7 +36,7 @@ Indicate how
@@ -27,5 +27,5 @@ index 7363ab5..a0deb0b 100644
  The following example makes the kernel yell "Incoming ICMP!" every time it sees
  an incoming ICMP on eth0. Steps are:
 -- 
-1.8.3.1
+2.21.0
 

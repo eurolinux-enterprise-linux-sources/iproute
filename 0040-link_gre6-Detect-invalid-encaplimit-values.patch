@@ -22,7 +22,7 @@ Date:   Tue Nov 28 16:49:58 2017 +0100
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ip/link_gre6.c b/ip/link_gre6.c
-index 932f9ee..a9d18ee 100644
+index 932f9ee96124d..a9d18ee954641 100644
 --- a/ip/link_gre6.c
 +++ b/ip/link_gre6.c
 @@ -351,7 +351,7 @@ get_failed:
@@ -35,5 +35,5 @@ index 932f9ee..a9d18ee 100644
  				encap_limit = uval;
  				flags &= ~IP6_TNL_F_IGN_ENCAP_LIMIT;
 -- 
-1.8.3.1
+2.21.0
 

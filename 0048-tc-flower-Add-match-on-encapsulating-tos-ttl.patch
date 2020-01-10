@@ -34,7 +34,7 @@ Date:   Thu Jul 19 14:02:15 2018 +0300
  2 files changed, 40 insertions(+), 1 deletion(-)
 
 diff --git a/man/man8/tc-flower.8 b/man/man8/tc-flower.8
-index be46f02..af19708 100644
+index be46f0278b4ff..af19708d9649e 100644
 --- a/man/man8/tc-flower.8
 +++ b/man/man8/tc-flower.8
 @@ -57,6 +57,10 @@ flower \- flow based traffic control filter
@@ -73,7 +73,7 @@ index be46f02..af19708 100644
  .BI ip_flags " IP_FLAGS"
  .I IP_FLAGS
 diff --git a/tc/f_flower.c b/tc/f_flower.c
-index 5be693a..5f5236c 100644
+index 5be693ab7f6af..5f5236ca523f8 100644
 --- a/tc/f_flower.c
 +++ b/tc/f_flower.c
 @@ -70,6 +70,8 @@ static void explain(void)
@@ -125,5 +125,5 @@ index 5be693a..5f5236c 100644
  				    FLOWER_IP_FLAGS,
  				    tb[TCA_FLOWER_KEY_FLAGS],
 -- 
-1.8.3.1
+2.21.0
 

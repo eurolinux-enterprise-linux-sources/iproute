@@ -27,7 +27,7 @@ Date:   Thu Jan 10 15:03:50 2019 +0200
  2 files changed, 4 insertions(+), 6 deletions(-)
 
 diff --git a/man/man8/tc-tunnel_key.8 b/man/man8/tc-tunnel_key.8
-index 2e56973..52fa585 100644
+index 2e569730abbb3..52fa585a75c8f 100644
 --- a/man/man8/tc-tunnel_key.8
 +++ b/man/man8/tc-tunnel_key.8
 @@ -56,12 +56,12 @@ above).
@@ -46,7 +46,7 @@ index 2e56973..52fa585 100644
  is optional.
  .RS
 diff --git a/tc/m_tunnel_key.c b/tc/m_tunnel_key.c
-index 5222c25..acbcfc1 100644
+index 5222c25977e26..acbcfc15cda76 100644
 --- a/tc/m_tunnel_key.c
 +++ b/tc/m_tunnel_key.c
 @@ -25,7 +25,7 @@ static void explain(void)
@@ -84,5 +84,5 @@ index 5222c25..acbcfc1 100644
  		explain();
  		return -1;
 -- 
-1.8.3.1
+2.21.0
 

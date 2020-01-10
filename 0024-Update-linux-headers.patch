@@ -8,36 +8,36 @@ Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1456539
 This updates include/linux to the state just before commit 596b1c94aa38e
 ("iproute: build more easily on Android").
 ---
- include/linux/bpf.h                  | 253 ++++++++++++++++++++++-
- include/linux/can/vxcan.h            |  12 ++
- include/linux/devlink.h              |  92 ++++++++-
+ include/linux/bpf.h                  | 253 +++++++++++++++++-
+ include/linux/can/vxcan.h            |  12 +
+ include/linux/devlink.h              |  92 ++++++-
  include/linux/elf-em.h               |   1 -
  include/linux/if_arp.h               |   2 +
  include/linux/if_ether.h             |   6 +
- include/linux/if_link.h              |  37 +++-
+ include/linux/if_link.h              |  37 ++-
  include/linux/if_packet.h            |   1 +
  include/linux/if_tunnel.h            |   4 +
  include/linux/inet_diag.h            |   2 +
- include/linux/ipsec.h                |  47 +++++
+ include/linux/ipsec.h                |  47 ++++
  include/linux/lwtunnel.h             |   1 +
  include/linux/magic.h                |   3 +
  include/linux/mpls_iptunnel.h        |   2 +
  include/linux/neighbour.h            |   1 +
- include/linux/netlink.h              |  67 +++++-
+ include/linux/netlink.h              |  67 ++++-
  include/linux/netlink_diag.h         |  10 +
- include/linux/pfkeyv2.h              | 383 +++++++++++++++++++++++++++++++++++
- include/linux/pkt_cls.h              |  37 +++-
+ include/linux/pfkeyv2.h              | 383 +++++++++++++++++++++++++++
+ include/linux/pkt_cls.h              |  37 ++-
  include/linux/pkt_sched.h            |   8 +
- include/linux/rtnetlink.h            |  36 +++-
- include/linux/sctp.h                 |  38 ++++
- include/linux/seg6.h                 |  54 +++++
+ include/linux/rtnetlink.h            |  36 ++-
+ include/linux/sctp.h                 |  38 +++
+ include/linux/seg6.h                 |  54 ++++
  include/linux/seg6_genl.h            |  32 +++
  include/linux/seg6_hmac.h            |  22 ++
- include/linux/seg6_iptunnel.h        |  40 ++++
- include/linux/seg6_local.h           |  68 +++++++
+ include/linux/seg6_iptunnel.h        |  40 +++
+ include/linux/seg6_local.h           |  68 +++++
  include/linux/tc_act/tc_bpf.h        |   1 +
  include/linux/tc_act/tc_tunnel_key.h |   1 +
- include/linux/tcp.h                  |  27 ++-
+ include/linux/tcp.h                  |  27 +-
  include/linux/xfrm.h                 |   9 +
  31 files changed, 1272 insertions(+), 25 deletions(-)
  create mode 100644 include/linux/can/vxcan.h
@@ -50,7 +50,7 @@ This updates include/linux to the state just before commit 596b1c94aa38e
  create mode 100644 include/linux/seg6_local.h
 
 diff --git a/include/linux/bpf.h b/include/linux/bpf.h
-index 178e20c..0895a52 100644
+index 178e20c388852..0895a529cc90b 100644
 --- a/include/linux/bpf.h
 +++ b/include/linux/bpf.h
 @@ -30,9 +30,14 @@
@@ -459,7 +459,7 @@ index 178e20c..0895a52 100644
  #endif /* __LINUX_BPF_H__ */
 diff --git a/include/linux/can/vxcan.h b/include/linux/can/vxcan.h
 new file mode 100644
-index 0000000..5b29e8a
+index 0000000000000..5b29e8a7bc274
 --- /dev/null
 +++ b/include/linux/can/vxcan.h
 @@ -0,0 +1,12 @@
@@ -476,7 +476,7 @@ index 0000000..5b29e8a
 +
 +#endif
 diff --git a/include/linux/devlink.h b/include/linux/devlink.h
-index 2ad3585..a62695e 100644
+index 2ad3585b417ae..a62695e2d86e8 100644
 --- a/include/linux/devlink.h
 +++ b/include/linux/devlink.h
 @@ -65,8 +65,12 @@ enum devlink_command {
@@ -598,7 +598,7 @@ index 2ad3585..a62695e 100644
 +
  #endif /* _LINUX_DEVLINK_H_ */
 diff --git a/include/linux/elf-em.h b/include/linux/elf-em.h
-index cb5d1a5..9cd1de9 100644
+index cb5d1a5192027..9cd1de954c0ac 100644
 --- a/include/linux/elf-em.h
 +++ b/include/linux/elf-em.h
 @@ -42,7 +42,6 @@
@@ -610,7 +610,7 @@ index cb5d1a5..9cd1de9 100644
  /*
   * This is an interim value that we will use until the committee comes
 diff --git a/include/linux/if_arp.h b/include/linux/if_arp.h
-index d001bdb..199f253 100644
+index d001bdb276b76..199f253bd1f66 100644
 --- a/include/linux/if_arp.h
 +++ b/include/linux/if_arp.h
 @@ -59,6 +59,7 @@
@@ -630,7 +630,7 @@ index d001bdb..199f253 100644
  #define ARPHRD_VOID	  0xFFFF	/* Void type, nothing is known */
  #define ARPHRD_NONE	  0xFFFE	/* zero header length */
 diff --git a/include/linux/if_ether.h b/include/linux/if_ether.h
-index b7d3beb..7dde037 100644
+index b7d3beb50ce2d..7dde037a0cca6 100644
 --- a/include/linux/if_ether.h
 +++ b/include/linux/if_ether.h
 @@ -66,6 +66,7 @@
@@ -666,7 +666,7 @@ index b7d3beb..7dde037 100644
  /*
   *	This is an Ethernet frame header.
 diff --git a/include/linux/if_link.h b/include/linux/if_link.h
-index b0bdbd6..1f97d05 100644
+index b0bdbd6e16c04..1f97d0560b6cb 100644
 --- a/include/linux/if_link.h
 +++ b/include/linux/if_link.h
 @@ -157,6 +157,7 @@ enum {
@@ -749,7 +749,7 @@ index b0bdbd6..1f97d05 100644
 +
  #endif /* _LINUX_IF_LINK_H */
 diff --git a/include/linux/if_packet.h b/include/linux/if_packet.h
-index 9e7edfd..4df96a7 100644
+index 9e7edfd8141e5..4df96a7dd4fae 100644
 --- a/include/linux/if_packet.h
 +++ b/include/linux/if_packet.h
 @@ -66,6 +66,7 @@ struct sockaddr_ll {
@@ -761,7 +761,7 @@ index 9e7edfd..4df96a7 100644
  
  struct tpacket_stats {
 diff --git a/include/linux/if_tunnel.h b/include/linux/if_tunnel.h
-index 4f975f5..21834ca 100644
+index 4f975f5704d8f..21834cac4c0d5 100644
 --- a/include/linux/if_tunnel.h
 +++ b/include/linux/if_tunnel.h
 @@ -75,6 +75,7 @@ enum {
@@ -790,7 +790,7 @@ index 4f975f5..21834ca 100644
  };
  
 diff --git a/include/linux/inet_diag.h b/include/linux/inet_diag.h
-index f7bf781..bada4d7 100644
+index f7bf7819e9243..bada4d7b6c8e6 100644
 --- a/include/linux/inet_diag.h
 +++ b/include/linux/inet_diag.h
 @@ -142,6 +142,8 @@ enum {
@@ -804,7 +804,7 @@ index f7bf781..bada4d7 100644
  
 diff --git a/include/linux/ipsec.h b/include/linux/ipsec.h
 new file mode 100644
-index 0000000..d17a630
+index 0000000000000..d17a6302a0e96
 --- /dev/null
 +++ b/include/linux/ipsec.h
 @@ -0,0 +1,47 @@
@@ -856,7 +856,7 @@ index 0000000..d17a630
 +
 +#endif	/* _LINUX_IPSEC_H */
 diff --git a/include/linux/lwtunnel.h b/include/linux/lwtunnel.h
-index faa6eab..3298426 100644
+index faa6eabee2040..329842627162b 100644
 --- a/include/linux/lwtunnel.h
 +++ b/include/linux/lwtunnel.h
 @@ -11,6 +11,7 @@ enum lwtunnel_encap_types {
@@ -868,7 +868,7 @@ index faa6eab..3298426 100644
  };
  
 diff --git a/include/linux/magic.h b/include/linux/magic.h
-index e230af2..e439565 100644
+index e230af2e68558..e439565df838a 100644
 --- a/include/linux/magic.h
 +++ b/include/linux/magic.h
 @@ -42,6 +42,7 @@
@@ -889,7 +889,7 @@ index e230af2..e439565 100644
  #define UDF_SUPER_MAGIC		0x15013346
  #define BALLOON_KVM_MAGIC	0x13661366
 diff --git a/include/linux/mpls_iptunnel.h b/include/linux/mpls_iptunnel.h
-index 4132c3c..1a0e57b 100644
+index 4132c3c59572b..1a0e57b45a8ce 100644
 --- a/include/linux/mpls_iptunnel.h
 +++ b/include/linux/mpls_iptunnel.h
 @@ -16,11 +16,13 @@
@@ -907,7 +907,7 @@ index 4132c3c..1a0e57b 100644
  };
  #define MPLS_IPTUNNEL_MAX (__MPLS_IPTUNNEL_MAX - 1)
 diff --git a/include/linux/neighbour.h b/include/linux/neighbour.h
-index f3d16db..3199d28 100644
+index f3d16dbe09d64..3199d28980b35 100644
 --- a/include/linux/neighbour.h
 +++ b/include/linux/neighbour.h
 @@ -41,6 +41,7 @@ enum {
@@ -919,7 +919,7 @@ index f3d16db..3199d28 100644
  
  /*
 diff --git a/include/linux/netlink.h b/include/linux/netlink.h
-index d1e26a2..ec0690b 100644
+index d1e26a2bcdcbb..ec0690b506471 100644
 --- a/include/linux/netlink.h
 +++ b/include/linux/netlink.h
 @@ -50,12 +50,12 @@ struct nlmsghdr {
@@ -1017,7 +1017,7 @@ index d1e26a2..ec0690b 100644
  
  #endif /* __LINUX_NETLINK_H */
 diff --git a/include/linux/netlink_diag.h b/include/linux/netlink_diag.h
-index defd25f..c8c8c7d 100644
+index defd25fb5f5af..c8c8c7d2e530b 100644
 --- a/include/linux/netlink_diag.h
 +++ b/include/linux/netlink_diag.h
 @@ -38,6 +38,7 @@ enum {
@@ -1045,7 +1045,7 @@ index defd25f..c8c8c7d 100644
  #endif
 diff --git a/include/linux/pfkeyv2.h b/include/linux/pfkeyv2.h
 new file mode 100644
-index 0000000..ada7f01
+index 0000000000000..ada7f0171cccd
 --- /dev/null
 +++ b/include/linux/pfkeyv2.h
 @@ -0,0 +1,383 @@
@@ -1433,7 +1433,7 @@ index 0000000..ada7f01
 +
 +#endif /* !(_LINUX_PFKEY2_H) */
 diff --git a/include/linux/pkt_cls.h b/include/linux/pkt_cls.h
-index 7a69f2a..d5e2bf6 100644
+index 7a69f2a4ca0c0..d5e2bf68d0d40 100644
 --- a/include/linux/pkt_cls.h
 +++ b/include/linux/pkt_cls.h
 @@ -37,7 +37,28 @@ enum {
@@ -1495,7 +1495,7 @@ index 7a69f2a..d5e2bf6 100644
  };
  
 diff --git a/include/linux/pkt_sched.h b/include/linux/pkt_sched.h
-index df7451d..099bf55 100644
+index df7451d351311..099bf5528fed3 100644
 --- a/include/linux/pkt_sched.h
 +++ b/include/linux/pkt_sched.h
 @@ -617,6 +617,14 @@ struct tc_drr_stats {
@@ -1514,7 +1514,7 @@ index df7451d..099bf55 100644
  	__u8	num_tc;
  	__u8	prio_tc_map[TC_QOPT_BITMASK + 1];
 diff --git a/include/linux/rtnetlink.h b/include/linux/rtnetlink.h
-index d42fe83..813e9e0 100644
+index d42fe83cec694..813e9e0767d33 100644
 --- a/include/linux/rtnetlink.h
 +++ b/include/linux/rtnetlink.h
 @@ -122,6 +122,8 @@ enum {
@@ -1605,7 +1605,7 @@ index d42fe83..813e9e0 100644
  /* New extended info filters for IFLA_EXT_MASK */
  #define RTEXT_FILTER_VF		(1 << 0)
 diff --git a/include/linux/sctp.h b/include/linux/sctp.h
-index 5e08b3d..fec24c4 100644
+index 5e08b3de809eb..fec24c41405b9 100644
 --- a/include/linux/sctp.h
 +++ b/include/linux/sctp.h
 @@ -115,10 +115,13 @@ typedef __s32 sctp_assoc_t;
@@ -1694,7 +1694,7 @@ index 5e08b3d..fec24c4 100644
   */
 diff --git a/include/linux/seg6.h b/include/linux/seg6.h
 new file mode 100644
-index 0000000..0715279
+index 0000000000000..07152792e61d2
 --- /dev/null
 +++ b/include/linux/seg6.h
 @@ -0,0 +1,54 @@
@@ -1754,7 +1754,7 @@ index 0000000..0715279
 +#endif
 diff --git a/include/linux/seg6_genl.h b/include/linux/seg6_genl.h
 new file mode 100644
-index 0000000..99382f9
+index 0000000000000..99382f94fa0a3
 --- /dev/null
 +++ b/include/linux/seg6_genl.h
 @@ -0,0 +1,32 @@
@@ -1792,7 +1792,7 @@ index 0000000..99382f9
 +#endif
 diff --git a/include/linux/seg6_hmac.h b/include/linux/seg6_hmac.h
 new file mode 100644
-index 0000000..704f93e
+index 0000000000000..704f93e80b417
 --- /dev/null
 +++ b/include/linux/seg6_hmac.h
 @@ -0,0 +1,22 @@
@@ -1820,7 +1820,7 @@ index 0000000..704f93e
 +#endif
 diff --git a/include/linux/seg6_iptunnel.h b/include/linux/seg6_iptunnel.h
 new file mode 100644
-index 0000000..a5dc05a
+index 0000000000000..a5dc05a1cbba3
 --- /dev/null
 +++ b/include/linux/seg6_iptunnel.h
 @@ -0,0 +1,40 @@
@@ -1866,7 +1866,7 @@ index 0000000..a5dc05a
 +#endif
 diff --git a/include/linux/seg6_local.h b/include/linux/seg6_local.h
 new file mode 100644
-index 0000000..76b90d6
+index 0000000000000..76b90d60c7ea7
 --- /dev/null
 +++ b/include/linux/seg6_local.h
 @@ -0,0 +1,68 @@
@@ -1939,7 +1939,7 @@ index 0000000..76b90d6
 +
 +#endif
 diff --git a/include/linux/tc_act/tc_bpf.h b/include/linux/tc_act/tc_bpf.h
-index 975b50d..8dc2ac0 100644
+index 975b50dc8d1d4..8dc2ac05eecf0 100644
 --- a/include/linux/tc_act/tc_bpf.h
 +++ b/include/linux/tc_act/tc_bpf.h
 @@ -28,6 +28,7 @@ enum {
@@ -1951,7 +1951,7 @@ index 975b50d..8dc2ac0 100644
  };
  #define TCA_ACT_BPF_MAX (__TCA_ACT_BPF_MAX - 1)
 diff --git a/include/linux/tc_act/tc_tunnel_key.h b/include/linux/tc_act/tc_tunnel_key.h
-index 84ea55e..afcd4be 100644
+index 84ea55e1076b6..afcd4be953e27 100644
 --- a/include/linux/tc_act/tc_tunnel_key.h
 +++ b/include/linux/tc_act/tc_tunnel_key.h
 @@ -34,6 +34,7 @@ enum {
@@ -1963,7 +1963,7 @@ index 84ea55e..afcd4be 100644
  };
  
 diff --git a/include/linux/tcp.h b/include/linux/tcp.h
-index d34fb5c..8edad3f 100644
+index d34fb5c5aa753..8edad3f942686 100644
 --- a/include/linux/tcp.h
 +++ b/include/linux/tcp.h
 @@ -117,6 +117,8 @@ enum {
@@ -2017,7 +2017,7 @@ index d34fb5c..8edad3f 100644
 +
  #endif /* _LINUX_TCP_H */
 diff --git a/include/linux/xfrm.h b/include/linux/xfrm.h
-index d2dd1fd..5790293 100644
+index d2dd1fd65e77a..5790293b7fc46 100644
 --- a/include/linux/xfrm.h
 +++ b/include/linux/xfrm.h
 @@ -303,6 +303,8 @@ enum xfrm_attr_type_t {
@@ -2044,5 +2044,5 @@ index d2dd1fd..5790293 100644
  #define XFRMGRP_ACQUIRE		1
  #define XFRMGRP_EXPIRE		2
 -- 
-1.8.3.1
+2.21.0
 

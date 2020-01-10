@@ -35,5 +35,5 @@ index c97f05a4c7033..38f4017e4a8c8 100644
  			if (get_dns_host(&a, addr, fam)) {
  				fprintf(stderr, "Error: an inet prefix is expected rather than \"%s\".\n", addr);
 -- 
-2.20.1
+2.21.0
 

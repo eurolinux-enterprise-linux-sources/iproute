@@ -2,7 +2,7 @@
 
 %define rpmversion 4.11.0
 %define baserelease 0.el7
-%define specrelease 25%{?dist}
+%define specrelease 25%{?dist}.2
 %define pkg_release %{specrelease}%{?buildid}
 
 Summary:            Advanced IP routing and network device configuration tools
@@ -161,6 +161,7 @@ Patch142:           0143-tc-introduce-tc_qdisc_block_exists-helper.patch
 Patch143:           0144-tc_filter-resolve-device-name-before-parsing-filter.patch
 Patch144:           0145-tc-introduce-support-for-block-handle-for-filter-ope.patch
 Patch145:           0146-tc-implement-ingress-egress-block-index-attributes-f.patch
+Patch146:           0147-netns-make-var-run-netns-bind-mount-recursive.patch
 License:            GPLv2+ and Public Domain
 BuildRequires:      bison
 BuildRequires:      flex
@@ -273,6 +274,9 @@ cat %{SOURCE3} >>%{buildroot}%{_sysconfdir}/iproute2/rt_dsfield
 %{_includedir}/iproute2/bpf_elf.h
 
 %changelog
+* Fri Nov 15 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-25.el7_7.1]
+- netns: make /var/run/netns bind-mount recursive (Andrea Claudi) [1772827]
+
 * Fri Jun 21 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-25.el7]
 - tc: implement ingress/egress block index attributes for qdiscs (Andrea Claudi) [1721291]
 - tc: introduce support for block-handle for filter operations (Andrea Claudi) [1721291]
@@ -301,7 +305,7 @@ cat %{SOURCE3} >>%{buildroot}%{_sysconfdir}/iproute2/rt_dsfield
 * Tue Apr 30 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-22.el7]
 - bpf: minor cleanups for bpf_trace_pipe (Andrea Claudi) [1465646]
 
-* Mon Apr 29 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-21.el7]
+* Tue Apr 30 2019 Andrea Claudi <aclaudi@redhat.com> [4.11.0-21.el7]
 - Check user supplied interface name lengths (Andrea Claudi) [1465646]
 - tc: flower: No need to cache indev arg (Andrea Claudi) [1465646]
 - ip{6, }tunnel: Avoid copying user-supplied interface name around (Andrea Claudi) [1465646]

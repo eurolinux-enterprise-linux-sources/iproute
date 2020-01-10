@@ -24,7 +24,7 @@ Date:   Wed Jun 14 18:45:42 2017 +0200
  1 file changed, 12 insertions(+)
 
 diff --git a/ip/link_gre6.c b/ip/link_gre6.c
-index 1b4fb05..76416b2 100644
+index 1b4fb051b37f7..76416b26ff0e9 100644
 --- a/ip/link_gre6.c
 +++ b/ip/link_gre6.c
 @@ -339,6 +339,18 @@ get_failed:
@@ -47,5 +47,5 @@ index 1b4fb05..76416b2 100644
  			usage();
  		argc--; argv++;
 -- 
-1.8.3.1
+2.21.0
 

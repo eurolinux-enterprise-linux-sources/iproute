@@ -26,7 +26,7 @@ Date:   Thu Jul 20 00:36:32 2017 +0200
  1 file changed, 10 insertions(+)
 
 diff --git a/ip/ipnetns.c b/ip/ipnetns.c
-index 0b0378a..4254994 100644
+index 0b0378ab6560c..4254994442ccd 100644
 --- a/ip/ipnetns.c
 +++ b/ip/ipnetns.c
 @@ -766,6 +766,11 @@ static int netns_monitor(int argc, char **argv)
@@ -54,5 +54,5 @@ index 0b0378a..4254994 100644
  	    (matches(*argv, "lst") == 0)) {
  		netns_map_init();
 -- 
-1.8.3.1
+2.21.0
 

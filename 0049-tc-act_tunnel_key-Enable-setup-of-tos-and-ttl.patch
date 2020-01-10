@@ -32,12 +32,12 @@ Date:   Thu Jul 19 14:02:14 2018 +0300
     Acked-by: Jiri Pirko <jiri@mellanox.com>
     Signed-off-by: David Ahern <dsahern@gmail.com>
 ---
- man/man8/tc-tunnel_key.8 |  8 ++++++++
- tc/m_tunnel_key.c        | 49 ++++++++++++++++++++++++++++++++++++++++++++++++
+ man/man8/tc-tunnel_key.8 |  8 +++++++
+ tc/m_tunnel_key.c        | 49 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 57 insertions(+)
 
 diff --git a/man/man8/tc-tunnel_key.8 b/man/man8/tc-tunnel_key.8
-index 52fa585..5e93c59 100644
+index 52fa585a75c8f..5e93c59d49465 100644
 --- a/man/man8/tc-tunnel_key.8
 +++ b/man/man8/tc-tunnel_key.8
 @@ -16,6 +16,8 @@ tunnel_key - Tunnel metadata manipulation
@@ -63,7 +63,7 @@ index 52fa585..5e93c59 100644
  .SH EXAMPLES
  The following example encapsulates incoming ICMP packets on eth0 into a vxlan
 diff --git a/tc/m_tunnel_key.c b/tc/m_tunnel_key.c
-index acbcfc1..60fd1c4 100644
+index acbcfc15cda76..60fd1c464e531 100644
 --- a/tc/m_tunnel_key.c
 +++ b/tc/m_tunnel_key.c
 @@ -80,6 +80,22 @@ static int tunnel_key_parse_dst_port(char *str, int type, struct nlmsghdr *n)
@@ -144,5 +144,5 @@ index acbcfc1..60fd1c4 100644
  	}
  	fprintf(f, " %s", action_n2a(parm->action));
 -- 
-1.8.3.1
+2.21.0
 

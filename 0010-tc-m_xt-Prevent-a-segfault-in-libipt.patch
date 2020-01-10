@@ -22,7 +22,7 @@ Date:   Tue May 23 15:40:57 2017 +0200
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/tc/m_xt.c b/tc/m_xt.c
-index e59df8e..ad52d23 100644
+index e59df8e10afef..ad52d239caf61 100644
 --- a/tc/m_xt.c
 +++ b/tc/m_xt.c
 @@ -146,6 +146,9 @@ static int parse_ipt(struct action_util *a, int *argc_p,
@@ -45,5 +45,5 @@ index e59df8e..ad52d23 100644
  			if (m != NULL && m->parse != NULL) {
  				m->parse(c - m->option_offset, argv, 0,
 -- 
-1.8.3.1
+2.21.0
 

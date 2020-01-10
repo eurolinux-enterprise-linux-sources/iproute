@@ -24,7 +24,7 @@ Date:   Thu Mar 1 10:35:12 2018 +0100
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/ip/iplink.c b/ip/iplink.c
-index 193997c..db5b2c9 100644
+index 193997cad2a35..db5b2c9645ba8 100644
 --- a/ip/iplink.c
 +++ b/ip/iplink.c
 @@ -268,8 +268,9 @@ static int nl_get_ll_addr_len(unsigned int dev_index)
@@ -39,5 +39,5 @@ index 193997c..db5b2c9 100644
  
  static void iplink_parse_vf_vlan_info(int vf, int *argcp, char ***argvp,
 -- 
-1.8.3.1
+2.21.0
 

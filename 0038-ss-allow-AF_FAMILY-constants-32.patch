@@ -28,7 +28,7 @@ Signed-off-by: Stefano Brivio <sbrivio@redhat.com>
  1 file changed, 28 insertions(+), 26 deletions(-)
 
 diff --git a/misc/ss.c b/misc/ss.c
-index d3fb9a7..0d64527 100644
+index d3fb9a751b3ab..0d6452777f7b6 100644
 --- a/misc/ss.c
 +++ b/misc/ss.c
 @@ -170,55 +170,57 @@ enum {
@@ -209,5 +209,5 @@ index d3fb9a7..0d64527 100644
  
  	if (groups == 0)
 -- 
-1.8.3.1
+2.21.0
 

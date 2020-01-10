@@ -34,7 +34,7 @@ Date:   Wed Aug 2 14:57:56 2017 +0200
  1 file changed, 24 insertions(+), 8 deletions(-)
 
 diff --git a/lib/bpf.c b/lib/bpf.c
-index 04ee1ab..73dac5c 100644
+index 04ee1ab9b2bc3..73dac5c37cc91 100644
 --- a/lib/bpf.c
 +++ b/lib/bpf.c
 @@ -160,11 +160,11 @@ static int bpf_parse_string(char *arg, bool from_file, __u16 *bpf_len,
@@ -92,5 +92,5 @@ index 04ee1ab..73dac5c 100644
  		*need_release = true;
  		*bpf_string = tmp_string;
 -- 
-1.8.3.1
+2.21.0
 

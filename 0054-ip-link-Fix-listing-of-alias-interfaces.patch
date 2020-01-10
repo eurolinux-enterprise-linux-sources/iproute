@@ -41,7 +41,7 @@ Date:   Thu Feb 7 10:18:16 2019 +0100
  1 file changed, 1 insertion(+)
 
 diff --git a/ip/ipaddress.c b/ip/ipaddress.c
-index 7492075..14e9e22 100644
+index 7492075687a9e..14e9e224dfa87 100644
 --- a/ip/ipaddress.c
 +++ b/ip/ipaddress.c
 @@ -1707,6 +1707,7 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
@@ -53,5 +53,5 @@ index 7492075..14e9e22 100644
  			perror("Cannot send link get request");
  			exit(1);
 -- 
-1.8.3.1
+2.21.0
 

@@ -36,7 +36,7 @@ Date:   Sun Jul 22 13:31:12 2018 +0300
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/ip/ipaddress.c b/ip/ipaddress.c
-index 14e9e22..44111a2 100644
+index 14e9e224dfa87..44111a27501a9 100644
 --- a/ip/ipaddress.c
 +++ b/ip/ipaddress.c
 @@ -471,21 +471,31 @@ static void print_vf_stats64(FILE *fp, struct rtattr *vfstats)
@@ -74,5 +74,5 @@ index 14e9e22..44111a2 100644
  
  static void print_link_stats64(FILE *fp, const struct rtnl_link_stats64 *s,
 -- 
-2.20.1
+2.21.0
 

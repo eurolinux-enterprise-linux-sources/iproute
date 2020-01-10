@@ -25,7 +25,7 @@ Date:   Thu Dec 14 18:09:00 2017 +0900
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/tc/m_action.c b/tc/m_action.c
-index 90b2a11..7cfd9e0 100644
+index 90b2a11e5d9e8..7cfd9e0af145f 100644
 --- a/tc/m_action.c
 +++ b/tc/m_action.c
 @@ -507,7 +507,7 @@ static int tc_action_gd(int cmd, unsigned int flags, int *argc_p, char ***argv_p
@@ -38,5 +38,5 @@ index 90b2a11..7cfd9e0 100644
  		return 1;
  	}
 -- 
-1.8.3.1
+2.21.0
 

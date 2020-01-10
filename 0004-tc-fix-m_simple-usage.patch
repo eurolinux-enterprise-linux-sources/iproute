@@ -18,7 +18,7 @@ Date:   Thu Aug 3 16:10:18 2017 -0700
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/tc/m_simple.c b/tc/m_simple.c
-index ab63384..65e48ad 100644
+index ab633849f7b45..65e48addf161b 100644
 --- a/tc/m_simple.c
 +++ b/tc/m_simple.c
 @@ -83,8 +83,8 @@ static void explain(void)
@@ -33,5 +33,5 @@ index ab63384..65e48ad 100644
  
  static void usage(void)
 -- 
-1.8.3.1
+2.21.0
 

@@ -117,5 +117,5 @@ index f8e06ccf205a0..26d23f43007ae 100644
  	if (strcmp("pfifo_fast", RTA_DATA(tb[TCA_KIND])) == 0)
  		q = get_qdisc_kind("prio");
 -- 
-2.20.1
+2.21.0
 

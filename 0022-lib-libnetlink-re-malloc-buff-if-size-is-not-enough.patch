@@ -27,11 +27,11 @@ Date:   Thu Oct 26 09:41:46 2017 +0800
 
 Signed-off-by: Hangbin Liu <haliu@redhat.com>
 ---
- lib/libnetlink.c | 114 ++++++++++++++++++++++++++++++++++++++-----------------
+ lib/libnetlink.c | 114 +++++++++++++++++++++++++++++++++--------------
  1 file changed, 80 insertions(+), 34 deletions(-)
 
 diff --git a/lib/libnetlink.c b/lib/libnetlink.c
-index a057831..446c960 100644
+index a0578312e83f8..446c9605ba19b 100644
 --- a/lib/libnetlink.c
 +++ b/lib/libnetlink.c
 @@ -386,6 +386,64 @@ static void rtnl_dump_error(const struct rtnl_handle *rth,
@@ -248,5 +248,5 @@ index a057831..446c960 100644
  		if (msg.msg_flags & MSG_TRUNC) {
  			fprintf(stderr, "Message truncated\n");
 -- 
-1.8.3.1
+2.21.0
 

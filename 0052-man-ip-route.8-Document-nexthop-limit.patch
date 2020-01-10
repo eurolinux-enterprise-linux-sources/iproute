@@ -22,7 +22,7 @@ Date:   Tue Nov 13 16:55:13 2018 +0100
  1 file changed, 9 insertions(+)
 
 diff --git a/man/man8/ip-route.8.in b/man/man8/ip-route.8.in
-index d6e0664..d9a5477 100644
+index d6e06649a4640..d9a547748c017 100644
 --- a/man/man8/ip-route.8.in
 +++ b/man/man8/ip-route.8.in
 @@ -548,6 +548,15 @@ argument lists:
@@ -42,5 +42,5 @@ index d6e0664..d9a5477 100644
  .BI scope " SCOPE_VAL"
  the scope of the destinations covered by the route prefix.
 -- 
-1.8.3.1
+2.21.0
 

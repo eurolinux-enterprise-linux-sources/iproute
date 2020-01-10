@@ -19,12 +19,12 @@ Date:   Wed Jun 7 15:17:54 2017 +0300
 
 Signed-off-by: Kamal Heib <kheib@redhat.com>
 ---
- man/man8/tc-flower.8 | 17 +++++++++++-
- tc/f_flower.c        | 75 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ man/man8/tc-flower.8 | 17 +++++++++-
+ tc/f_flower.c        | 75 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 91 insertions(+), 1 deletion(-)
 
 diff --git a/man/man8/tc-flower.8 b/man/man8/tc-flower.8
-index 7648079..be46f02 100644
+index 76480798d72f9..be46f0278b4ff 100644
 --- a/man/man8/tc-flower.8
 +++ b/man/man8/tc-flower.8
 @@ -30,7 +30,11 @@ flower \- flow based traffic control filter
@@ -59,7 +59,7 @@ index 7648079..be46f02 100644
  .TQ
  .BI src_ip " PREFIX"
 diff --git a/tc/f_flower.c b/tc/f_flower.c
-index 1b6b46e..5be693a 100644
+index 1b6b46ea0177b..5be693ab7f6af 100644
 --- a/tc/f_flower.c
 +++ b/tc/f_flower.c
 @@ -53,6 +53,8 @@ static void explain(void)
@@ -173,5 +173,5 @@ index 1b6b46e..5be693a 100644
  			     tb[TCA_FLOWER_KEY_IPV4_DST],
  			     tb[TCA_FLOWER_KEY_IPV4_DST_MASK],
 -- 
-1.8.3.1
+2.21.0
 

@@ -18,12 +18,12 @@ Date:   Tue May 23 23:51:39 2017 +0200
 
 Signed-off-by: Kamal Heib <kheib@redhat.com>
 ---
- man/man8/tc-flower.8 |  8 +++++++
- tc/f_flower.c        | 62 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ man/man8/tc-flower.8 |  8 ++++++
+ tc/f_flower.c        | 62 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+)
 
 diff --git a/man/man8/tc-flower.8 b/man/man8/tc-flower.8
-index ba29065..7648079 100644
+index ba290657c2245..76480798d72f9 100644
 --- a/man/man8/tc-flower.8
 +++ b/man/man8/tc-flower.8
 @@ -35,6 +35,8 @@ flower \- flow based traffic control filter
@@ -49,7 +49,7 @@ index ba29065..7648079 100644
  .TQ
  .BI code " MASKED_CODE"
 diff --git a/tc/f_flower.c b/tc/f_flower.c
-index ebc63ca..1b6b46e 100644
+index ebc63ca6b2a27..1b6b46ea0177b 100644
 --- a/tc/f_flower.c
 +++ b/tc/f_flower.c
 @@ -57,6 +57,7 @@ static void explain(void)
@@ -150,5 +150,5 @@ index ebc63ca..1b6b46e 100644
  					FLOWER_ICMP_FIELD_TYPE);
  	nl_mask_type = flower_icmp_attr_mask_type(eth_type, ip_proto,
 -- 
-1.8.3.1
+2.21.0
 

@@ -28,7 +28,7 @@ Signed-off-by: Matteo Croce <mcroce@redhat.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ip/ipneigh.c b/ip/ipneigh.c
-index 4d8fc85..9c38a60 100644
+index 4d8fc85217451..9c38a60ddf4fe 100644
 --- a/ip/ipneigh.c
 +++ b/ip/ipneigh.c
 @@ -445,7 +445,6 @@ static int do_show_or_flush(int argc, char **argv, int flush)
@@ -48,5 +48,5 @@ index 4d8fc85..9c38a60 100644
  		printf("*** Flush not complete bailing out after %d rounds\n",
  			MAX_ROUNDS);
 -- 
-1.8.3.1
+2.21.0
 

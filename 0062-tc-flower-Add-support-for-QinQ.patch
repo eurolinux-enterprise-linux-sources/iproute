@@ -2,6 +2,9 @@ From dfbec1b67fc02a5af0d5cc30328b918902f20717 Mon Sep 17 00:00:00 2001
 From: Andrea Claudi <aclaudi@redhat.com>
 Date: Mon, 25 Mar 2019 12:19:05 +0100
 Subject: [PATCH] tc: flower: Add support for QinQ
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
 Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1642347
 Upstream Status: iproute2.git commit 1f0a5dfd388cd
@@ -267,5 +270,5 @@ index 5f5236ca523f8..40dcfbd687a20 100644
  			      tb[TCA_FLOWER_KEY_ETH_DST_MASK]);
  	flower_print_eth_addr(f, "src_mac", tb[TCA_FLOWER_KEY_ETH_SRC],
 -- 
-2.20.1
+2.21.0
 

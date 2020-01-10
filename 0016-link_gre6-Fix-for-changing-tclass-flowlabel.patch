@@ -25,7 +25,7 @@ Date:   Fri Sep 1 16:08:08 2017 +0200
  1 file changed, 2 insertions(+)
 
 diff --git a/ip/link_gre6.c b/ip/link_gre6.c
-index 76416b2..fe3ab64 100644
+index 76416b26ff0e9..fe3ab641a86c2 100644
 --- a/ip/link_gre6.c
 +++ b/ip/link_gre6.c
 @@ -282,6 +282,7 @@ get_failed:
@@ -45,5 +45,5 @@ index 76416b2..fe3ab64 100644
  				flags &= ~IP6_TNL_F_USE_ORIG_FLOWLABEL;
  			}
 -- 
-1.8.3.1
+2.21.0
 

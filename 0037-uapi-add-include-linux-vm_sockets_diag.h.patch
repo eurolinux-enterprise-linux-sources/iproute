@@ -16,13 +16,13 @@ Date:   Wed Oct 11 10:49:25 2017 -0700
 
 Signed-off-by: Stefano Brivio <sbrivio@redhat.com>
 ---
- include/uapi/linux/vm_sockets_diag.h | 33 +++++++++++++++++++++++++++++++++
+ include/uapi/linux/vm_sockets_diag.h | 33 ++++++++++++++++++++++++++++
  1 file changed, 33 insertions(+)
  create mode 100644 include/uapi/linux/vm_sockets_diag.h
 
 diff --git a/include/uapi/linux/vm_sockets_diag.h b/include/uapi/linux/vm_sockets_diag.h
 new file mode 100644
-index 0000000..a732a6f
+index 0000000000000..a732a6f591b97
 --- /dev/null
 +++ b/include/uapi/linux/vm_sockets_diag.h
 @@ -0,0 +1,33 @@
@@ -60,5 +60,5 @@ index 0000000..a732a6f
 +
 +#endif /* __VM_SOCKETS_DIAG_H__ */
 -- 
-1.8.3.1
+2.21.0
 

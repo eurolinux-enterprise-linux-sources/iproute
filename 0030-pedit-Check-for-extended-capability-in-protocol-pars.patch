@@ -23,7 +23,7 @@ Signed-off-by: Kamal Heib <kheib@redhat.com>
  2 files changed, 6 insertions(+)
 
 diff --git a/tc/p_eth.c b/tc/p_eth.c
-index ad3e28f..2d2f96c 100644
+index ad3e28f80eb64..2d2f96ca2f0fb 100644
 --- a/tc/p_eth.c
 +++ b/tc/p_eth.c
 @@ -34,6 +34,9 @@ parse_eth(int *argc_p, char ***argv_p,
@@ -37,7 +37,7 @@ index ad3e28f..2d2f96c 100644
  
  	if (strcmp(*argv, "type") == 0) {
 diff --git a/tc/p_udp.c b/tc/p_udp.c
-index a56a1b5..3916d95 100644
+index a56a1b5192542..3916d95860408 100644
 --- a/tc/p_udp.c
 +++ b/tc/p_udp.c
 @@ -34,6 +34,9 @@ parse_udp(int *argc_p, char ***argv_p,
@@ -51,5 +51,5 @@ index a56a1b5..3916d95 100644
  
  	if (strcmp(*argv, "sport") == 0) {
 -- 
-1.8.3.1
+2.21.0
 

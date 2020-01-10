@@ -32,5 +32,5 @@ index 2a981d8b06918..fdb00a9f3f696 100644
  			if (u->type == SOCK_DGRAM && u->state == SS_CLOSE && u->rport)
  				u->state = SS_ESTABLISHED;
 -- 
-2.20.1
+2.21.0
 

@@ -20,7 +20,7 @@ Signed-off-by: Hangbin Liu <haliu@redhat.com>
  1 file changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/lib/libnetlink.c b/lib/libnetlink.c
-index e91bd5a..b08518d 100644
+index e91bd5a02b956..b08518d81f2dd 100644
 --- a/lib/libnetlink.c
 +++ b/lib/libnetlink.c
 @@ -261,8 +261,7 @@ int rtnl_dump_request_n(struct rtnl_handle *rth, struct nlmsghdr *n)
@@ -43,5 +43,5 @@ index e91bd5a..b08518d 100644
  						return -1;
  
 -- 
-1.8.3.1
+2.21.0
 

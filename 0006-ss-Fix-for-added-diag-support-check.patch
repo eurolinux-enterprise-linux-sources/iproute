@@ -36,7 +36,7 @@ Date:   Mon Aug 28 19:31:22 2017 +0200
  1 file changed, 16 insertions(+), 4 deletions(-)
 
 diff --git a/misc/ss.c b/misc/ss.c
-index 12763c9..b84baf3 100644
+index 12763c9f42686..b84baf3b57fe5 100644
 --- a/misc/ss.c
 +++ b/misc/ss.c
 @@ -2735,7 +2735,7 @@ static int tcp_show_netlink_file(struct filter *f)
@@ -89,5 +89,5 @@ index 12763c9..b84baf3 100644
  		sctp_show(&current_filter);
  
 -- 
-1.8.3.1
+2.21.0
 

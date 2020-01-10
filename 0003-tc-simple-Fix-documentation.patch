@@ -23,7 +23,7 @@ Date:   Thu Aug 3 17:00:51 2017 +0200
  2 files changed, 28 insertions(+), 5 deletions(-)
 
 diff --git a/man/man8/tc-simple.8 b/man/man8/tc-simple.8
-index 2206dc3..7363ab5 100644
+index 2206dc3b88614..7363ab563e189 100644
 --- a/man/man8/tc-simple.8
 +++ b/man/man8/tc-simple.8
 @@ -6,15 +6,37 @@ simple - basic example action
@@ -81,7 +81,7 @@ index 2206dc3..7363ab5 100644
  .BR tc (8)
 +.BR tc-actions (8)
 diff --git a/tc/m_simple.c b/tc/m_simple.c
-index 3a8bd91..ab63384 100644
+index 3a8bd916d3bfb..ab633849f7b45 100644
 --- a/tc/m_simple.c
 +++ b/tc/m_simple.c
 @@ -81,10 +81,10 @@
@@ -98,5 +98,5 @@ index 3a8bd91..ab63384 100644
  
  static void usage(void)
 -- 
-1.8.3.1
+2.21.0
 

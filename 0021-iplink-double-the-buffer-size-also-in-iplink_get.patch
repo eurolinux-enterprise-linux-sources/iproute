@@ -31,7 +31,7 @@ Signed-off-by: Hangbin Liu <haliu@redhat.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ip/iplink.c b/ip/iplink.c
-index 2b2421f..5afbadf 100644
+index 2b2421f9a2281..5afbadf0ce383 100644
 --- a/ip/iplink.c
 +++ b/ip/iplink.c
 @@ -1015,7 +1015,7 @@ int iplink_get(unsigned int flags, char *name, __u32 filt_mask)
@@ -44,5 +44,5 @@ index 2b2421f..5afbadf 100644
  
  	if (name) {
 -- 
-1.8.3.1
+2.21.0
 

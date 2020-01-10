@@ -37,12 +37,12 @@ Date:   Thu Sep 6 15:31:51 2018 +0200
     Signed-off-by: Phil Sutter <phil@nwl.cc>
     Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
 ---
- ip/iproute.c          | 43 +++++++++++++++++++++--------------
- ip/iproute_lwtunnel.c | 63 ++++++++++++++++++++++++++++++++-------------------
+ ip/iproute.c          | 43 +++++++++++++++++------------
+ ip/iproute_lwtunnel.c | 63 +++++++++++++++++++++++++++----------------
  2 files changed, 66 insertions(+), 40 deletions(-)
 
 diff --git a/ip/iproute.c b/ip/iproute.c
-index 759032d..d4db035 100644
+index 759032db454ad..d4db035fc7b24 100644
 --- a/ip/iproute.c
 +++ b/ip/iproute.c
 @@ -721,7 +721,7 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
@@ -156,7 +156,7 @@ index 759032d..d4db035 100644
  	if (req.r.rtm_family == AF_UNSPEC)
  		req.r.rtm_family = AF_INET;
 diff --git a/ip/iproute_lwtunnel.c b/ip/iproute_lwtunnel.c
-index 0fa1cab..1a68912 100644
+index 0fa1cab0a790f..1a6891267d2e1 100644
 --- a/ip/iproute_lwtunnel.c
 +++ b/ip/iproute_lwtunnel.c
 @@ -255,8 +255,9 @@ static int parse_encap_mpls(struct rtattr *rta, size_t len,
@@ -384,5 +384,5 @@ index 0fa1cab..1a68912 100644
 +	return ret;
  }
 -- 
-1.8.3.1
+2.21.0
 

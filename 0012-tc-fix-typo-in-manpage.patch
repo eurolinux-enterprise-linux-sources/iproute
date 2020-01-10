@@ -20,7 +20,7 @@ Date:   Fri Jul 7 15:08:33 2017 +0200
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/man/man8/tc-csum.8 b/man/man8/tc-csum.8
-index 718301d..409ab71 100644
+index 718301ded069b..409ab71791cce 100644
 --- a/man/man8/tc-csum.8
 +++ b/man/man8/tc-csum.8
 @@ -29,9 +29,9 @@ csum - checksum update action
@@ -36,5 +36,5 @@ index 718301d..409ab71 100644
  .TP
  .I TARGET
 -- 
-1.8.3.1
+2.21.0
 

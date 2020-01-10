@@ -26,12 +26,12 @@ Date:   Sun May 21 08:37:27 2017 +0300
 
 Signed-off-by: Kamal Heib <kheib@redhat.com>
 ---
- devlink/devlink.c      | 48 +++++++++++++++++++++++++++++++++++++++++++++++-
- man/man8/devlink-dev.8 | 13 +++++++++++++
+ devlink/devlink.c      | 48 +++++++++++++++++++++++++++++++++++++++++-
+ man/man8/devlink-dev.8 | 13 ++++++++++++
  2 files changed, 60 insertions(+), 1 deletion(-)
 
 diff --git a/devlink/devlink.c b/devlink/devlink.c
-index e22ee0a..f9bc16c 100644
+index e22ee0a0e8d83..f9bc16c350c40 100644
 --- a/devlink/devlink.c
 +++ b/devlink/devlink.c
 @@ -176,6 +176,7 @@ static void ifname_map_free(struct ifname_map *ifname_map)
@@ -154,7 +154,7 @@ index e22ee0a..f9bc16c 100644
  	if (err)
  		return err;
 diff --git a/man/man8/devlink-dev.8 b/man/man8/devlink-dev.8
-index 6bfe66f..b074d57 100644
+index 6bfe66f87955a..b074d57a19369 100644
 --- a/man/man8/devlink-dev.8
 +++ b/man/man8/devlink-dev.8
 @@ -34,6 +34,9 @@ devlink-dev \- devlink device configuration
@@ -185,5 +185,5 @@ index 6bfe66f..b074d57 100644
  .PP
  devlink dev show
 -- 
-1.8.3.1
+2.21.0
 

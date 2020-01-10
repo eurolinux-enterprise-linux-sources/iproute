@@ -32,7 +32,7 @@ Date:   Tue Nov 13 13:39:04 2018 +0100
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/ip/iproute_lwtunnel.c b/ip/iproute_lwtunnel.c
-index 1a68912..b6f08f0 100644
+index 1a6891267d2e1..b6f08f073ef02 100644
 --- a/ip/iproute_lwtunnel.c
 +++ b/ip/iproute_lwtunnel.c
 @@ -343,7 +343,7 @@ static int parse_encap_ila(struct rtattr *rta, size_t len,
@@ -81,5 +81,5 @@ index 1a68912..b6f08f0 100644
  	*argcp = argc;
  	*argvp = argv;
 -- 
-1.8.3.1
+2.21.0
 

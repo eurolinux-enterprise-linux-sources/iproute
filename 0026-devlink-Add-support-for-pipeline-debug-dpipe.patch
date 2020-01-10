@@ -88,11 +88,11 @@ Date:   Wed May 3 13:25:23 2017 +0200
 
 Signed-off-by: Kamal Heib <kheib@redhat.com>
 ---
- devlink/devlink.c | 1353 +++++++++++++++++++++++++++++++++++++++++++++++++----
+ devlink/devlink.c | 1353 +++++++++++++++++++++++++++++++++++++++++----
  1 file changed, 1254 insertions(+), 99 deletions(-)
 
 diff --git a/devlink/devlink.c b/devlink/devlink.c
-index 35220d8..e22ee0a 100644
+index 35220d802a618..e22ee0a0e8d83 100644
 --- a/devlink/devlink.c
 +++ b/devlink/devlink.c
 @@ -34,7 +34,15 @@
@@ -1593,5 +1593,5 @@ index 35220d8..e22ee0a 100644
  		default:
  			pr_err("Unknown option.\n");
 -- 
-1.8.3.1
+2.21.0
 

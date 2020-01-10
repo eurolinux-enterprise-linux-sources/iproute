@@ -700,5 +700,5 @@ index 7c749ddabaeeb..d985da172aa05 100644
  .RS 4
  Performs hot reload of specified devlink device.
 -- 
-2.20.1
+2.21.0
 

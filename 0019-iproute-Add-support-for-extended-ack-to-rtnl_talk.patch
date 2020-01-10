@@ -30,12 +30,12 @@ squash! iproute: Add support for extended ack to rtnl_talk
 ---
  include/libnetlink.h    |   6 +++
  include/linux/netlink.h |   1 +
- lib/Makefile            |   7 ++++
- lib/libnetlink.c        | 109 ++++++++++++++++++++++++++++++++++++++++++++----
+ lib/Makefile            |   7 +++
+ lib/libnetlink.c        | 109 +++++++++++++++++++++++++++++++++++++---
  4 files changed, 116 insertions(+), 7 deletions(-)
 
 diff --git a/include/libnetlink.h b/include/libnetlink.h
-index bd0267d..654aebc 100644
+index bd0267dfcc02a..654aebc0f7632 100644
 --- a/include/libnetlink.h
 +++ b/include/libnetlink.h
 @@ -65,6 +65,9 @@ typedef int (*rtnl_listen_filter_t)(const struct sockaddr_nl *,
@@ -59,7 +59,7 @@ index bd0267d..654aebc 100644
  				   struct nlmsghdr *answer, size_t len)
  	__attribute__((warn_unused_result));
 diff --git a/include/linux/netlink.h b/include/linux/netlink.h
-index a982b3c..d1e26a2 100644
+index a982b3c004395..d1e26a2bcdcbb 100644
 --- a/include/linux/netlink.h
 +++ b/include/linux/netlink.h
 @@ -113,6 +113,7 @@ struct nlmsgerr {
@@ -71,7 +71,7 @@ index a982b3c..d1e26a2 100644
  struct nl_pktinfo {
  	__u32	group;
 diff --git a/lib/Makefile b/lib/Makefile
-index 1d24ca2..f81888c 100644
+index 1d24ca24b9a39..f81888cca974f 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
 @@ -4,6 +4,13 @@ ifeq ($(IP_CONFIG_SETNS),y)
@@ -89,7 +89,7 @@ index 1d24ca2..f81888c 100644
  
  UTILOBJ = utils.o rt_names.o ll_types.o ll_proto.o ll_addr.o \
 diff --git a/lib/libnetlink.c b/lib/libnetlink.c
-index b08518d..a057831 100644
+index b08518d81f2dd..a0578312e83f8 100644
 --- a/lib/libnetlink.c
 +++ b/lib/libnetlink.c
 @@ -36,6 +36,79 @@
@@ -251,5 +251,5 @@ index b08518d..a057831 100644
  
  int rtnl_listen_all_nsid(struct rtnl_handle *rth)
 -- 
-1.8.3.1
+2.21.0
 

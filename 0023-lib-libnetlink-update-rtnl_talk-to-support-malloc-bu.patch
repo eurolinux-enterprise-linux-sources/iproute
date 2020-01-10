@@ -89,7 +89,7 @@ Signed-off-by: Hangbin Liu <haliu@redhat.com>
  36 files changed, 216 insertions(+), 174 deletions(-)
 
 diff --git a/bridge/fdb.c b/bridge/fdb.c
-index a71a78f..4859edb 100644
+index a71a78f23b202..4859edb2473b7 100644
 --- a/bridge/fdb.c
 +++ b/bridge/fdb.c
 @@ -529,7 +529,7 @@ static int fdb_modify(int cmd, int flags, int argc, char **argv)
@@ -102,7 +102,7 @@ index a71a78f..4859edb 100644
  
  	return 0;
 diff --git a/bridge/link.c b/bridge/link.c
-index 93472ad..cc29a2a 100644
+index 93472ad3699e3..cc29a2adb2e01 100644
 --- a/bridge/link.c
 +++ b/bridge/link.c
 @@ -426,7 +426,7 @@ static int brlink_modify(int argc, char **argv)
@@ -115,7 +115,7 @@ index 93472ad..cc29a2a 100644
  
  	return 0;
 diff --git a/bridge/mdb.c b/bridge/mdb.c
-index e60ff3e..fbd8184 100644
+index e60ff3ef3f485..fbd8184dacf85 100644
 --- a/bridge/mdb.c
 +++ b/bridge/mdb.c
 @@ -298,7 +298,7 @@ static int mdb_modify(int cmd, int flags, int argc, char **argv)
@@ -128,7 +128,7 @@ index e60ff3e..fbd8184 100644
  
  	return 0;
 diff --git a/bridge/vlan.c b/bridge/vlan.c
-index ebcdace..5d68359 100644
+index ebcdacee309bc..5d683595e0e32 100644
 --- a/bridge/vlan.c
 +++ b/bridge/vlan.c
 @@ -133,7 +133,7 @@ static int vlan_modify(int cmd, int argc, char **argv)
@@ -141,7 +141,7 @@ index ebcdace..5d68359 100644
  
  	return 0;
 diff --git a/genl/ctrl.c b/genl/ctrl.c
-index 6abd525..21e857c 100644
+index 6abd52582d0d3..21e857cfcfc25 100644
 --- a/genl/ctrl.c
 +++ b/genl/ctrl.c
 @@ -55,6 +55,7 @@ int genl_ctrl_resolve_family(const char *family)
@@ -229,7 +229,7 @@ index 6abd525..21e857c 100644
  	return ret;
  }
 diff --git a/include/libnetlink.h b/include/libnetlink.h
-index 654aebc..2136d2b 100644
+index 654aebc0f7632..2136d2bdd0379 100644
 --- a/include/libnetlink.h
 +++ b/include/libnetlink.h
 @@ -82,13 +82,13 @@ int rtnl_dump_filter_nc(struct rtnl_handle *rth,
@@ -250,7 +250,7 @@ index 654aebc..2136d2b 100644
  int rtnl_send(struct rtnl_handle *rth, const void *buf, int)
  	__attribute__((warn_unused_result));
 diff --git a/ip/ipaddress.c b/ip/ipaddress.c
-index b8d9c7d..7492075 100644
+index b8d9c7d917fe8..7492075687a9e 100644
 --- a/ip/ipaddress.c
 +++ b/ip/ipaddress.c
 @@ -1356,7 +1356,7 @@ static int restore_handler(const struct sockaddr_nl *nl,
@@ -272,7 +272,7 @@ index b8d9c7d..7492075 100644
  
  	return 0;
 diff --git a/ip/ipaddrlabel.c b/ip/ipaddrlabel.c
-index 1d324da..6ea9bff 100644
+index 1d324dac02119..6ea9bfffdd0d1 100644
 --- a/ip/ipaddrlabel.c
 +++ b/ip/ipaddrlabel.c
 @@ -176,7 +176,7 @@ static int ipaddrlabel_modify(int cmd, int argc, char **argv)
@@ -294,7 +294,7 @@ index 1d324da..6ea9bff 100644
  
  		rtnl_close(&rth2);
 diff --git a/ip/ipfou.c b/ip/ipfou.c
-index 00dbe15..23000dc 100644
+index 00dbe150710d2..23000dc696d6a 100644
 --- a/ip/ipfou.c
 +++ b/ip/ipfou.c
 @@ -116,7 +116,7 @@ static int do_add(int argc, char **argv)
@@ -316,7 +316,7 @@ index 00dbe15..23000dc 100644
  
  	return 0;
 diff --git a/ip/ipila.c b/ip/ipila.c
-index 843cc16..0403fc4 100644
+index 843cc1652589f..0403fc4238b9d 100644
 --- a/ip/ipila.c
 +++ b/ip/ipila.c
 @@ -220,7 +220,7 @@ static int do_add(int argc, char **argv)
@@ -338,7 +338,7 @@ index 843cc16..0403fc4 100644
  
  	return 0;
 diff --git a/ip/ipl2tp.c b/ip/ipl2tp.c
-index 88664c9..742adbe 100644
+index 88664c909e11f..742adbe4f9c3a 100644
 --- a/ip/ipl2tp.c
 +++ b/ip/ipl2tp.c
 @@ -129,7 +129,7 @@ static int create_tunnel(struct l2tp_parm *p)
@@ -378,7 +378,7 @@ index 88664c9..742adbe 100644
  
  	return 0;
 diff --git a/ip/iplink.c b/ip/iplink.c
-index 5afbadf..b08d227 100644
+index 5afbadf0ce383..b08d227d44bee 100644
 --- a/ip/iplink.c
 +++ b/ip/iplink.c
 @@ -247,19 +247,26 @@ static int nl_get_ll_addr_len(unsigned int dev_index)
@@ -468,7 +468,7 @@ index 5afbadf..b08d227 100644
  }
  
 diff --git a/ip/iplink_vrf.c b/ip/iplink_vrf.c
-index 917630e..370bb86 100644
+index 917630e853375..370bb86815a80 100644
 --- a/ip/iplink_vrf.c
 +++ b/ip/iplink_vrf.c
 @@ -114,10 +114,7 @@ __u32 ipvrf_get_table(const char *name)
@@ -586,7 +586,7 @@ index 917630e..370bb86 100644
  	return ifi->ifi_index;
  }
 diff --git a/ip/ipmacsec.c b/ip/ipmacsec.c
-index aa89a00..9a2d0eb 100644
+index aa89a00f5aad6..9a2d0ebf82091 100644
 --- a/ip/ipmacsec.c
 +++ b/ip/ipmacsec.c
 @@ -421,7 +421,7 @@ static int do_modify_nl(enum cmd c, enum macsec_nl_commands cmd, int ifindex,
@@ -599,7 +599,7 @@ index aa89a00..9a2d0eb 100644
  
  	return 0;
 diff --git a/ip/ipneigh.c b/ip/ipneigh.c
-index 9c38a60..32f2d55 100644
+index 9c38a60ddf4fe..32f2d553c712f 100644
 --- a/ip/ipneigh.c
 +++ b/ip/ipneigh.c
 @@ -184,7 +184,7 @@ static int ipneigh_modify(int cmd, int flags, int argc, char **argv)
@@ -612,7 +612,7 @@ index 9c38a60..32f2d55 100644
  
  	return 0;
 diff --git a/ip/ipnetns.c b/ip/ipnetns.c
-index 4254994..1c0ade9 100644
+index 4254994442ccd..1c0ade90dee5e 100644
 --- a/ip/ipnetns.c
 +++ b/ip/ipnetns.c
 @@ -95,12 +95,13 @@ static int get_netnsid_from_name(const char *name)
@@ -678,7 +678,7 @@ index 4254994..1c0ade9 100644
  
  	close(fd);
 diff --git a/ip/ipntable.c b/ip/ipntable.c
-index 879626e..6506332 100644
+index 879626ee4f491..65063321c85f8 100644
 --- a/ip/ipntable.c
 +++ b/ip/ipntable.c
 @@ -306,7 +306,7 @@ static int ipntable_modify(int cmd, int flags, int argc, char **argv)
@@ -691,7 +691,7 @@ index 879626e..6506332 100644
  
  	return 0;
 diff --git a/ip/iproute.c b/ip/iproute.c
-index 5e23613..35fdce8 100644
+index 5e23613dadbaf..35fdce8a64f35 100644
 --- a/ip/iproute.c
 +++ b/ip/iproute.c
 @@ -1271,7 +1271,7 @@ static int iproute_modify(int cmd, unsigned int flags, int argc, char **argv)
@@ -785,7 +785,7 @@ index 5e23613..35fdce8 100644
  		ret = 0;
  
 diff --git a/ip/iprule.c b/ip/iprule.c
-index 8313138..e64b4d7 100644
+index 8313138db815f..e64b4d7db2815 100644
 --- a/ip/iprule.c
 +++ b/ip/iprule.c
 @@ -393,7 +393,7 @@ static int flush_rule(const struct sockaddr_nl *who, struct nlmsghdr *n,
@@ -816,7 +816,7 @@ index 8313138..e64b4d7 100644
  
  	return 0;
 diff --git a/ip/iptoken.c b/ip/iptoken.c
-index 1869f76..0528bad 100644
+index 1869f764424ff..0528bad70a80e 100644
 --- a/ip/iptoken.c
 +++ b/ip/iptoken.c
 @@ -166,7 +166,7 @@ static int iptoken_set(int argc, char **argv, bool delete)
@@ -829,7 +829,7 @@ index 1869f76..0528bad 100644
  
  	return 0;
 diff --git a/ip/link_gre.c b/ip/link_gre.c
-index 35d437a..ced9936 100644
+index 35d437a15562c..ced993692e6f6 100644
 --- a/ip/link_gre.c
 +++ b/ip/link_gre.c
 @@ -64,7 +64,6 @@ static int gre_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -882,7 +882,7 @@ index 35d437a..ced9936 100644
  
  	while (argc > 0) {
 diff --git a/ip/link_gre6.c b/ip/link_gre6.c
-index fe3ab64..932f9ee 100644
+index fe3ab641a86c2..932f9ee96124d 100644
 --- a/ip/link_gre6.c
 +++ b/ip/link_gre6.c
 @@ -76,7 +76,6 @@ static int gre_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -935,7 +935,7 @@ index fe3ab64..932f9ee 100644
  
  	while (argc > 0) {
 diff --git a/ip/link_ip6tnl.c b/ip/link_ip6tnl.c
-index 6bb968d..2304364 100644
+index 6bb968d3c9189..230436437fffb 100644
 --- a/ip/link_ip6tnl.c
 +++ b/ip/link_ip6tnl.c
 @@ -74,7 +74,6 @@ static int ip6tunnel_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -988,7 +988,7 @@ index 6bb968d..2304364 100644
  
  	while (argc > 0) {
 diff --git a/ip/link_iptnl.c b/ip/link_iptnl.c
-index f180b92..528e287 100644
+index f180b921e4710..528e287814f6b 100644
 --- a/ip/link_iptnl.c
 +++ b/ip/link_iptnl.c
 @@ -72,7 +72,6 @@ static int iptunnel_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -1041,7 +1041,7 @@ index f180b92..528e287 100644
  
  	while (argc > 0) {
 diff --git a/ip/link_vti.c b/ip/link_vti.c
-index 95bc23e..d2aacbe 100644
+index 95bc23e928972..d2aacbe78ded1 100644
 --- a/ip/link_vti.c
 +++ b/ip/link_vti.c
 @@ -51,7 +51,6 @@ static int vti_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -1094,7 +1094,7 @@ index 95bc23e..d2aacbe 100644
  
  	while (argc > 0) {
 diff --git a/ip/link_vti6.c b/ip/link_vti6.c
-index 9ca127a..aedfbea 100644
+index 9ca127af8a5d5..aedfbeaeea0e1 100644
 --- a/ip/link_vti6.c
 +++ b/ip/link_vti6.c
 @@ -46,7 +46,6 @@ static int vti6_parse_opt(struct link_util *lu, int argc, char **argv,
@@ -1147,7 +1147,7 @@ index 9ca127a..aedfbea 100644
  
  	while (argc > 0) {
 diff --git a/ip/tcp_metrics.c b/ip/tcp_metrics.c
-index 8972acd..3f9790e 100644
+index 8972acd05fb28..3f9790e8fedde 100644
 --- a/ip/tcp_metrics.c
 +++ b/ip/tcp_metrics.c
 @@ -306,6 +306,7 @@ static int process_msg(const struct sockaddr_nl *who, struct nlmsghdr *n,
@@ -1179,7 +1179,7 @@ index 8972acd..3f9790e 100644
  		req.n.nlmsg_seq = grth.dump = ++grth.seq;
  		if (rtnl_send(&grth, &req, req.n.nlmsg_len) < 0) {
 diff --git a/ip/xfrm_policy.c b/ip/xfrm_policy.c
-index de689c4..98460a0 100644
+index de689c4d86c4d..98460a072bd4e 100644
 --- a/ip/xfrm_policy.c
 +++ b/ip/xfrm_policy.c
 @@ -386,7 +386,7 @@ static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv
@@ -1281,7 +1281,7 @@ index de689c4..98460a0 100644
  
  	rtnl_close(&rth);
 diff --git a/ip/xfrm_state.c b/ip/xfrm_state.c
-index ea7d4f3..04ed349 100644
+index ea7d4f3460578..04ed3492ad3b5 100644
 --- a/ip/xfrm_state.c
 +++ b/ip/xfrm_state.c
 @@ -677,7 +677,7 @@ static int xfrm_state_modify(int cmd, unsigned int flags, int argc, char **argv)
@@ -1384,7 +1384,7 @@ index ea7d4f3..04ed349 100644
  
  	rtnl_close(&rth);
 diff --git a/lib/libgenl.c b/lib/libgenl.c
-index 50d2d92..bb5fbb5 100644
+index 50d2d9217dcbc..bb5fbb5f518d2 100644
 --- a/lib/libgenl.c
 +++ b/lib/libgenl.c
 @@ -49,16 +49,21 @@ int genl_resolve_family(struct rtnl_handle *grth, const char *family)
@@ -1412,7 +1412,7 @@ index 50d2d92..bb5fbb5 100644
  
  int genl_init_handle(struct rtnl_handle *grth, const char *family,
 diff --git a/lib/libnetlink.c b/lib/libnetlink.c
-index 446c960..75e20ab 100644
+index 446c9605ba19b..75e20abf0b97f 100644
 --- a/lib/libnetlink.c
 +++ b/lib/libnetlink.c
 @@ -561,7 +561,7 @@ static void rtnl_talk_error(struct nlmsghdr *h, struct nlmsgerr *err,
@@ -1478,7 +1478,7 @@ index 446c960..75e20ab 100644
  
  int rtnl_listen_all_nsid(struct rtnl_handle *rth)
 diff --git a/misc/ss.c b/misc/ss.c
-index b84baf3..d3fb9a7 100644
+index b84baf3b57fe5..d3fb9a751b3ab 100644
 --- a/misc/ss.c
 +++ b/misc/ss.c
 @@ -2588,7 +2588,7 @@ static int kill_inet_sock(struct nlmsghdr *h, void *arg, struct sockstat *s)
@@ -1491,7 +1491,7 @@ index b84baf3..d3fb9a7 100644
  
  static int show_one_inet_sock(const struct sockaddr_nl *addr,
 diff --git a/tc/m_action.c b/tc/m_action.c
-index 6ebe85e..90b2a11 100644
+index 6ebe85e1cbe36..90b2a11e5d9e8 100644
 --- a/tc/m_action.c
 +++ b/tc/m_action.c
 @@ -506,18 +506,18 @@ static int tc_action_gd(int cmd, unsigned int flags, int *argc_p, char ***argv_p
@@ -1536,7 +1536,7 @@ index 6ebe85e..90b2a11 100644
  			return 1;
  		}
 diff --git a/tc/tc_class.c b/tc/tc_class.c
-index 1a1f1fa..0214775 100644
+index 1a1f1fa225b40..0214775b95a6c 100644
 --- a/tc/tc_class.c
 +++ b/tc/tc_class.c
 @@ -149,7 +149,7 @@ static int tc_class_modify(int cmd, unsigned int flags, int argc, char **argv)
@@ -1549,7 +1549,7 @@ index 1a1f1fa..0214775 100644
  
  	return 0;
 diff --git a/tc/tc_filter.c b/tc/tc_filter.c
-index ff8713b..e640492 100644
+index ff8713b98e315..e640492b25ba6 100644
 --- a/tc/tc_filter.c
 +++ b/tc/tc_filter.c
 @@ -181,7 +181,7 @@ static int tc_filter_modify(int cmd, unsigned int flags, int argc, char **argv)
@@ -1587,7 +1587,7 @@ index ff8713b..e640492 100644
  }
  
 diff --git a/tc/tc_qdisc.c b/tc/tc_qdisc.c
-index 3a3701c..8b0c5c7 100644
+index 3a3701c204704..8b0c5c72dbad1 100644
 --- a/tc/tc_qdisc.c
 +++ b/tc/tc_qdisc.c
 @@ -190,7 +190,7 @@ static int tc_qdisc_modify(int cmd, unsigned int flags, int argc, char **argv)
@@ -1600,5 +1600,5 @@ index 3a3701c..8b0c5c7 100644
  
  	return 0;
 -- 
-1.8.3.1
+2.21.0
 

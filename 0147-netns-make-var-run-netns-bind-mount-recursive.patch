@@ -1,0 +1,41 @@
+From 1e13fc4c604f91c5d38b889824e2dfee1bd17c34 Mon Sep 17 00:00:00 2001
+From: Andrea Claudi <aclaudi@redhat.com>
+Date: Fri, 15 Nov 2019 12:02:31 +0100
+Subject: [PATCH] netns: make /var/run/netns bind-mount recursive
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1772827
+Upstream Status: iproute2.git commit d6a4076b6ba65
+
+commit d6a4076b6ba6547d7e52c377a7c58c56eb5ea16e
+Author: Casey Callendrello <casey.callendrello@coreos.com>
+Date:   Tue Aug 1 17:46:09 2017 +0200
+
+    netns: make /var/run/netns bind-mount recursive
+
+    When ip netns {add|delete} is first run, it bind-mounts /var/run/netns
+    on top of itself, then marks it as shared. However, if there are already
+    bind-mounts in the directory from other tools, these would not be
+    propagated. Fix this by recursively bind-mounting.
+
+    Signed-off-by: Casey Callendrello <casey.callendrello@coreos.com>
+    Acked-by: "Eric W. Biederman" <ebiederm@xmission.com>
+---
+ ip/ipnetns.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/ipnetns.c b/ip/ipnetns.c
+index 427b59c57381d..c8e22e9b6e952 100644
+--- a/ip/ipnetns.c
++++ b/ip/ipnetns.c
+@@ -640,7 +640,7 @@ static int netns_add(int argc, char **argv)
+ 		}
+ 
+ 		/* Upgrade NETNS_RUN_DIR to a mount point */
+-		if (mount(NETNS_RUN_DIR, NETNS_RUN_DIR, "none", MS_BIND, NULL)) {
++		if (mount(NETNS_RUN_DIR, NETNS_RUN_DIR, "none", MS_BIND | MS_REC, NULL)) {
+ 			fprintf(stderr, "mount --bind %s %s failed: %s\n",
+ 				NETNS_RUN_DIR, NETNS_RUN_DIR, strerror(errno));
+ 			return -1;
+-- 
+2.21.0
+

@@ -32,7 +32,7 @@ Date:   Wed Apr 11 11:43:11 2018 +0200
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/ip/iproute.c b/ip/iproute.c
-index 35fdce8..759032d 100644
+index 35fdce8a64f35..759032db454ad 100644
 --- a/ip/iproute.c
 +++ b/ip/iproute.c
 @@ -817,7 +817,10 @@ static int parse_nexthops(struct nlmsghdr *n, struct rtmsg *r,
@@ -48,5 +48,5 @@ index 35fdce8..759032d 100644
  	}
  
 -- 
-1.8.3.1
+2.21.0
 

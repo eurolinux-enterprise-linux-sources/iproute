@@ -17,16 +17,16 @@ Date:   Sun May 14 11:17:46 2017 +0300
 
 Signed-off-by: Kamal Heib <kheib@redhat.com>
 ---
- man/man8/tc-pedit.8 | 30 ++++++++++++++++++
+ man/man8/tc-pedit.8 | 30 +++++++++++++++
  tc/Makefile         |  1 +
- tc/m_pedit.c        | 43 +++++++++++++++++++++++--
- tc/p_ip.c           | 17 +---------
- tc/p_ip6.c          | 91 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ tc/m_pedit.c        | 43 ++++++++++++++++++++-
+ tc/p_ip.c           | 17 +--------
+ tc/p_ip6.c          | 91 +++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 164 insertions(+), 18 deletions(-)
  create mode 100644 tc/p_ip6.c
 
 diff --git a/man/man8/tc-pedit.8 b/man/man8/tc-pedit.8
-index 9c4d57b..82d4217 100644
+index 9c4d57b972cc8..82d4217bc9589 100644
 --- a/man/man8/tc-pedit.8
 +++ b/man/man8/tc-pedit.8
 @@ -33,6 +33,8 @@ pedit - generic packet editor action
@@ -77,18 +77,18 @@ index 9c4d57b..82d4217 100644
  .BI tcp " TCPHDR_FIELD"
  The supported keywords for
  .I TCPHDR_FIELD
-@@ -331,6 +358,9 @@ tc filter add dev eth0 parent ffff: u32 \\
- 	action pedit ex munge ip dst set 192.168.1.199
+@@ -329,6 +356,9 @@ tc filter add dev eth0 parent ffff: u32 \\
  tc filter add dev eth0 parent ffff: u32 \\
  	match ip sport 22 0xffff \\
-+	action pedit ex munge ip6 dst set fe80::dacb:8aff:fec7:320e
+ 	action pedit ex munge ip dst set 192.168.1.199
 +tc filter add dev eth0 parent ffff: u32 \\
 +	match ip sport 22 0xffff \\
- 	action pedit ex munge eth dst set 11:22:33:44:55:66
++	action pedit ex munge ip6 dst set fe80::dacb:8aff:fec7:320e
  tc filter add dev eth0 parent ffff: u32 \\
- 	match ip dport 23 0xffff \\
+ 	match ip sport 22 0xffff \\
+ 	action pedit ex munge eth dst set 11:22:33:44:55:66
 diff --git a/tc/Makefile b/tc/Makefile
-index 446a113..9a6bb1d 100644
+index 446a11391ad70..9a6bb1ddea57e 100644
 --- a/tc/Makefile
 +++ b/tc/Makefile
 @@ -53,6 +53,7 @@ TCMODULES += m_bpf.o
@@ -100,7 +100,7 @@ index 446a113..9a6bb1d 100644
  TCMODULES += p_eth.o
  TCMODULES += p_tcp.o
 diff --git a/tc/m_pedit.c b/tc/m_pedit.c
-index 9b74c96..dfa6b2c 100644
+index 9b74c965932e0..dfa6b2c4835e9 100644
 --- a/tc/m_pedit.c
 +++ b/tc/m_pedit.c
 @@ -257,6 +257,32 @@ static int pack_mac(struct m_pedit_sel *sel, struct m_pedit_key *tkey,
@@ -168,7 +168,7 @@ index 9b74c96..dfa6b2c 100644
  	tkey->mask = *m;
  
 diff --git a/tc/p_ip.c b/tc/p_ip.c
-index 22fe650..0272a6e 100644
+index 22fe6505e4271..0272a6eaaf48b 100644
 --- a/tc/p_ip.c
 +++ b/tc/p_ip.c
 @@ -1,5 +1,5 @@
@@ -204,7 +204,7 @@ index 22fe650..0272a6e 100644
 -};
 diff --git a/tc/p_ip6.c b/tc/p_ip6.c
 new file mode 100644
-index 0000000..a4824bd
+index 0000000000000..a4824bda90e81
 --- /dev/null
 +++ b/tc/p_ip6.c
 @@ -0,0 +1,91 @@
@@ -300,5 +300,5 @@ index 0000000..a4824bd
 +	parse_ip6,
 +};
 -- 
-1.8.3.1
+2.21.0
 

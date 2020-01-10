@@ -23,7 +23,7 @@ Date:   Sat May 20 14:28:46 2017 -0700
  1 file changed, 1 insertion(+)
 
 diff --git a/tc/tc_core.c b/tc/tc_core.c
-index 7bbe0d7..821b741 100644
+index 7bbe0d733fc75..821b741be17cf 100644
 --- a/tc/tc_core.c
 +++ b/tc/tc_core.c
 @@ -12,6 +12,7 @@
@@ -35,5 +35,5 @@ index 7bbe0d7..821b741 100644
  #include <syslog.h>
  #include <fcntl.h>
 -- 
-1.8.3.1
+2.21.0
 

@@ -31,11 +31,11 @@ Date:   Fri Oct 6 11:48:41 2017 -0400
 Signed-off-by: Stefano Brivio <sbrivio@redhat.com>
 ---
  man/man8/ss.8 |   8 ++-
- misc/ss.c     | 184 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++-
+ misc/ss.c     | 184 +++++++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 188 insertions(+), 4 deletions(-)
 
 diff --git a/man/man8/ss.8 b/man/man8/ss.8
-index 81de69d..4323eee 100644
+index 81de69de8042e..4323eee3c8687 100644
 --- a/man/man8/ss.8
 +++ b/man/man8/ss.8
 @@ -125,14 +125,18 @@ Display Unix domain sockets (alias for -f unix).
@@ -60,7 +60,7 @@ index 81de69d..4323eee 100644
  .B \-D FILE, \-\-diag=FILE
  Do not display anything, just dump raw information about TCP sockets to FILE after applying filters. If FILE is - stdout is used.
 diff --git a/misc/ss.c b/misc/ss.c
-index 0d64527..e922665 100644
+index 0d6452777f7b6..e92266539e6b5 100644
 --- a/misc/ss.c
 +++ b/misc/ss.c
 @@ -44,6 +44,7 @@
@@ -394,5 +394,5 @@ index 0d64527..e922665 100644
  	if (show_users || show_proc_ctx || show_sock_ctx)
  		user_ent_destroy();
 -- 
-1.8.3.1
+2.21.0
 
