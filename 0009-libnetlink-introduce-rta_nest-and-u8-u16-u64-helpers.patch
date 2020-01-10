@@ -1,0 +1,102 @@
+From ff021313a4175ec85193c25551698e58e85e86e0 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 1 Feb 2017 14:20:11 +0100
+Subject: [PATCH] libnetlink: introduce rta_nest and u8, u16, u64 helpers for
+ nesting within rtattr
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1329730
+Upstream Status: iproute2.git commit 303cc9cbeed6c
+
+commit 303cc9cbeed6cfb9f08a4073f07cb466cc8098e8
+Author: Roopa Prabhu <roopa@cumulusnetworks.com>
+Date:   Thu Oct 15 13:13:38 2015 +0200
+
+    libnetlink: introduce rta_nest and u8, u16, u64 helpers for nesting within rtattr
+
+    This patch introduces two new api's rta_nest and rta_nest_end to
+    nest attributes inside a rta attribute represented by 'struct rtattr'
+    as required to construct a nexthop. Also adds rta_addattr* variants
+    for u8, u16 and u64 as needed to support encapsulation.
+
+    Signed-off-by: Roopa Prabhu <roopa@cumulusnetworks.com>
+    Signed-off-by: Thomas Graf <tgraf@suug.ch>
+    Acked-by: Jiri Benc <jbenc@redhat.com>
+---
+ include/libnetlink.h | 10 ++++++++++
+ lib/libnetlink.c     | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)
+
+diff --git a/include/libnetlink.h b/include/libnetlink.h
+index 40fa6ff..7ea3f4a 100644
+--- a/include/libnetlink.h
++++ b/include/libnetlink.h
+@@ -91,7 +91,10 @@ int addattr_nest_end(struct nlmsghdr *n, struct rtattr *nest);
+ struct rtattr *addattr_nest_compat(struct nlmsghdr *n, int maxlen, int type,
+ 				   const void *data, int len);
+ int addattr_nest_compat_end(struct nlmsghdr *n, struct rtattr *nest);
++int rta_addattr8(struct rtattr *rta, int maxlen, int type, __u8 data);
++int rta_addattr16(struct rtattr *rta, int maxlen, int type, __u16 data);
+ int rta_addattr32(struct rtattr *rta, int maxlen, int type, __u32 data);
++int rta_addattr64(struct rtattr *rta, int maxlen, int type, __u64 data);
+ int rta_addattr_l(struct rtattr *rta, int maxlen, int type,
+ 		  const void *data, int alen);
+ 
+@@ -103,6 +106,13 @@ int parse_rtattr_byindex(struct rtattr *tb[], int max,
+ struct rtattr *parse_rtattr_one(int type, struct rtattr *rta, int len);
+ int __parse_rtattr_nested_compat(struct rtattr *tb[], int max, struct rtattr *rta, int len);
+ 
++struct rtattr *rta_nest(struct rtattr *rta, int maxlen, int type);
++int rta_nest_end(struct rtattr *rta, struct rtattr *nest);
++
++#define RTA_TAIL(rta) \
++		((struct rtattr *) (((void *) (rta)) + \
++				    RTA_ALIGN((rta)->rta_len)))
++
+ #define parse_rtattr_nested(tb, max, rta) \
+ 	(parse_rtattr((tb), (max), RTA_DATA(rta), RTA_PAYLOAD(rta)))
+ 
+diff --git a/lib/libnetlink.c b/lib/libnetlink.c
+index 96bde59..9e653cc 100644
+--- a/lib/libnetlink.c
++++ b/lib/libnetlink.c
+@@ -723,6 +723,37 @@ int rta_addattr_l(struct rtattr *rta, int maxlen, int type,
+ 	return 0;
+ }
+ 
++int rta_addattr8(struct rtattr *rta, int maxlen, int type, __u8 data)
++{
++	return rta_addattr_l(rta, maxlen, type, &data, sizeof(__u8));
++}
++
++int rta_addattr16(struct rtattr *rta, int maxlen, int type, __u16 data)
++{
++	return rta_addattr_l(rta, maxlen, type, &data, sizeof(__u16));
++}
++
++int rta_addattr64(struct rtattr *rta, int maxlen, int type, __u64 data)
++{
++	return rta_addattr_l(rta, maxlen, type, &data, sizeof(__u64));
++}
++
++struct rtattr *rta_nest(struct rtattr *rta, int maxlen, int type)
++{
++	struct rtattr *nest = RTA_TAIL(rta);
++
++	rta_addattr_l(rta, maxlen, type, NULL, 0);
++
++	return nest;
++}
++
++int rta_nest_end(struct rtattr *rta, struct rtattr *nest)
++{
++	nest->rta_len = (void *)RTA_TAIL(rta) - (void *)nest;
++
++	return rta->rta_len;
++}
++
+ int parse_rtattr(struct rtattr *tb[], int max, struct rtattr *rta, int len)
+ {
+ 	return parse_rtattr_flags(tb, max, rta, len, 0);
+-- 
+1.8.3.1
+

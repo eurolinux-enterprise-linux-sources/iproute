@@ -1,0 +1,62 @@
+From 8cbb3468d69696ba38fb5e1015afb8d7f2e499d9 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 12:22:59 +0100
+Subject: [PATCH] iplink: bridge_slave: add support for
+ IFLA_BRPORT_PROXYARP_WIFI
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1374360
+Upstream Status: iproute2.git commit 38b31a78da859
+Conflicts: Context changes due to previously backported mcast_router and
+           mcast_fast_leave attributes.
+
+commit 38b31a78da859e4b72037b66477871ba8fc7bd1e
+Author: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Date:   Tue Feb 16 16:08:53 2016 +0100
+
+    iplink: bridge_slave: add support for IFLA_BRPORT_PROXYARP_WIFI
+
+    Add support to be able to view and change IFLA_BRPORT_PROXYARP_WIFI port
+    attribute.
+
+    Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+---
+ ip/iplink_bridge_slave.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/ip/iplink_bridge_slave.c b/ip/iplink_bridge_slave.c
+index 5a84948..3538176 100644
+--- a/ip/iplink_bridge_slave.c
++++ b/ip/iplink_bridge_slave.c
+@@ -30,6 +30,7 @@ static void print_explain(FILE *f)
+ 		"                        [ learning {on | off} ]\n"
+ 		"                        [ flood {on | off} ]\n"
+ 		"                        [ proxy_arp {on | off} ]\n"
++		"                        [ proxy_arp_wifi {on | off} ]\n"
+ 		"                        [ mcast_router MULTICAST_ROUTER ]\n"
+ 		"                        [ mcast_fast_leave {on | off} ]\n"
+ 	);
+@@ -106,6 +107,10 @@ static void bridge_slave_print_opt(struct link_util *lu, FILE *f,
+ 		print_onoff(f, "proxy_arp",
+ 			    rta_getattr_u8(tb[IFLA_BRPORT_PROXYARP]));
+ 
++	if (tb[IFLA_BRPORT_PROXYARP_WIFI])
++		print_onoff(f, "proxy_arp_wifi",
++			    rta_getattr_u8(tb[IFLA_BRPORT_PROXYARP_WIFI]));
++
+ 	if (tb[IFLA_BRPORT_MULTICAST_ROUTER])
+ 		fprintf(f, "mcast_router %u ",
+ 			rta_getattr_u8(tb[IFLA_BRPORT_MULTICAST_ROUTER]));
+@@ -181,6 +186,10 @@ static int bridge_slave_parse_opt(struct link_util *lu, int argc, char **argv,
+ 			NEXT_ARG();
+ 			bridge_slave_parse_on_off("proxy_arp", *argv, n,
+ 						  IFLA_BRPORT_PROXYARP);
++		} else if (matches(*argv, "proxy_arp_wifi") == 0) {
++			NEXT_ARG();
++			bridge_slave_parse_on_off("proxy_arp_wifi", *argv, n,
++						  IFLA_BRPORT_PROXYARP_WIFI);
+ 		} else if (matches(*argv, "mcast_router") == 0) {
+ 			__u8 mcast_router;
+ 
+-- 
+1.8.3.1
+

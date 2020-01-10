@@ -1,0 +1,239 @@
+From bf7031233e6db15ed6e76b0f7efcae8355ce4cd4 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:20:47 +0100
+Subject: [PATCH] lib/utils: introduce rt_addr_n2a_rta()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit 7faf1588a755e
+Conflicts: Context changed due to already backported commit
+	   7cc7cb8a888bf ("ip-route: Prevent some double spaces in
+	   output").
+* Drop iproute_lwtunnel hunks as we don't support it
+
+commit 7faf1588a755edb9c9cabbe1d3211265e9826d28
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Tue Mar 22 19:35:18 2016 +0100
+
+    lib/utils: introduce rt_addr_n2a_rta()
+
+    This simple macro eases calling rt_addr_n2a() with data from an rt_attr
+    pointer.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ include/utils.h       |  2 ++
+ ip/iplink_bond.c      |  4 +---
+ ip/ipmroute.c         |  8 ++------
+ ip/ipprefix.c         | 14 +++-----------
+ ip/iproute.c          | 20 +++++++-------------
+ ip/iprule.c           | 16 ++++++----------
+ ip/link_ip6tnl.c      |  8 ++------
+ tc/f_flower.c         |  8 ++------
+ 9 files changed, 29 insertions(+), 70 deletions(-)
+
+diff --git a/include/utils.h b/include/utils.h
+index 28684c5..53a631f 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -115,6 +115,8 @@ const char *format_host(int af, int lne, const void *addr);
+ const char *rt_addr_n2a_r(int af, int len, const void *addr,
+ 			       char *buf, int buflen);
+ const char *rt_addr_n2a(int af, int len, const void *addr);
++#define rt_addr_n2a_rta(af, rta) \
++	rt_addr_n2a(af, RTA_PAYLOAD(rta), RTA_DATA(rta))
+ 
+ int read_family(const char *name);
+ const char *family_name(int family);
+diff --git a/ip/iplink_bond.c b/ip/iplink_bond.c
+index 6881eda..d4e970d 100644
+--- a/ip/iplink_bond.c
++++ b/ip/iplink_bond.c
+@@ -421,9 +421,7 @@ static void bond_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 		for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
+ 			if (iptb[i])
+ 				fprintf(f, "%s",
+-					rt_addr_n2a(AF_INET,
+-						    RTA_PAYLOAD(iptb[i]),
+-						    RTA_DATA(iptb[i])));
++					rt_addr_n2a_rta(AF_INET, iptb[i]));
+ 			if (i < BOND_MAX_ARP_TARGETS-1 && iptb[i+1])
+ 				fprintf(f, ",");
+ 		}
+diff --git a/ip/ipmroute.c b/ip/ipmroute.c
+index 2daecc0..eb480f0 100644
+--- a/ip/ipmroute.c
++++ b/ip/ipmroute.c
+@@ -114,16 +114,12 @@ int print_mroute(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	if (tb[RTA_SRC])
+ 		len = snprintf(obuf, sizeof(obuf),
+-			       "(%s, ", rt_addr_n2a(family,
+-						    RTA_PAYLOAD(tb[RTA_SRC]),
+-						    RTA_DATA(tb[RTA_SRC])));
++			       "(%s, ", rt_addr_n2a_rta(family, tb[RTA_SRC]));
+ 	else
+ 		len = sprintf(obuf, "(unknown, ");
+ 	if (tb[RTA_DST])
+ 		snprintf(obuf + len, sizeof(obuf) - len,
+-			 "%s)", rt_addr_n2a(family,
+-					    RTA_PAYLOAD(tb[RTA_DST]),
+-					    RTA_DATA(tb[RTA_DST])));
++			 "%s)", rt_addr_n2a_rta(family, tb[RTA_DST]));
+ 	else
+ 		snprintf(obuf + len, sizeof(obuf) - len, "unknown) ");
+ 
+diff --git a/ip/ipprefix.c b/ip/ipprefix.c
+index 7b0a762..a1558d2 100644
+--- a/ip/ipprefix.c
++++ b/ip/ipprefix.c
+@@ -72,19 +72,11 @@ int print_prefix(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	parse_rtattr(tb, RTA_MAX, RTM_RTA(prefix), len);
+ 
+-	fprintf(fp, "prefix ");
+-
+ 	if (tb[PREFIX_ADDRESS]) {
+-		struct in6_addr *pfx;
+-
+-		pfx = (struct in6_addr *)RTA_DATA(tb[PREFIX_ADDRESS]);
+-
+-		fprintf(fp, "%s", rt_addr_n2a(family,
+-					      RTA_PAYLOAD(tb[PREFIX_ADDRESS]),
+-					      pfx));
++		fprintf(fp, "prefix %s/%u",
++		        rt_addr_n2a_rta(family, tb[PREFIX_ADDRESS]),
++			prefix->prefix_len);
+ 	}
+-	fprintf(fp, "/%u ", prefix->prefix_len);
+-
+ 	fprintf(fp, "dev %s ", ll_index_to_name(prefix->prefix_ifindex));
+ 
+ 	if (prefix->prefix_flags & IF_PREFIX_ONLINK)
+diff --git a/ip/iproute.c b/ip/iproute.c
+index c3006e4..134b146 100644
+--- a/ip/iproute.c
++++ b/ip/iproute.c
+@@ -356,11 +356,9 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	if (tb[RTA_DST]) {
+ 		if (r->rtm_dst_len != host_len) {
+-			fprintf(fp, "%s/%u ", rt_addr_n2a(r->rtm_family,
+-						       RTA_PAYLOAD(tb[RTA_DST]),
+-						       RTA_DATA(tb[RTA_DST])),
+-				r->rtm_dst_len
+-				);
++			fprintf(fp, "%s/%u ",
++			        rt_addr_n2a_rta(r->rtm_family, tb[RTA_DST]),
++			        r->rtm_dst_len);
+ 		} else {
+ 			fprintf(fp, "%s ", format_host(r->rtm_family,
+ 						       RTA_PAYLOAD(tb[RTA_DST]),
+@@ -374,11 +372,9 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 	}
+ 	if (tb[RTA_SRC]) {
+ 		if (r->rtm_src_len != host_len) {
+-			fprintf(fp, "from %s/%u ", rt_addr_n2a(r->rtm_family,
+-						       RTA_PAYLOAD(tb[RTA_SRC]),
+-						       RTA_DATA(tb[RTA_SRC])),
+-				r->rtm_src_len
+-				);
++			fprintf(fp, "from %s/%u ",
++			        rt_addr_n2a_rta(r->rtm_family, tb[RTA_SRC]),
++			        r->rtm_src_len);
+ 		} else {
+ 			fprintf(fp, "from %s ", format_host(r->rtm_family,
+ 						       RTA_PAYLOAD(tb[RTA_SRC]),
+@@ -419,9 +415,7 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 		   and symbolic name will not be useful.
+ 		 */
+ 		fprintf(fp, "src %s ",
+-			rt_addr_n2a(r->rtm_family,
+-				    RTA_PAYLOAD(tb[RTA_PREFSRC]),
+-				    RTA_DATA(tb[RTA_PREFSRC])));
++			rt_addr_n2a_rta(r->rtm_family, tb[RTA_PREFSRC]));
+ 	}
+ 	if (tb[RTA_PRIORITY])
+ 		fprintf(fp, "metric %u ", rta_getattr_u32(tb[RTA_PRIORITY]));
+diff --git a/ip/iprule.c b/ip/iprule.c
+index 87adb3b..4b7de4a 100644
+--- a/ip/iprule.c
++++ b/ip/iprule.c
+@@ -86,11 +86,9 @@ int print_rule(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	if (tb[FRA_SRC]) {
+ 		if (r->rtm_src_len != host_len) {
+-			fprintf(fp, "from %s/%u ", rt_addr_n2a(r->rtm_family,
+-						       RTA_PAYLOAD(tb[FRA_SRC]),
+-						       RTA_DATA(tb[FRA_SRC])),
+-				r->rtm_src_len
+-				);
++			fprintf(fp, "from %s/%u ",
++			        rt_addr_n2a_rta(r->rtm_family, tb[FRA_SRC]),
++			        r->rtm_src_len);
+ 		} else {
+ 			fprintf(fp, "from %s ", format_host(r->rtm_family,
+ 						       RTA_PAYLOAD(tb[FRA_SRC]),
+@@ -105,11 +103,9 @@ int print_rule(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	if (tb[FRA_DST]) {
+ 		if (r->rtm_dst_len != host_len) {
+-			fprintf(fp, "to %s/%u ", rt_addr_n2a(r->rtm_family,
+-						       RTA_PAYLOAD(tb[FRA_DST]),
+-						       RTA_DATA(tb[FRA_DST])),
+-				r->rtm_dst_len
+-				);
++			fprintf(fp, "to %s/%u ",
++			        rt_addr_n2a_rta(r->rtm_family, tb[FRA_DST]),
++			        r->rtm_dst_len);
+ 		} else {
+ 			fprintf(fp, "to %s ", format_host(r->rtm_family,
+ 						       RTA_PAYLOAD(tb[FRA_DST]),
+diff --git a/ip/link_ip6tnl.c b/ip/link_ip6tnl.c
+index 8cd9095..79b5cd1 100644
+--- a/ip/link_ip6tnl.c
++++ b/ip/link_ip6tnl.c
+@@ -283,16 +283,12 @@ static void ip6tunnel_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb
+ 
+ 	if (tb[IFLA_IPTUN_REMOTE]) {
+ 		fprintf(f, "remote %s ",
+-			rt_addr_n2a(AF_INET6,
+-				    RTA_PAYLOAD(tb[IFLA_IPTUN_REMOTE]),
+-				    RTA_DATA(tb[IFLA_IPTUN_REMOTE])));
++			rt_addr_n2a_rta(AF_INET6, tb[IFLA_IPTUN_REMOTE]));
+ 	}
+ 
+ 	if (tb[IFLA_IPTUN_LOCAL]) {
+ 		fprintf(f, "local %s ",
+-			rt_addr_n2a(AF_INET6,
+-				    RTA_PAYLOAD(tb[IFLA_IPTUN_LOCAL]),
+-				    RTA_DATA(tb[IFLA_IPTUN_LOCAL])));
++			rt_addr_n2a_rta(AF_INET6, tb[IFLA_IPTUN_LOCAL]));
+ 	}
+ 
+ 	if (tb[IFLA_IPTUN_LINK] && rta_getattr_u32(tb[IFLA_IPTUN_LINK])) {
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index 5e2dc0d..f0d146f 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -415,16 +415,12 @@ static void flower_print_ip_addr(FILE *f, char *name, __be16 eth_type,
+ 	}
+ 	if (!addr_attr || RTA_PAYLOAD(addr_attr) != len)
+ 		return;
+-	fprintf(f, "\n  %s %s", name, rt_addr_n2a(family,
+-						  RTA_PAYLOAD(addr_attr),
+-						  RTA_DATA(addr_attr)));
++	fprintf(f, "\n  %s %s", name, rt_addr_n2a_rta(family, addr_attr));
+ 	if (!mask_attr || RTA_PAYLOAD(mask_attr) != len)
+ 		return;
+ 	bits = __mask_bits(RTA_DATA(mask_attr), len);
+ 	if (bits < 0)
+-		fprintf(f, "/%s", rt_addr_n2a(family,
+-					      RTA_PAYLOAD(mask_attr),
+-					      RTA_DATA(mask_attr)));
++		fprintf(f, "/%s", rt_addr_n2a_rta(family, mask_attr));
+ 	else if (bits < len * 8)
+ 		fprintf(f, "/%d", bits);
+ }
+-- 
+1.8.3.1
+

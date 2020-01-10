@@ -1,0 +1,67 @@
+From 1f1f1e431f8cb9c8051f4b04ee5d6b36cc27f949 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 4 Apr 2017 16:23:16 +0200
+Subject: [PATCH] tc: m_xt: Get rid of rargc in parse_ipt()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1326726
+Upstream Status: iproute2.git commit ab8f52fc4ae11
+Conflicts: Changes in replaced code due to missing upstream commit
+           32a121cba2579 ("tc: code cleanup").
+
+commit ab8f52fc4ae1141ff9980d24244f2d9559e47968
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jun 10 13:42:05 2016 +0200
+
+    tc: m_xt: Get rid of rargc in parse_ipt()
+
+    No need to copy the passed parameter, it's changed only once right
+    before function return.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/m_xt.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/tc/m_xt.c b/tc/m_xt.c
+index 4e660c4..7947e5a 100644
+--- a/tc/m_xt.c
++++ b/tc/m_xt.c
+@@ -123,7 +123,6 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 	struct rtattr *tail;
+ 
+ 	int c;
+-	int rargc = *argc_p;
+ 	char **argv = *argv_p;
+ 	int argc = 0, iargc = 0;
+ 	char k[16];
+@@ -139,7 +138,8 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 
+ 	{
+ 		int i;
+-		for (i = 0; i < rargc; i++) {
++
++		for (i = 0; i < *argc_p; i++) {
+ 			if (NULL == argv[i] || 0 == strcmp(argv[i], "action")) {
+ 				break;
+ 			}
+@@ -148,7 +148,7 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 	}
+ 
+ 	if (argc <= 2) {
+-		fprintf(stderr,"bad arguements to ipt %d vs %d \n", argc, rargc);
++		fprintf(stderr, "bad arguments to ipt %d vs %d\n", argc, *argc_p);
+ 		return -1;
+ 	}
+ 
+@@ -272,7 +272,7 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 
+ 	argc -= optind;
+ 	argv += optind;
+-	*argc_p = rargc - iargc;
++	*argc_p -= iargc;
+ 	*argv_p = argv;
+ 
+ 	optind = 0;
+-- 
+1.8.3.1
+

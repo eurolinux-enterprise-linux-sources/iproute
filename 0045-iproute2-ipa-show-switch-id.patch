@@ -1,0 +1,44 @@
+From 84a13f487d76e62d1ff3be6ed94d7305f72205e8 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:10:58 +0100
+Subject: [PATCH] iproute2: ipa: show switch id
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 122f2fc5739c1
+
+commit 122f2fc5739c1ba9967775581201eefece855602
+Author: Jiri Pirko <jiri@resnulli.us>
+Date:   Wed Jul 8 17:08:18 2015 +0200
+
+    iproute2: ipa: show switch id
+
+    We forgot to include this patch somehow. So do it now.
+
+    Signed-off-by: Jiri Pirko <jiri@resnulli.us>
+    Acked-by: Andy Gospodarek <gospo@cumulusnetworks.com>
+---
+ ip/ipaddress.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index b24b103..45b47f9 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -643,6 +643,14 @@ int print_linkinfo(const struct sockaddr_nl *who,
+ 				      b1, sizeof(b1)));
+ 	}
+ 
++	if (tb[IFLA_PHYS_SWITCH_ID]) {
++		SPRINT_BUF(b1);
++		fprintf(fp, "switchid %s ",
++			hexstring_n2a(RTA_DATA(tb[IFLA_PHYS_SWITCH_ID]),
++				      RTA_PAYLOAD(tb[IFLA_PHYS_SWITCH_ID]),
++				      b1, sizeof(b1)));
++	}
++
+ 	if (tb[IFLA_OPERSTATE])
+ 		print_operstate(fp, rta_getattr_u8(tb[IFLA_OPERSTATE]));
+ 
+-- 
+1.8.3.1
+

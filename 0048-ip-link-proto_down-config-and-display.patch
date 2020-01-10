@@ -1,0 +1,119 @@
+From 88507d6ca29f372ad4e8ac17933876205b8d4bab Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:11:06 +0100
+Subject: [PATCH] ip link: proto_down config and display.
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 188648270ae9d
+Conflicts: Man page change applied manually due to previously backported
+           synopsis syntax fixup.
+
+commit 188648270ae9d5d967fddf496cd2f2a5ac04e2bf
+Author: Anuradha Karuppiah <anuradhak@cumulusnetworks.com>
+Date:   Tue Jul 14 13:43:22 2015 -0700
+
+    ip link: proto_down config and display.
+
+    This patch adds support to set and display protodown on a switch port. The
+    switch driver can handle this error state by doing a phys down on the port.
+
+    One example user space application setting this flag is a multi-chassis
+    LAG application to handle split-brain situation on peer-link failure.
+
+    Example:
+    root@net-next:~# ip link set eth1 protodown on
+    root@net-next:~/iproute2# ip link show eth1
+    4: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+        link/ether 52:54:00:12:35:01 brd ff:ff:ff:ff:ff:ff protodown on
+    root@net-next:~/iproute2# ip link set eth1 protodown off
+    root@net-next:~/iproute2# ip link show eth1
+    4: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+        link/ether 52:54:00:12:35:01 brd ff:ff:ff:ff:ff:ff
+    root@net-next:~/iproute2#
+
+    Signed-off-by: Anuradha Karuppiah <anuradhak@cumulusnetworks.com>
+    Signed-off-by: Andy Gospodarek <gospo@cumulusnetworks.com>
+    Signed-off-by: Roopa Prabhu <roopa@cumulusnetworks.com>
+    Signed-off-by: Wilson Kok <wkok@cumulusnetworks.com>
+---
+ ip/ipaddress.c        |  5 +++++
+ ip/iplink.c           | 13 +++++++++++++
+ man/man8/ip-link.8.in |  8 ++++++++
+ 3 files changed, 26 insertions(+)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index 45b47f9..d5bc2dc 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -692,6 +692,11 @@ int print_linkinfo(const struct sockaddr_nl *who,
+ 			fprintf(fp, " link-netnsid unknown");
+ 	}
+ 
++	if (tb[IFLA_PROTO_DOWN]) {
++		if (rta_getattr_u8(tb[IFLA_PROTO_DOWN]))
++			fprintf(fp, " protodown on ");
++	}
++
+ 	if (tb[IFLA_PROMISCUITY] && show_details)
+ 		fprintf(fp, " promiscuity %u ",
+ 			*(int*)RTA_DATA(tb[IFLA_PROMISCUITY]));
+diff --git a/ip/iplink.c b/ip/iplink.c
+index 10f97af..06b0a6d 100644
+--- a/ip/iplink.c
++++ b/ip/iplink.c
+@@ -89,6 +89,7 @@ void iplink_usage(void)
+ 	fprintf(stderr, "			  [ master DEVICE ]\n");
+ 	fprintf(stderr, "			  [ nomaster ]\n");
+ 	fprintf(stderr, "			  [ addrgenmode { eui64 | none } ]\n");
++	fprintf(stderr, "	                  [ protodown { on | off } ]\n");
+ 	fprintf(stderr, "       ip link show [ DEVICE | group GROUP ] [up] [master DEV] [type TYPE]\n");
+ 
+ 	if (iplink_have_newlink()) {
+@@ -661,6 +662,18 @@ int iplink_parse(int argc, char **argv, struct iplink_req *req,
+ 				invarg("Invalid \"link-netnsid\" value\n", *argv);
+ 			addattr32(&req->n, sizeof(*req), IFLA_LINK_NETNSID,
+ 				  link_netnsid);
++		} else if (strcmp(*argv, "protodown") == 0) {
++			unsigned int proto_down;
++
++			NEXT_ARG();
++			if (strcmp(*argv, "on") == 0)
++				proto_down = 1;
++			else if (strcmp(*argv, "off") == 0)
++				proto_down = 0;
++			else
++				return on_off("protodown", *argv);
++			addattr8(&req->n, sizeof(*req), IFLA_PROTO_DOWN,
++				 proto_down);
+ 		} else {
+ 			if (strcmp(*argv, "dev") == 0) {
+ 				NEXT_ARG();
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index 73cd86d..38e5416 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -66,6 +66,8 @@ ip-link \- network device configuration
+ .br
+ .RB "[ " promisc " { " on " | " off " } ]"
+ .br
++.BR "[ " protodown " { " on " | " off " } ]"
++.br
+ .RB "[ " trailers " { " on " | " off " } ]"
+ .br
+ .RB "[ " txqueuelen
+@@ -936,6 +938,12 @@ change the
+ flag on the device.
+ 
+ .TP
++.BR "protodown on " or " protodown off"
++change the
++.B PROTODOWN
++state on the device. Indicates that a protocol error has been detected on the port. Switch drivers can react to this error by doing a phys down on the switch port.
++
++.TP
+ .BR "dynamic on " or " dynamic off"
+ change the
+ .B DYNAMIC
+-- 
+1.8.3.1
+

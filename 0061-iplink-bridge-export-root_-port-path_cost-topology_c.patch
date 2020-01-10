@@ -1,0 +1,52 @@
+From abf463728db5643a88cf212f7ff6937ae888674c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:00 +0100
+Subject: [PATCH] iplink: bridge: export root_(port|path_cost), topology_change
+ and change_detected
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 4e3bbc66580fc
+
+commit 4e3bbc66580fc7249217df9e0ef18cbb50876561
+Author: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Date:   Tue Feb 9 00:14:20 2016 +0100
+
+    iplink: bridge: export root_(port|path_cost), topology_change and change_detected
+
+    Netlink already export these values, we just need to make them visible.
+
+    Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+---
+ ip/iplink_bridge.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/ip/iplink_bridge.c b/ip/iplink_bridge.c
+index 050afaa..bf6cb71 100644
+--- a/ip/iplink_bridge.c
++++ b/ip/iplink_bridge.c
+@@ -187,6 +187,22 @@ static void bridge_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 				  sizeof(root_id));
+ 		fprintf(f, "designated_root %s ", root_id);
+ 	}
++
++	if (tb[IFLA_BR_ROOT_PORT])
++		fprintf(f, "root_port %u ",
++			rta_getattr_u16(tb[IFLA_BR_ROOT_PORT]));
++
++	if (tb[IFLA_BR_ROOT_PATH_COST])
++		fprintf(f, "root_path_cost %u ",
++			rta_getattr_u32(tb[IFLA_BR_ROOT_PATH_COST]));
++
++	if (tb[IFLA_BR_TOPOLOGY_CHANGE])
++		fprintf(f, "topology_change %u ",
++			rta_getattr_u8(tb[IFLA_BR_TOPOLOGY_CHANGE]));
++
++	if (tb[IFLA_BR_TOPOLOGY_CHANGE_DETECTED])
++		fprintf(f, "topology_change_detected %u ",
++			rta_getattr_u8(tb[IFLA_BR_TOPOLOGY_CHANGE_DETECTED]));
+ }
+ 
+ static void bridge_print_help(struct link_util *lu, int argc, char **argv,
+-- 
+1.8.3.1
+

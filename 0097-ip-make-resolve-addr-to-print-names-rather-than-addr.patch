@@ -1,0 +1,64 @@
+From 678ff7158b887b5ecd32e5c6be319a8541001b50 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:17:53 +0100
+Subject: [PATCH] ip: make -resolve addr to print names rather than addresses
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit ffa35d930b9ba
+
+commit ffa35d930b9bae8324768c5b018adaf26258aff9
+Author: Sami Kerola <kerolasa@iki.fi>
+Date:   Mon Sep 30 22:01:48 2013 +0100
+
+    ip: make -resolve addr to print names rather than addresses
+
+    As a system admin I occasionally want to be able to check that all
+    interfaces has a name in DNS or /etc/hosts file.
+
+    Signed-off-by: Sami Kerola <kerolasa@iki.fi>
+---
+ ip/ipaddress.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index d5bc2dc..147bcca 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -864,7 +864,7 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
+ 		fprintf(fp, "    family %d ", ifa->ifa_family);
+ 
+ 	if (rta_tb[IFA_LOCAL]) {
+-		fprintf(fp, "%s", rt_addr_n2a(ifa->ifa_family,
++		fprintf(fp, "%s", format_host(ifa->ifa_family,
+ 					      RTA_PAYLOAD(rta_tb[IFA_LOCAL]),
+ 					      RTA_DATA(rta_tb[IFA_LOCAL]),
+ 					      abuf, sizeof(abuf)));
+@@ -875,7 +875,7 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
+ 			fprintf(fp, "/%d ", ifa->ifa_prefixlen);
+ 		} else {
+ 			fprintf(fp, " peer %s/%d ",
+-				rt_addr_n2a(ifa->ifa_family,
++				format_host(ifa->ifa_family,
+ 					    RTA_PAYLOAD(rta_tb[IFA_ADDRESS]),
+ 					    RTA_DATA(rta_tb[IFA_ADDRESS]),
+ 					    abuf, sizeof(abuf)),
+@@ -885,14 +885,14 @@ int print_addrinfo(const struct sockaddr_nl *who, struct nlmsghdr *n,
+ 
+ 	if (rta_tb[IFA_BROADCAST]) {
+ 		fprintf(fp, "brd %s ",
+-			rt_addr_n2a(ifa->ifa_family,
++			format_host(ifa->ifa_family,
+ 				    RTA_PAYLOAD(rta_tb[IFA_BROADCAST]),
+ 				    RTA_DATA(rta_tb[IFA_BROADCAST]),
+ 				    abuf, sizeof(abuf)));
+ 	}
+ 	if (rta_tb[IFA_ANYCAST]) {
+ 		fprintf(fp, "any %s ",
+-			rt_addr_n2a(ifa->ifa_family,
++			format_host(ifa->ifa_family,
+ 				    RTA_PAYLOAD(rta_tb[IFA_ANYCAST]),
+ 				    RTA_DATA(rta_tb[IFA_ANYCAST]),
+ 				    abuf, sizeof(abuf)));
+-- 
+1.8.3.1
+

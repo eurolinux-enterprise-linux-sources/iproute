@@ -1,0 +1,52 @@
+From af98686199a4b31c19894448d3942687bbcd1905 Mon Sep 17 00:00:00 2001
+From: Sabrina Dubroca <sdubroca@redhat.com>
+Date: Fri, 9 Jun 2017 10:31:30 +0200
+Subject: [PATCH] devlink: Call dl_free in early exit case
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1459772
+Upstream Status: iproute2.git commit b77c77d29495
+
+commit b77c77d294959bc8c8ef948fc7849d1794347f8e
+Author: Leon Romanovsky <leonro@mellanox.com>
+Date:   Tue Feb 14 07:29:38 2017 +0200
+
+    devlink: Call dl_free in early exit case
+
+    Prior to parsing command options, the devlink tool allocates memory
+    to store results. In case of early exit (wrong parameters or version
+    check), this memory wasn't freed.
+
+    Signed-off-by: Leon Romanovsky <leonro@mellanox.com>
+    Acked-by: Jiri Pirko <jiri@mellanox.com>
+
+Signed-off-by: Sabrina Dubroca <sdubroca@redhat.com>
+---
+ devlink/devlink.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/devlink/devlink.c b/devlink/devlink.c
+index ce4aff871595..a81668b0929c 100644
+--- a/devlink/devlink.c
++++ b/devlink/devlink.c
+@@ -2314,14 +2314,16 @@ int main(int argc, char **argv)
+ 		switch (opt) {
+ 		case 'V':
+ 			printf("devlink utility, iproute2-ss%s\n", SNAPSHOT);
+-			return EXIT_SUCCESS;
++			ret = EXIT_SUCCESS;
++			goto dl_free;
+ 		case 'n':
+ 			dl->no_nice_names = true;
+ 			break;
+ 		default:
+ 			pr_err("Unknown option.\n");
+ 			help();
+-			return EXIT_FAILURE;
++			ret = EXIT_FAILURE;
++			goto dl_free;
+ 		}
+ 	}
+ 
+-- 
+2.13.1
+

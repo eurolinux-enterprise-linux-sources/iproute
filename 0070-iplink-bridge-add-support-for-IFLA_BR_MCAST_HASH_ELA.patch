@@ -1,0 +1,65 @@
+From 42636a2ce4901df806543e994fa6cffc6992656f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:01 +0100
+Subject: [PATCH] iplink: bridge: add support for IFLA_BR_MCAST_HASH_ELASTICITY
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 92c0ef7071b38
+
+commit 92c0ef7071b3895ea89f26b7b7b6a77141e43578
+Author: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Date:   Tue Feb 9 00:14:29 2016 +0100
+
+    iplink: bridge: add support for IFLA_BR_MCAST_HASH_ELASTICITY
+
+    This patch implements support for the IFLA_BR_MCAST_HASH_ELASTICTITY
+    attribute in iproute2 so it can change the hash elasticity value.
+
+    Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+---
+ ip/iplink_bridge.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/ip/iplink_bridge.c b/ip/iplink_bridge.c
+index 620a9f9..3e444d3 100644
+--- a/ip/iplink_bridge.c
++++ b/ip/iplink_bridge.c
+@@ -37,6 +37,7 @@ static void print_explain(FILE *f)
+ 		"                  [ mcast_router MULTICAST_ROUTER ]\n"
+ 		"                  [ mcast_query_use_ifaddr MCAST_QUERY_USE_IFADDR ]\n"
+ 		"                  [ mcast_querier MULTICAST_QUERIER ]\n"
++		"                  [ mcast_hash_elasticity HASH_ELASTICITY ]\n"
+ 		"\n"
+ 		"Where: VLAN_PROTOCOL := { 802.1Q | 802.1ad }\n"
+ 	);
+@@ -184,6 +185,16 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
+ 				invarg("invalid mcast_querier", *argv);
+ 
+ 			addattr8(n, 1024, IFLA_BR_MCAST_QUERIER, mcast_querier);
++		} else if (matches(*argv, "mcast_hash_elasticity") == 0) {
++			__u32 mcast_hash_el;
++
++			NEXT_ARG();
++			if (get_u32(&mcast_hash_el, *argv, 0))
++				invarg("invalid mcast_hash_elasticity",
++				       *argv);
++
++			addattr32(n, 1024, IFLA_BR_MCAST_HASH_ELASTICITY,
++				  mcast_hash_el);
+ 		} else if (matches(*argv, "help") == 0) {
+ 			explain();
+ 			return -1;
+@@ -337,6 +348,10 @@ static void bridge_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 	if (tb[IFLA_BR_MCAST_QUERIER])
+ 		fprintf(f, "mcast_querier %u ",
+ 			rta_getattr_u8(tb[IFLA_BR_MCAST_QUERIER]));
++
++	if (tb[IFLA_BR_MCAST_HASH_ELASTICITY])
++		fprintf(f, "mcast_hash_elasticity %u ",
++			rta_getattr_u32(tb[IFLA_BR_MCAST_HASH_ELASTICITY]));
+ }
+ 
+ static void bridge_print_help(struct link_util *lu, int argc, char **argv,
+-- 
+1.8.3.1
+

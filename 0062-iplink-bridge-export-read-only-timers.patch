@@ -1,0 +1,100 @@
+From 58d4d6459347811ef8d75826221f94b3f56b824a Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:00 +0100
+Subject: [PATCH] iplink: bridge: export read-only timers
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 8c0f7a16305f8
+
+commit 8c0f7a16305f86baaefe16050139a03b1f3b24ee
+Author: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Date:   Tue Feb 9 00:14:21 2016 +0100
+
+    iplink: bridge: export read-only timers
+
+    Netlink already provides hello_timer, tcn_timer, topology_change_timer
+    and gc_timer, so let's make them visible.
+
+    Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+---
+ include/utils.h    | 18 ++++++++++++++++++
+ ip/iplink_bridge.c | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 52 insertions(+)
+
+diff --git a/include/utils.h b/include/utils.h
+index 22198cb..9839d9d 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -159,6 +159,24 @@ static inline __u32 nl_mgrp(__u32 group)
+ 	return group ? (1 << (group - 1)) : 0;
+ }
+ 
++/* courtesy of bridge-utils */
++static inline unsigned long __tv_to_jiffies(const struct timeval *tv)
++{
++	unsigned long long jif;
++
++	jif = 1000000ULL * tv->tv_sec + tv->tv_usec;
++
++	return jif/10000;
++}
++
++static inline void __jiffies_to_tv(struct timeval *tv, unsigned long jiffies)
++{
++	unsigned long long tvusec;
++
++	tvusec = 10000ULL*jiffies;
++	tv->tv_sec = tvusec/1000000;
++	tv->tv_usec = tvusec - 1000000 * tv->tv_sec;
++}
+ 
+ int print_timestamp(FILE *fp);
+ 
+diff --git a/ip/iplink_bridge.c b/ip/iplink_bridge.c
+index bf6cb71..2bd3182 100644
+--- a/ip/iplink_bridge.c
++++ b/ip/iplink_bridge.c
+@@ -203,6 +203,40 @@ static void bridge_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 	if (tb[IFLA_BR_TOPOLOGY_CHANGE_DETECTED])
+ 		fprintf(f, "topology_change_detected %u ",
+ 			rta_getattr_u8(tb[IFLA_BR_TOPOLOGY_CHANGE_DETECTED]));
++
++	if (tb[IFLA_BR_HELLO_TIMER]) {
++		struct timeval tv;
++
++		__jiffies_to_tv(&tv, rta_getattr_u64(tb[IFLA_BR_HELLO_TIMER]));
++		fprintf(f, "hello_timer %4i.%.2i ", (int)tv.tv_sec,
++			(int)tv.tv_usec/10000);
++	}
++
++	if (tb[IFLA_BR_TCN_TIMER]) {
++		struct timeval tv;
++
++		__jiffies_to_tv(&tv, rta_getattr_u64(tb[IFLA_BR_TCN_TIMER]));
++		fprintf(f, "tcn_timer %4i.%.2i ", (int)tv.tv_sec,
++			(int)tv.tv_usec/10000);
++	}
++
++	if (tb[IFLA_BR_TOPOLOGY_CHANGE_TIMER]) {
++		unsigned long jiffies;
++		struct timeval tv;
++
++		jiffies = rta_getattr_u64(tb[IFLA_BR_TOPOLOGY_CHANGE_TIMER]);
++		__jiffies_to_tv(&tv, jiffies);
++		fprintf(f, "topology_change_timer %4i.%.2i ", (int)tv.tv_sec,
++			(int)tv.tv_usec/10000);
++	}
++
++	if (tb[IFLA_BR_GC_TIMER]) {
++		struct timeval tv;
++
++		__jiffies_to_tv(&tv, rta_getattr_u64(tb[IFLA_BR_GC_TIMER]));
++		fprintf(f, "gc_timer %4i.%.2i ", (int)tv.tv_sec,
++			(int)tv.tv_usec/10000);
++	}
+ }
+ 
+ static void bridge_print_help(struct link_util *lu, int argc, char **argv,
+-- 
+1.8.3.1
+

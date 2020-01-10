@@ -1,0 +1,52 @@
+From 284eed75d40124e365c49b3412441d31b9d70784 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:11:52 +0100
+Subject: [PATCH] bridge: add calls to fflush in fdb and mdb print functions
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 4d45bf3bafa69
+
+commit 4d45bf3bafa6960720193dbf57042a3b43b73868
+Author: Wilson Kok <wkok@cumulusnetworks.com>
+Date:   Thu Oct 15 14:53:17 2015 -0700
+
+    bridge: add calls to fflush in fdb and mdb print functions
+
+    This patch adds fflush in fdb and mdb print functions
+
+    Signed-off-by: Wilson Kok <wkok@cumulusnetworks.com>
+    Signed-off-by: Roopa Prabhu <roopa@cumulusnetworks.com>
+---
+ bridge/fdb.c | 2 ++
+ bridge/mdb.c | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/bridge/fdb.c b/bridge/fdb.c
+index edf621c..8a706d8 100644
+--- a/bridge/fdb.c
++++ b/bridge/fdb.c
+@@ -162,6 +162,8 @@ int print_fdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 		fprintf(fp, "offload ");
+ 
+ 	fprintf(fp, "%s\n", state_n2a(r->ndm_state));
++	fflush(fp);
++
+ 	return 0;
+ }
+ 
+diff --git a/bridge/mdb.c b/bridge/mdb.c
+index b14bd01..24c4903 100644
+--- a/bridge/mdb.c
++++ b/bridge/mdb.c
+@@ -135,6 +135,8 @@ int print_mdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 		}
+ 	}
+ 
++	fflush(fp);
++
+ 	return 0;
+ }
+ 
+-- 
+1.8.3.1
+

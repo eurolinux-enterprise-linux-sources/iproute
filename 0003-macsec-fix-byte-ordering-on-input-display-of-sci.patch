@@ -1,0 +1,138 @@
+From 22f1d933f66b7e87734fcefd7b70fb0db3ebce16 Mon Sep 17 00:00:00 2001
+From: Davide Caratti <dcaratti@redhat.com>
+Date: Fri, 25 Nov 2016 10:43:10 +0100
+Subject: [PATCH] macsec: fix byte ordering on input/display of 'sci'
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1355629
+Upstream Status: iproute2.git commit 0330f49ea06e
+
+Conflicts:
+- ntohll() and htonll() have been added manually because of missing
+upstream commit 1e5293056a02.
+- get_be64() has been aded manually _ it was left behind while
+backporting upstream commit 9f7401fa4967, because of the missing
+implementation of htonll()/ntohll().
+
+commit 0330f49ea06eed134b51a6924faf64ec6b1bb3ed
+Author: Davide Caratti <dcaratti@redhat.com>
+Date:   Tue Aug 30 13:23:14 2016 +0200
+
+    macsec: fix byte ordering on input/display of 'sci'
+
+    use get_be64() in place of get_u64() when parsing input 'sci' parameter,
+    so that 'sci' can be entered using network byte order regardless the
+    endianness of target system; use ntohll() when printing out 'sci'. While
+    at it, improve documentation of 'sci' in ip-link.8.
+
+    Signed-off-by: Davide Caratti <dcaratti@redhat.com>
+
+Signed-off-by: Davide Caratti <dcaratti@redhat.com>
+---
+ include/utils.h       |  4 ++++
+ ip/ipmacsec.c         |  8 ++++----
+ lib/utils.c           | 11 +++++++++++
+ man/man8/ip-link.8.in |  4 +++-
+ 4 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/include/utils.h b/include/utils.h
+index fad82dc..2d1e390 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -98,6 +98,7 @@ extern int get_u16(__u16 *val, const char *arg, int base);
+ extern int get_s16(__s16 *val, const char *arg, int base);
+ extern int get_u8(__u8 *val, const char *arg, int base);
+ extern int get_s8(__s8 *val, const char *arg, int base);
++int get_be64(__be64 *val, const char *arg, int base);
+ int get_be32(__be32 *val, const char *arg, int base);
+ int get_be16(__be16 *val, const char *arg, int base);
+ 
+@@ -159,6 +160,9 @@ int print_timestamp(FILE *fp);
+ 
+ #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+ 
++#define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
++#define ntohll(x) ((1==ntohl(1)) ? (x) : ((uint64_t)ntohl((x) & 0xFFFFFFFF) << 32) | ntohl((x) >> 32))
++
+ extern int cmdlineno;
+ extern ssize_t getcmdline(char **line, size_t *len, FILE *in);
+ extern int makeargs(char *line, char *argv[], int maxargs);
+diff --git a/ip/ipmacsec.c b/ip/ipmacsec.c
+index 21e53be..596594f 100644
+--- a/ip/ipmacsec.c
++++ b/ip/ipmacsec.c
+@@ -149,7 +149,7 @@ static int get_an(__u8 *val, const char *arg)
+ 
+ static int get_sci(__u64 *sci, const char *arg)
+ {
+-	return get_u64(sci, arg, 16);
++	return get_be64(sci, arg, 16);
+ }
+ 
+ static int get_port(__be16 *port, const char *arg)
+@@ -791,7 +791,7 @@ static void print_tx_sc(const char *prefix, __u64 sci, __u8 encoding_sa,
+ 	struct rtattr *a;
+ 	int rem;
+ 
+-	printf("%sTXSC: %016llx on SA %d\n", prefix, sci, encoding_sa);
++	printf("%sTXSC: %016llx on SA %d\n", prefix, ntohll(sci), encoding_sa);
+ 	print_secy_stats(prefix, secy_stats);
+ 	print_txsc_stats(prefix, txsc_stats);
+ 
+@@ -860,7 +860,7 @@ static void print_rx_sc(const char *prefix, __u64 sci, __u8 active,
+ 	struct rtattr *a;
+ 	int rem;
+ 
+-	printf("%sRXSC: %016llx, state %s\n", prefix, sci,
++	printf("%sRXSC: %016llx, state %s\n", prefix, ntohll(sci),
+ 	       values_on_off[!!active]);
+ 	print_rxsc_stats(prefix, rxsc_stats);
+ 
+@@ -1032,7 +1032,7 @@ static void macsec_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 
+ 	if (tb[IFLA_MACSEC_SCI]) {
+ 		fprintf(f, "sci %016llx ",
+-			rta_getattr_u64(tb[IFLA_MACSEC_SCI]));
++			ntohll(rta_getattr_u64(tb[IFLA_MACSEC_SCI])));
+ 	}
+ 
+ 	print_flag(f, tb, "protect", IFLA_MACSEC_PROTECT);
+diff --git a/lib/utils.c b/lib/utils.c
+index b310166..d3ed875 100644
+--- a/lib/utils.c
++++ b/lib/utils.c
+@@ -363,6 +363,17 @@ int get_s8(__s8 *val, const char *arg, int base)
+ 	return 0;
+ }
+ 
++int get_be64(__be64 *val, const char *arg, int base)
++{
++	__u64 v;
++	int ret = get_u64(&v, arg, base);
++
++	if (!ret)
++		*val = htonll(v);
++
++	return ret;
++}
++
+ int get_be32(__be32 *val, const char *arg, int base)
+ {
+ 	__u32 v;
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index fd665b8..73cd86d 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -819,7 +819,9 @@ interpreted as octal and hexadecimal, respectively.
+ 
+ .sp
+ .BI sci " SCI "
+-- sets the SCI for this MACsec device.
++- sets the secure channel identifier for this MACsec device.
++.I SCI
++is a 64bit wide number in hexadecimal format.
+ 
+ .sp
+ .BI cipher " CIPHER_SUITE "
+-- 
+1.8.3.1
+

@@ -1,0 +1,52 @@
+From e8d0fdaf5f409584b9ff6110d294ddd783aeb3d2 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:11:59 +0100
+Subject: [PATCH] bridge.8: document fdb replace command
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 6e2e2cf03a2fe
+
+commit 6e2e2cf03a2fe5777ee75e943444a343756042c0
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Nov 18 12:46:42 2015 +0100
+
+    bridge.8: document fdb replace command
+
+    Despite commit 45a82e5 ("iproute vxlan add support for fdb replace
+    command"), the 'fdb replace' command was not mentioned in bridge.8.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ man/man8/bridge.8 | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/man/man8/bridge.8 b/man/man8/bridge.8
+index 6cbf72b..38f7b8b 100644
+--- a/man/man8/bridge.8
++++ b/man/man8/bridge.8
+@@ -50,7 +50,7 @@ bridge \- show / manipulate bridge addresses and devices
+ .IR DEV " ]"
+ 
+ .ti -8
+-.BR "bridge fdb" " { " add " | " append " | " del " } "
++.BR "bridge fdb" " { " add " | " append " | " del " | " replace " } "
+ .I LLADDR
+ .B  dev
+ .IR DEV " { "
+@@ -407,6 +407,13 @@ This command removes an existing fdb entry.
+ The arguments are the same as with
+ .BR "bridge fdb add" ,
+ 
++.SS bridge fdb replace - replace a forwarding database entry
++If no matching entry is found, a new one will be created instead.
++
++.PP
++The arguments are the same as with
++.BR "bridge fdb add" ,
++
+ .SS bridge fdb show - list forwarding entries.
+ 
+ This command displays the current forwarding table.
+-- 
+1.8.3.1
+

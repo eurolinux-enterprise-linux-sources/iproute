@@ -1,0 +1,63 @@
+From fe330edb2a14d72af6175027c00b19c336501c6c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:01 +0100
+Subject: [PATCH] iplink: bridge: add support for IFLA_BR_MCAST_QUERIER
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 0778b741225a5
+
+commit 0778b741225a51bb6d72fe42683267e86bc31215
+Author: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Date:   Tue Feb 9 00:14:28 2016 +0100
+
+    iplink: bridge: add support for IFLA_BR_MCAST_QUERIER
+
+    This patch implements support for the IFLA_BR_MCAST_QUERIER attribute
+    in iproute2 so it can toggle the mcast querier value.
+
+    Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+---
+ ip/iplink_bridge.c | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/ip/iplink_bridge.c b/ip/iplink_bridge.c
+index 7b2bba8..620a9f9 100644
+--- a/ip/iplink_bridge.c
++++ b/ip/iplink_bridge.c
+@@ -36,6 +36,7 @@ static void print_explain(FILE *f)
+ 		"                  [ mcast_snooping MULTICAST_SNOOPING ]\n"
+ 		"                  [ mcast_router MULTICAST_ROUTER ]\n"
+ 		"                  [ mcast_query_use_ifaddr MCAST_QUERY_USE_IFADDR ]\n"
++		"                  [ mcast_querier MULTICAST_QUERIER ]\n"
+ 		"\n"
+ 		"Where: VLAN_PROTOCOL := { 802.1Q | 802.1ad }\n"
+ 	);
+@@ -175,6 +176,14 @@ static int bridge_parse_opt(struct link_util *lu, int argc, char **argv,
+ 
+ 			addattr8(n, 1024, IFLA_BR_MCAST_QUERY_USE_IFADDR,
+ 				 mcast_qui);
++		} else if (matches(*argv, "mcast_querier") == 0) {
++			__u8 mcast_querier;
++
++			NEXT_ARG();
++			if (get_u8(&mcast_querier, *argv, 0))
++				invarg("invalid mcast_querier", *argv);
++
++			addattr8(n, 1024, IFLA_BR_MCAST_QUERIER, mcast_querier);
+ 		} else if (matches(*argv, "help") == 0) {
+ 			explain();
+ 			return -1;
+@@ -324,6 +333,10 @@ static void bridge_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+ 	if (tb[IFLA_BR_MCAST_QUERY_USE_IFADDR])
+ 		fprintf(f, "mcast_query_use_ifaddr %u ",
+ 			rta_getattr_u8(tb[IFLA_BR_MCAST_QUERY_USE_IFADDR]));
++
++	if (tb[IFLA_BR_MCAST_QUERIER])
++		fprintf(f, "mcast_querier %u ",
++			rta_getattr_u8(tb[IFLA_BR_MCAST_QUERIER]));
+ }
+ 
+ static void bridge_print_help(struct link_util *lu, int argc, char **argv,
+-- 
+1.8.3.1
+

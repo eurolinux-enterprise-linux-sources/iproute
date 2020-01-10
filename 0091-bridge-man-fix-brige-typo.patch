@@ -1,0 +1,35 @@
+From c3556926885b1ed7bf587c3b52ae4000ef5d7994 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:44 +0100
+Subject: [PATCH] bridge: man: fix "brige" typo
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 7fab22abd1ff6
+
+commit 7fab22abd1ff6c8e8d4e5cd3602d7c28a3fa98de
+Author: Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+Date:   Tue Jun 21 15:28:50 2016 -0400
+
+    bridge: man: fix "brige" typo
+
+    Signed-off-by: Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+---
+ man/man8/bridge.8 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/bridge.8 b/man/man8/bridge.8
+index 3024eb2..d654e1c 100644
+--- a/man/man8/bridge.8
++++ b/man/man8/bridge.8
+@@ -234,7 +234,7 @@ error.
+ .sp
+ 
+ .B 1
+-- STP LISTENING state. Only valid if STP is enabled on the brige. In this
++- STP LISTENING state. Only valid if STP is enabled on the bridge. In this
+ state the port for list for STP BPDUs and drop all other traffic.
+ .sp
+ 
+-- 
+1.8.3.1
+

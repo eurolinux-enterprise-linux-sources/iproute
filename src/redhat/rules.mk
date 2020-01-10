@@ -1,0 +1,23 @@
+REDHAT:=$(shell pwd)
+TOPDIR:=$(shell dirname $(REDHAT))
+PATH:=$(REDHAT)/scripts:$(PATH)
+IPROUTE_VERSION:=3.10.0
+GITID:= $(shell git log -1 --pretty=format:%H)
+RPMVERSION:=3.10.0
+BASEBUILD:=55
+BUILD:=74
+DIST:=.el7
+RHEL_MAJOR:=7
+RHEL_MINOR:=3
+SPECFILE:=iproute.spec
+RPM:=$(REDHAT)/rpm
+SRPMS:=$(RPM)/SRPMS
+SOURCES:=$(RPM)/SOURCES
+
+# maybe implement the BUILDID stuff as well?
+PKGRELEASE:=$(BUILD)$(DIST)
+SPECRELEASE:=$(BUILD)%{?dist}
+BASERELEASE:=$(BASEBUILD)$(DIST)
+
+TARFILE:=iproute-$(IPROUTE_VERSION)-$(BASEBUILD)$(DIST).tar.xz
+TARBALL:=$(REDHAT)/$(TARFILE)

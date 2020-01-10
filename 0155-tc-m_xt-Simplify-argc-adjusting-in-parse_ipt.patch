@@ -1,0 +1,63 @@
+From e1d15d63d531aa08fd6abe021aba5e287e13d527 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 4 Apr 2017 16:23:42 +0200
+Subject: [PATCH] tc: m_xt: Simplify argc adjusting in parse_ipt()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1326726
+Upstream Status: iproute2.git commit f6ddd9c5da4e5
+
+commit f6ddd9c5da4e552322baf237075aae6db17237d4
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jun 10 13:42:07 2016 +0200
+
+    tc: m_xt: Simplify argc adjusting in parse_ipt()
+
+    And while at it, also improve the error message in case too few
+    parameters have been given.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/m_xt.c | 17 ++++++-----------
+ 1 file changed, 6 insertions(+), 11 deletions(-)
+
+diff --git a/tc/m_xt.c b/tc/m_xt.c
+index e0ed8a4..da3f7ab 100644
+--- a/tc/m_xt.c
++++ b/tc/m_xt.c
+@@ -124,7 +124,7 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 
+ 	int c;
+ 	char **argv = *argv_p;
+-	int argc = 0;
++	int argc;
+ 	char k[16];
+ 	int size = 0;
+ 	int iok = 0, ok = 0;
+@@ -136,19 +136,14 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 	xtables_init_all(&tmp_tcipt_globals, NFPROTO_IPV4);
+ 	set_lib_dir();
+ 
+-	{
+-		int i;
+-
+-		for (i = 0; i < *argc_p; i++) {
+-			if (NULL == argv[i] || 0 == strcmp(argv[i], "action")) {
+-				break;
+-			}
+-		}
+-		argc = i;
++	/* parse only up until the next action */
++	for (argc = 0; argc < *argc_p; argc++) {
++		if (!argv[argc] || !strcmp(argv[argc], "action"))
++			break;
+ 	}
+ 
+ 	if (argc <= 2) {
+-		fprintf(stderr, "bad arguments to ipt %d vs %d\n", argc, *argc_p);
++		fprintf(stderr, "too few arguments for xt, need at least '-j <target>'\n");
+ 		return -1;
+ 	}
+ 
+-- 
+1.8.3.1
+

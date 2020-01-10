@@ -1,0 +1,41 @@
+From e22b364d6615a03fe4c21b8c5640cabf07aa81ca Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:24:16 +0100
+Subject: [PATCH] tc: flower: Add missing err check when parsing flower options
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit c85609b25faff
+
+commit c85609b25faff034d450b0106fac7932d6acf124
+Author: Roi Dayan <roid@mellanox.com>
+Date:   Thu Jan 19 14:31:19 2017 +0200
+
+    tc: flower: Add missing err check when parsing flower options
+
+    addattr32 may return an error.
+
+    Fixes: cfcabf18d84a ("tc: flower: Add skip_{hw|sw} support")
+    Signed-off-by: Roi Dayan <roid@mellanox.com>
+    Reviewed-by: Paul Blakey <paulb@mellanox.com>
+---
+ tc/f_flower.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index a3178a0..d210b67 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -591,7 +591,9 @@ static int flower_parse_opt(struct filter_util *qu, char *handle,
+ 	}
+ 
+ parse_done:
+-	addattr32(n, MAX_MSG, TCA_FLOWER_FLAGS, flags);
++	ret = addattr32(n, MAX_MSG, TCA_FLOWER_FLAGS, flags);
++	if (ret)
++		return ret;
+ 
+ 	ret = addattr16(n, MAX_MSG, TCA_FLOWER_KEY_ETH_TYPE, eth_type);
+ 	if (ret) {
+-- 
+1.8.3.1
+

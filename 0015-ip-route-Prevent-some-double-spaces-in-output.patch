@@ -1,0 +1,77 @@
+From 7913342bac7907f849ee6af7abeba2e30a1c0c46 Mon Sep 17 00:00:00 2001
+From: Timothy Redaelli <tredaelli@redhat.com>
+Date: Fri, 10 Feb 2017 12:20:19 +0100
+Subject: [PATCH] ip-route: Prevent some double spaces in output
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1374446
+Upstream Status: iproute2.git commit 7cc7cb8
+Conflicts: Context changes due to missing commits
+           bc23430, 7faf1588 and 56f5daac
+
+commit 7cc7cb8a888bf50c4e118b6bce4c6926321d0689
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Tue Aug 23 11:52:45 2016 +0200
+
+    ip-route: Prevent some double spaces in output
+
+    The code is a bit messy, as it starts with space after text and at some
+    point switches to space before text. But either way, printing space
+    before *and* after text almost certainly leads to printing more
+    whitespace than necessary.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Timothy Redaelli <tredaelli@redhat.com>
+---
+ ip/iproute.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/ip/iproute.c b/ip/iproute.c
+index bb18bbe..8a706ea 100644
+--- a/ip/iproute.c
++++ b/ip/iproute.c
+@@ -414,24 +414,24 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	if (!(r->rtm_flags&RTM_F_CLONED)) {
+ 		if (table != RT_TABLE_MAIN && !filter.tb)
+-			fprintf(fp, " table %s ", rtnl_rttable_n2a(table, b1, sizeof(b1)));
++			fprintf(fp, "table %s ", rtnl_rttable_n2a(table, b1, sizeof(b1)));
+ 		if (r->rtm_protocol != RTPROT_BOOT && filter.protocolmask != -1)
+-			fprintf(fp, " proto %s ", rtnl_rtprot_n2a(r->rtm_protocol, b1, sizeof(b1)));
++			fprintf(fp, "proto %s ", rtnl_rtprot_n2a(r->rtm_protocol, b1, sizeof(b1)));
+ 		if (r->rtm_scope != RT_SCOPE_UNIVERSE && filter.scopemask != -1)
+-			fprintf(fp, " scope %s ", rtnl_rtscope_n2a(r->rtm_scope, b1, sizeof(b1)));
++			fprintf(fp, "scope %s ", rtnl_rtscope_n2a(r->rtm_scope, b1, sizeof(b1)));
+ 	}
+ 	if (tb[RTA_PREFSRC] && filter.rprefsrc.bitlen != host_len) {
+ 		/* Do not use format_host(). It is our local addr
+ 		   and symbolic name will not be useful.
+ 		 */
+-		fprintf(fp, " src %s ",
++		fprintf(fp, "src %s ",
+ 			rt_addr_n2a(r->rtm_family,
+ 				    RTA_PAYLOAD(tb[RTA_PREFSRC]),
+ 				    RTA_DATA(tb[RTA_PREFSRC]),
+ 				    abuf, sizeof(abuf)));
+ 	}
+ 	if (tb[RTA_PRIORITY])
+-		fprintf(fp, " metric %u ", rta_getattr_u32(tb[RTA_PRIORITY]));
++		fprintf(fp, "metric %u ", rta_getattr_u32(tb[RTA_PRIORITY]));
+ 	if (r->rtm_flags & RTNH_F_DEAD)
+ 		fprintf(fp, "dead ");
+ 	if (r->rtm_flags & RTNH_F_ONLINK)
+@@ -444,9 +444,9 @@ int print_route(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 		unsigned int mark = *(unsigned int*)RTA_DATA(tb[RTA_MARK]);
+ 		if (mark) {
+ 			if (mark >= 16)
+-				fprintf(fp, " mark 0x%x", mark);
++				fprintf(fp, "mark 0x%x", mark);
+ 			else
+-				fprintf(fp, " mark %u", mark);
++				fprintf(fp, "mark %u", mark);
+ 		}
+ 	}
+ 
+-- 
+1.8.3.1
+

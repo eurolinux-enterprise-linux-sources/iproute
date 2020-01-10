@@ -1,0 +1,37 @@
+From d3fb2ca3d65e566e11c6016f7832dd5f251a7715 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 1 Feb 2017 14:20:10 +0100
+Subject: [PATCH] utils: add missing return value
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1329730
+Upstream Status: iproute2.git commit e3c27c2db68d2
+
+commit e3c27c2db68d2dc0e9816fd70d80fda7f9aea2ec
+Author: Zhang Shengju <zhangshengju@cmss.chinamobile.com>
+Date:   Fri Aug 14 01:36:20 2015 +0000
+
+    utils: add missing return value
+
+    Add missing return value to fix warnings
+
+    Signed-off-by: Zhang Shengju <zhangshengju@cmss.chinamobile.com>
+---
+ include/utils.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/utils.h b/include/utils.h
+index a1f9eb3..6634f66 100644
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -127,7 +127,7 @@ const char *ipx_ntop(int af, const void *addr, char *str, size_t len);
+ int ipx_pton(int af, const char *src, void *addr);
+ 
+ extern int __iproute2_hz_internal;
+-__get_hz(void);
++int __get_hz(void);
+ 
+ static __inline__ int get_hz(void)
+ {
+-- 
+1.8.3.1
+

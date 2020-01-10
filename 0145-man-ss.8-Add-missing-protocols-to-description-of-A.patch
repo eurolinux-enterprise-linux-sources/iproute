@@ -1,0 +1,37 @@
+From 08d8450413afec2eb9772293dbe9951b1704931a Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 16:51:07 +0100
+Subject: [PATCH] man: ss.8: Add missing protocols to description of -A
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1063934
+Upstream Status: iproute2.git commit 32b1a12713a95
+
+commit 32b1a12713a95794159630d5cf67ee86d11161d9
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 9 17:07:33 2017 +0100
+
+    man: ss.8: Add missing protocols to description of -A
+
+    The list was missing dccp and sctp protocols.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ man/man8/ss.8 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/ss.8 b/man/man8/ss.8
+index b02a68c..c955a1d 100644
+--- a/man/man8/ss.8
++++ b/man/man8/ss.8
+@@ -124,7 +124,7 @@ Currently the following families are supported: unix, inet, inet6, link, netlink
+ .B \-A QUERY, \-\-query=QUERY, \-\-socket=QUERY
+ List of socket tables to dump, separated by commas. The following identifiers
+ are understood: all, inet, tcp, udp, raw, unix, packet, netlink, unix_dgram,
+-unix_stream, unix_seqpacket, packet_raw, packet_dgram.
++unix_stream, unix_seqpacket, packet_raw, packet_dgram, dccp, sctp.
+ .TP
+ .B \-D FILE, \-\-diag=FILE
+ Do not display anything, just dump raw information about TCP sockets to FILE after applying filters. If FILE is - stdout is used.
+-- 
+1.8.3.1
+

@@ -1,0 +1,63 @@
+From 78e2bc47a913408cf51b0057230cd8d61d67e305 Mon Sep 17 00:00:00 2001
+From: Sabrina Dubroca <sdubroca@redhat.com>
+Date: Fri, 9 Jun 2017 10:08:08 +0200
+Subject: [PATCH] devlink: Convert conditional in dl_argv_handle_port() to
+ switch()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1459772
+Upstream Status: iproute2.git commit 7a34b9d098fc
+
+commit 7a34b9d098fce6778a02c475fd877e0b34aa7a13
+Author: Hangbin Liu <liuhangbin@gmail.com>
+Date:   Sun Oct 9 10:14:18 2016 +0800
+
+    devlink: Convert conditional in dl_argv_handle_port() to switch()
+
+    Discovered by Phil's covscan. The final return statement is never reached.
+    This is not inherently clear from looking at the code, so change the
+    conditional to a switch() statement which should clarify this.
+
+    CC: Phil Sutter <phil@nwl.cc>
+    Signed-off-by: Hangbin Liu <liuhangbin@gmail.com>
+    Acked-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Sabrina Dubroca <sdubroca@redhat.com>
+---
+ devlink/devlink.c | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/devlink/devlink.c b/devlink/devlink.c
+index 52fc7f49f51c..07c28eb95270 100644
+--- a/devlink/devlink.c
++++ b/devlink/devlink.c
+@@ -514,19 +514,18 @@ static int dl_argv_handle_port(struct dl *dl, char **p_bus_name,
+ 		return -EINVAL;
+ 	}
+ 	slash_count = strslashcount(str);
+-	if (slash_count != 2 && slash_count != 0) {
++	switch (slash_count) {
++	case 0:
++		return __dl_argv_handle_port_ifname(dl, str, p_bus_name,
++						    p_dev_name, p_port_index);
++	case 2:
++		return __dl_argv_handle_port(str, p_bus_name,
++					     p_dev_name, p_port_index);
++	default:
+ 		pr_err("Wrong port identification string format.\n");
+ 		pr_err("Expected \"bus_name/dev_name/port_index\" or \"netdev_ifname\".\n");
+ 		return -EINVAL;
+ 	}
+-	if (slash_count == 2) {
+-		return __dl_argv_handle_port(str, p_bus_name,
+-					     p_dev_name, p_port_index);
+-	} else if (slash_count == 0) {
+-		return __dl_argv_handle_port_ifname(dl, str, p_bus_name,
+-						    p_dev_name, p_port_index);
+-	}
+-	return 0;
+ }
+ 
+ static int dl_argv_handle_both(struct dl *dl, char **p_bus_name,
+-- 
+2.13.1
+

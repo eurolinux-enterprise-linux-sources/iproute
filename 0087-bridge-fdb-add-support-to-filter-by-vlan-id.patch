@@ -1,0 +1,99 @@
+From a6192164b9d05f22e93266f63ec090a910930f29 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:44 +0100
+Subject: [PATCH] bridge: fdb: add support to filter by vlan id
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit ae6eb9075fdfe
+
+commit ae6eb9075fdfe1bf0804c9a9315a37e111e8e293
+Author: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+Date:   Mon Apr 11 17:45:14 2016 +0200
+
+    bridge: fdb: add support to filter by vlan id
+
+    Add the optional keyword "vlan" to bridge fdb show so the user can request
+    filtering by a specific vlan id. Currently the filtering is implemented
+    only in user-space. The argument name has been chosen to match the
+    add/del one - "vlan".
+
+    Example:
+    $ bridge fdb show vlan 400
+    52:54:00:bf:57:16 dev eth2 vlan 400 master br0 permanent
+
+    Signed-off-by: Nikolay Aleksandrov <nikolay@cumulusnetworks.com>
+---
+ bridge/fdb.c | 21 +++++++++++++++------
+ 1 file changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/bridge/fdb.c b/bridge/fdb.c
+index 2d2498a..d184f7e 100644
+--- a/bridge/fdb.c
++++ b/bridge/fdb.c
+@@ -26,7 +26,7 @@
+ #include "rt_names.h"
+ #include "utils.h"
+ 
+-static unsigned int filter_index;
++static unsigned int filter_index, filter_vlan;
+ 
+ static void usage(void)
+ {
+@@ -34,7 +34,7 @@ static void usage(void)
+ 			"              [ self ] [ master ] [ use ] [ router ]\n"
+ 			"              [ local | static | dynamic ] [ dst IPADDR ] [ vlan VID ]\n"
+ 			"              [ port PORT] [ vni VNI ] [ via DEV ]\n");
+-	fprintf(stderr, "       bridge fdb [ show [ br BRDEV ] [ brport DEV ] ]\n");
++	fprintf(stderr, "       bridge fdb [ show [ br BRDEV ] [ brport DEV ] [ vlan VID ] ]\n");
+ 	exit(-1);
+ }
+ 
+@@ -64,6 +64,7 @@ int print_fdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 	struct ndmsg *r = NLMSG_DATA(n);
+ 	int len = n->nlmsg_len;
+ 	struct rtattr *tb[NDA_MAX+1];
++	__u16 vid = 0;
+ 
+ 	if (n->nlmsg_type != RTM_NEWNEIGH && n->nlmsg_type != RTM_DELNEIGH) {
+ 		fprintf(stderr, "Not RTM_NEWNEIGH: %08x %08x %08x\n",
+@@ -87,6 +88,12 @@ int print_fdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 	parse_rtattr(tb, NDA_MAX, NDA_RTA(r),
+ 		     n->nlmsg_len - NLMSG_LENGTH(sizeof(*r)));
+ 
++	if (tb[NDA_VLAN])
++		vid = rta_getattr_u16(tb[NDA_VLAN]);
++
++	if (filter_vlan && filter_vlan != vid)
++		return 0;
++
+ 	if (n->nlmsg_type == RTM_DELNEIGH)
+ 		fprintf(fp, "Deleted ");
+ 
+@@ -116,11 +123,8 @@ int print_fdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 				    abuf, sizeof(abuf)));
+ 	}
+ 
+-	if (tb[NDA_VLAN]) {
+-		__u16 vid = rta_getattr_u16(tb[NDA_VLAN]);
+-
++	if (vid)
+ 		fprintf(fp, "vlan %hu ", vid);
+-	}
+ 
+ 	if (tb[NDA_PORT])
+ 		fprintf(fp, "port %d ", ntohs(rta_getattr_u16(tb[NDA_PORT])));
+@@ -191,6 +195,11 @@ static int fdb_show(int argc, char **argv)
+ 		} else if (strcmp(*argv, "br") == 0) {
+ 			NEXT_ARG();
+ 			br = *argv;
++		} else if (strcmp(*argv, "vlan") == 0) {
++			NEXT_ARG();
++			if (filter_vlan)
++				duparg("vlan", *argv);
++			filter_vlan = atoi(*argv);
+ 		} else {
+ 			if (matches(*argv, "help") == 0)
+ 				usage();
+-- 
+1.8.3.1
+

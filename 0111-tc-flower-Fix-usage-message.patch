@@ -1,0 +1,78 @@
+From 7bc7e80a81a32170cf1c24e6fb667d75ac6d55c7 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:22:39 +0100
+Subject: [PATCH] tc: flower: Fix usage message
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit d9c3995ab7ce7
+Conflicts: Changes to flower help text applied manually as per upstream
+	   merge commit 328374dcfea96 ("Merge branch 'master' into
+	   net-next").
+
+commit d9c3995ab7ce7fb523d50ca513283393066219ca
+Author: Paul Blakey <paulb@mellanox.com>
+Date:   Wed Nov 2 17:09:58 2016 +0200
+
+    tc: flower: Fix usage message
+
+    Remove left over usage from removal of eth_type argument.
+
+    Fixes: 488b41d020fb ('tc: flower no need to specify the ethertype')
+    Signed-off-by: Paul Blakey <paulb@mellanox.com>
+    Reviewed-by: Simon Horman <simon.horman@netronome.com>
+---
+ man/man8/tc-flower.8 | 9 ---------
+ tc/f_flower.c        | 3 +--
+ 2 files changed, 1 insertion(+), 11 deletions(-)
+
+diff --git a/man/man8/tc-flower.8 b/man/man8/tc-flower.8
+index 74f7664..16ef261 100644
+--- a/man/man8/tc-flower.8
++++ b/man/man8/tc-flower.8
+@@ -23,8 +23,6 @@ flower \- flow based traffic control filter
+ .R " | { "
+ .BR dst_mac " | " src_mac " } "
+ .IR mac_address " | "
+-.BR eth_type " { " ipv4 " | " ipv6 " | " 802.1Q " | "
+-.IR ETH_TYPE " } | "
+ .B vlan_id
+ .IR VID " | "
+ .B vlan_prio
+@@ -75,13 +73,6 @@ Do not process filter by hardware.
+ .BI src_mac " mac_address"
+ Match on source or destination MAC address.
+ .TP
+-.BI eth_type " ETH_TYPE"
+-Match on the next protocol.
+-.I ETH_TYPE
+-may be either
+-.BR ipv4 , ipv6 , 802.1Q ,
+-or an unsigned 16bit value in hexadecimal format.
+-.TP
+ .BI vlan_id " VID"
+ Match on vlan tag id.
+ .I VID
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index 874a7bd..6c9bea6 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -37,7 +37,6 @@ static void explain(void)
+ 		"                       vlan_ethtype [ ipv4 | ipv6 | ETH-TYPE ] |\n"
+ 		"                       dst_mac MAC-ADDR |\n"
+ 		"                       src_mac MAC-ADDR |\n"
+-		"                       [ipv4 | ipv6 ] |\n"
+ 		"                       ip_proto [tcp | udp | IP-PROTO ] |\n"
+ 		"                       dst_ip [ IPV4-ADDR | IPV6-ADDR ] |\n"
+ 		"                       src_ip [ IPV4-ADDR | IPV6-ADDR ] |\n"
+@@ -46,7 +45,7 @@ static void explain(void)
+ 		"       FILTERID := X:Y:Z\n"
+ 		"       ACTION-SPEC := ... look at individual actions\n"
+ 		"\n"
+-		"NOTE: CLASSID, ETH-TYPE, IP-PROTO are parsed as hexadecimal input.\n"
++		"NOTE: CLASSID, IP-PROTO are parsed as hexadecimal input.\n"
+ 		"NOTE: There can be only used one mask per one prio. If user needs\n"
+ 		"      to specify different mask, he has to use different prio.\n");
+ }
+-- 
+1.8.3.1
+

@@ -1,0 +1,41 @@
+From fe16587affe3050d0c3b9438aa6470a7951270fa Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:09:08 +0100
+Subject: [PATCH] bridge: fix reporting of IPv6 addresses
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 9e763fa5d332f
+
+commit 9e763fa5d332f5839673aaf4a7cae10e97932564
+Author: Mike Rapoport <mike.rapoport@ravellosystems.com>
+Date:   Thu Mar 20 13:06:10 2014 +0200
+
+    bridge: fix reporting of IPv6 addresses
+
+    Signed-off-by: Mike Rapoport <mike.rapoport@ravellosystems.com>
+---
+ bridge/fdb.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/bridge/fdb.c b/bridge/fdb.c
+index 0191c76..092945b 100644
+--- a/bridge/fdb.c
++++ b/bridge/fdb.c
+@@ -104,8 +104,13 @@ int print_fdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
+ 
+ 	if (tb[NDA_DST]) {
+ 		SPRINT_BUF(abuf);
++		int family = AF_INET;
++
++		if (RTA_PAYLOAD(tb[NDA_DST]) == sizeof(struct in6_addr))
++			family = AF_INET6;
++
+ 		fprintf(fp, "dst %s ",
+-			format_host(AF_INET,
++			format_host(family,
+ 				    RTA_PAYLOAD(tb[NDA_DST]),
+ 				    RTA_DATA(tb[NDA_DST]),
+ 				    abuf, sizeof(abuf)));
+-- 
+1.8.3.1
+

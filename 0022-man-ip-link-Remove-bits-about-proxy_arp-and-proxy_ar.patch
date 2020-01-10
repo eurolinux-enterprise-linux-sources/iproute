@@ -1,0 +1,50 @@
+From 75b314be0b22357ef564e451bc8d8dd1b9de74aa Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 21 Feb 2017 22:26:28 +0100
+Subject: [PATCH] man: ip-link: Remove bits about proxy_arp and proxy_arp_wifi
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1374360
+Upstream Status: RHEL only
+
+These are not supported in RHEL7 (neither kernel nor iproute), so remove
+them from the man page also.
+---
+ man/man8/ip-link.8.in | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index 73cd86d..cfd996a 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -1130,10 +1130,6 @@ the following additional arguments are supported:
+ ] [
+ .BR flood " { " on " | " off " }"
+ ] [
+-.BR proxy_arp " { " on " | " off " }"
+-] [
+-.BR proxy_arp_wifi " { " on " | " off " }"
+-] [
+ .BI mcast_router " MULTICAST_ROUTER"
+ ] [
+ .BR mcast_fast_leave " { " on " | " off "} ]"
+@@ -1174,16 +1170,7 @@ port to be reflected back.
+ 
+ .BR flood " { " on " | " off " }"
+ - open the flood gates on this port, i.e. forward all unicast frames to this
+-port also. Requires
+-.BR proxy_arp " and " proxy_arp_wifi
+-to be turned off.
+-
+-.BR proxy_arp " { " on " | " off " }"
+-- enable proxy ARP on this port.
+-
+-.BR proxy_arp_wifi " { " on " | " off " }"
+-- enable proxy ARP on this port which meets extended requirements by IEEE
+-802.11 and Hotspot 2.0 specifications.
++port also.
+ 
+ .BI mcast_router " MULTICAST_ROUTER"
+ - configure this port for having multicast routers attached. A port with a
+-- 
+1.8.3.1
+

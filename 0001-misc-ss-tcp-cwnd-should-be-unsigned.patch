@@ -1,0 +1,66 @@
+From f9a228a373bc7dc77a7ddc5c601c801c8e8498aa Mon Sep 17 00:00:00 2001
+From: Davide Caratti <dcaratti@redhat.com>
+Date: Fri, 18 Nov 2016 11:45:54 +0100
+Subject: [PATCH] misc/ss: tcp cwnd should be unsigned
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1375215
+Upstream Status: iproute2.git commit d1f338b31858
+Brew: https://brewweb.engineering.redhat.com/brew/taskinfo?taskID=12041044
+Tested: on local VM using iperf3 on loopback
+
+commit d1f338b31858005b2550da05098d56ea4e8fd401
+Author: Hangbin Liu <liuhangbin@gmail.com>
+Date:   Thu Sep 22 16:40:28 2016 +0800
+
+    misc/ss: tcp cwnd should be unsigned
+
+    tcp->snd_cwd is a u32, but ss treats it like a signed int. This may
+    results in negative bandwidth calculations.
+
+    Signed-off-by: Hangbin Liu <liuhangbin@gmail.com>
+    Acked-by: Phil Sutter <phil@nwl.cc>
+
+Signed-off-by: Davide Caratti <dcaratti@redhat.com>
+---
+ misc/ss.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index c385d47..45fb4b0 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -759,11 +759,12 @@ struct tcpstat
+ 	int		    probes;
+ 	char		    cong_alg[16];
+ 	double		    rto, ato, rtt, rttvar;
+-	int		    qack, cwnd, ssthresh, backoff;
++	int		    qack, ssthresh, backoff;
+ 	double		    send_bps;
+ 	int		    snd_wscale;
+ 	int		    rcv_wscale;
+ 	int		    mss;
++	unsigned int	    cwnd;
+ 	unsigned int	    lastsnd;
+ 	unsigned int	    lastrcv;
+ 	unsigned int	    lastack;
+@@ -1692,7 +1693,7 @@ static void tcp_stats_print(struct tcpstat *s)
+ 	if (s->mss)
+ 		printf(" mss:%d", s->mss);
+ 	if (s->cwnd)
+-		printf(" cwnd:%d", s->cwnd);
++		printf(" cwnd:%u", s->cwnd);
+ 	if (s->ssthresh)
+ 		printf(" ssthresh:%d", s->ssthresh);
+ 
+@@ -1783,7 +1784,7 @@ static int tcp_show_line(char *line, const struct filter *f, int family)
+ 		return 0;
+ 
+ 	opt[0] = 0;
+-	n = sscanf(data, "%x %x:%x %x:%x %x %d %d %u %d %llx %d %d %d %d %d %[^\n]\n",
++	n = sscanf(data, "%x %x:%x %x:%x %x %d %d %u %d %llx %d %d %d %u %d %[^\n]\n",
+ 		   &s.ss.state, &s.ss.wq, &s.ss.rq,
+ 		   &s.timer, &s.timeout, &s.retrans, &s.ss.uid, &s.probes,
+ 		   &s.ss.ino, &s.ss.refcnt, &s.ss.sk, &rto, &ato, &s.qack, &s.cwnd,
+-- 
+1.8.3.1
+

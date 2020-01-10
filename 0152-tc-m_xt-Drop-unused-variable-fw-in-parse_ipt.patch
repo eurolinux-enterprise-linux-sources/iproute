@@ -1,0 +1,44 @@
+From 44384a7557d92a53032d8f65adcbed79a5f990e6 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 4 Apr 2017 16:22:40 +0200
+Subject: [PATCH] tc: m_xt: Drop unused variable fw in parse_ipt()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1326726
+Upstream Status: iproute2.git commit b0ba0185763ad
+Conflicts: Changes in context and replaced code due to missing upstream
+           commit 32a121cba2579 ("tc: code cleanup").
+
+commit b0ba0185763ad2bae3335423221919ed47951885
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Jun 10 13:42:04 2016 +0200
+
+    tc: m_xt: Drop unused variable fw in parse_ipt()
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ tc/m_xt.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/tc/m_xt.c b/tc/m_xt.c
+index bb1f929..4e660c4 100644
+--- a/tc/m_xt.c
++++ b/tc/m_xt.c
+@@ -120,7 +120,6 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 		     char ***argv_p, int tca_id, struct nlmsghdr *n)
+ {
+ 	struct xtables_target *m = NULL;
+-	struct ipt_entry fw;
+ 	struct rtattr *tail;
+ 
+ 	int c;
+@@ -188,7 +187,6 @@ static int parse_ipt(struct action_util *a,int *argc_p,
+ 			break;
+ 
+ 		default:
+-			memset(&fw, 0, sizeof (fw));
+ #if (XTABLES_VERSION_CODE >= 6)
+ 			if (m != NULL && m->x6_parse != NULL) {
+ 				xtables_option_tpcall(c, argv, 0, m, NULL);
+-- 
+1.8.3.1
+

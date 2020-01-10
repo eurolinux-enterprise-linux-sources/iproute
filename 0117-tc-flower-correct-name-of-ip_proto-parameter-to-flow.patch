@@ -1,0 +1,67 @@
+From cca1d8a85219947ad8c0a202f41278b582c63daa Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:23:33 +0100
+Subject: [PATCH] tc: flower: correct name of ip_proto parameter to
+ flower_parse_port()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit 61dff9ac10cb5
+
+commit 61dff9ac10cb55c4f66b7df7a003c420f6f1d430
+Author: Simon Horman <simon.horman@netronome.com>
+Date:   Sat Dec 3 09:52:39 2016 +0100
+
+    tc: flower: correct name of ip_proto parameter to flower_parse_port()
+
+    This corrects a typo.
+
+    Fixes: a1fb0d484237 ("tc: flower: Support matching on SCTP ports")
+    Signed-off-by: Simon Horman <simon.horman@netronome.com>
+---
+ tc/f_flower.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index 26afe73..cac2802 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -166,15 +166,15 @@ static int flower_parse_ip_addr(char *str, __be16 eth_type,
+ 	return 0;
+ }
+ 
+-static int flower_port_attr_type(__u8 ip_port, bool is_src)
++static int flower_port_attr_type(__u8 ip_proto, bool is_src)
+ {
+-	if (ip_port == IPPROTO_TCP) {
++	if (ip_proto == IPPROTO_TCP) {
+ 		return is_src ? TCA_FLOWER_KEY_TCP_SRC :
+ 			TCA_FLOWER_KEY_TCP_DST;
+-	} else if (ip_port == IPPROTO_UDP) {
++	} else if (ip_proto == IPPROTO_UDP) {
+ 		return is_src ? TCA_FLOWER_KEY_UDP_SRC :
+ 			TCA_FLOWER_KEY_UDP_DST;
+-	} else if (ip_port == IPPROTO_SCTP) {
++	} else if (ip_proto == IPPROTO_SCTP) {
+ 		return is_src ? TCA_FLOWER_KEY_SCTP_SRC :
+ 			TCA_FLOWER_KEY_SCTP_DST;
+ 	} else {
+@@ -183,14 +183,14 @@ static int flower_port_attr_type(__u8 ip_port, bool is_src)
+ 	}
+ }
+ 
+-static int flower_parse_port(char *str, __u8 ip_port, bool is_src,
++static int flower_parse_port(char *str, __u8 ip_proto, bool is_src,
+ 			     struct nlmsghdr *n)
+ {
+ 	int ret;
+ 	int type;
+ 	__be16 port;
+ 
+-	type = flower_port_attr_type(ip_port, is_src);
++	type = flower_port_attr_type(ip_proto, is_src);
+ 	if (type < 0)
+ 		return -1;
+ 
+-- 
+1.8.3.1
+

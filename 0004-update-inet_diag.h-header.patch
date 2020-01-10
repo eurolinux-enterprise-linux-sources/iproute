@@ -1,0 +1,33 @@
+From 219f04e854453e7386ba6e3fb81b3c40a6591c1c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 1 Feb 2017 12:09:36 +0100
+Subject: [PATCH] update inet_diag.h header
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1063934
+Upstream Status: iproute2.git commit 8b5be9ecfff49
+
+commit 8b5be9ecfff493d06189234405be210404dc38bb
+Author: Stephen Hemminger <stephen@networkplumber.org>
+Date:   Tue Apr 19 08:06:11 2016 -0700
+
+    update inet_diag.h header
+---
+ include/linux/inet_diag.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/include/linux/inet_diag.h b/include/linux/inet_diag.h
+index 1db4116..b806fcf 100644
+--- a/include/linux/inet_diag.h
++++ b/include/linux/inet_diag.h
+@@ -113,6 +113,8 @@ enum {
+ 	INET_DIAG_DCTCPINFO,
+ 	INET_DIAG_PROTOCOL,  /* response attribute only */
+ 	INET_DIAG_SKV6ONLY,
++	INET_DIAG_LOCALS,
++	INET_DIAG_PEERS,
+ };
+ 
+ #define INET_DIAG_MAX INET_DIAG_SKV6ONLY
+-- 
+1.8.3.1
+

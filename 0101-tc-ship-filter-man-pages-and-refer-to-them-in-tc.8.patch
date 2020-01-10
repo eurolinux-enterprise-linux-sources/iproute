@@ -1,0 +1,69 @@
+From 86ccfa5ca33949fa5a53d423a8b352cc243bf1b5 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:18:52 +0100
+Subject: [PATCH] tc: ship filter man pages and refer to them in tc.8
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit a257bc7b4c481
+Conflicts: Just reapplying missing bits about flower from already
+           backported commit.
+
+commit a257bc7b4c481d4b2871508edfccc198d1e56c8a
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Oct 23 19:47:16 2015 +0200
+
+    tc: ship filter man pages and refer to them in tc.8
+
+    Cc: Thomas Graf <tgraf@suug.ch>
+    Cc: Alexey Kuznetsov <kuznet@ms2.inr.ac.ru>
+    Cc: Jiri Pirko <jiri@resnulli.us>
+    Cc: Patrick McHardy <kaber@trash.net>
+    Cc: Werner Almesberger <werner@almesberger.net>
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ man/man8/Makefile | 2 +-
+ man/man8/tc.8     | 8 +++++---
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/man/man8/Makefile b/man/man8/Makefile
+index f3a3fa5..8d73f1e 100644
+--- a/man/man8/Makefile
++++ b/man/man8/Makefile
+@@ -11,7 +11,7 @@ MAN8PAGES = $(TARGETS) ip.8 arpd.8 lnstat.8 routel.8 rtacct.8 rtmon.8 rtpr.8 ss.
+ 	ip-maddress.8 ip-monitor.8 ip-mroute.8 ip-neighbour.8 \
+ 	ip-netns.8 ip-ntable.8 ip-rule.8 ip-tunnel.8 ip-xfrm.8 \
+ 	ip-tcp_metrics.8 ip-netconf.8 ip-token.8 \
+-	tc-basic.8 tc-cgroup.8 tc-flow.8 tc-fw.8 tc-route.8 \
++	tc-basic.8 tc-cgroup.8 tc-flow.8 tc-flower.8 tc-fw.8 tc-route.8 \
+ 	tc-tcindex.8 tc-u32.8 \
+ 	tc-csum.8 tc-mirred.8 tc-nat.8 tc-pedit.8 tc-police.8 \
+ 	tc-simple.8 tc-skbedit.8 tc-xt.8
+diff --git a/man/man8/tc.8 b/man/man8/tc.8
+index 391d7c7..ee3479e 100644
+--- a/man/man8/tc.8
++++ b/man/man8/tc.8
+@@ -158,9 +158,10 @@ Filter packets based on the control group of their process. See
+ . BR tc-cgroup (8)
+ for details.
+ .TP
+-flow
+-Flow-based classifier, filtering packets based on their flow (identified by selectable keys). See
+-.BR tc-flow (8)
++flow, flower
++Flow-based classifiers, filtering packets based on their flow (identified by selectable keys). See
++.BR tc-flow "(8) and"
++.BR tc-flower (8)
+ for details.
+ .TP
+ fw
+@@ -635,6 +636,7 @@ was written by Alexey N. Kuznetsov and added in Linux 2.2.
+ .BR tc-drr (8),
+ .BR tc-ematch (8),
+ .BR tc-flow (8),
++.BR tc-flower (8),
+ .BR tc-fq (8),
+ .BR tc-fq_codel (8),
+ .BR tc-fw (8),
+-- 
+1.8.3.1
+

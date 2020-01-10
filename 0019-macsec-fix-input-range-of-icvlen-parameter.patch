@@ -1,0 +1,60 @@
+From 2dbe403fcb0dac676d4f57125238630812342b9b Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 21 Feb 2017 22:09:56 +0100
+Subject: [PATCH] macsec: fix input range of 'icvlen' parameter
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1373121
+Upstream Status: iproute2.git commit f20f5f79909fd
+Conflicts:
+* Added missing MACSEC_STD_ICV_LEN define to linux headers.
+
+commit f20f5f79909fdc6327fcd015a3850645a236729d
+Author: Davide Caratti <dcaratti@redhat.com>
+Date:   Fri Sep 9 16:02:22 2016 +0200
+
+    macsec: fix input range of 'icvlen' parameter
+
+    the maximum possible ICV length in a MACsec frame is 16 octects, not 32:
+    fix get_icvlen() accordingly, so that a proper error message is displayed
+    in case input 'icvlen' is greater than 16.
+
+    Signed-off-by: Davide Caratti <dcaratti@redhat.com>
+    Acked-by: Phil Sutter <phil@nwl.cc>
+    Acked-by: Sabrina Dubroca <sd@queasysnail.net>
+---
+ include/linux/if_macsec.h | 2 ++
+ ip/ipmacsec.c             | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/if_macsec.h b/include/linux/if_macsec.h
+index cbd4faa..22939a3 100644
+--- a/include/linux/if_macsec.h
++++ b/include/linux/if_macsec.h
+@@ -26,6 +26,8 @@
+ 
+ #define MACSEC_MIN_ICV_LEN 8
+ #define MACSEC_MAX_ICV_LEN 32
++/* upper limit for ICV length as recommended by IEEE802.1AE-2006 */
++#define MACSEC_STD_ICV_LEN 16
+ 
+ enum macsec_attrs {
+ 	MACSEC_ATTR_UNSPEC,
+diff --git a/ip/ipmacsec.c b/ip/ipmacsec.c
+index 596594f..0c51bfc 100644
+--- a/ip/ipmacsec.c
++++ b/ip/ipmacsec.c
+@@ -167,9 +167,9 @@ static void get_icvlen(__u8 *icvlen, char *arg)
+ 	if (ret)
+ 		invarg("expected ICV length", arg);
+ 
+-	if (*icvlen < MACSEC_MIN_ICV_LEN || *icvlen > MACSEC_MAX_ICV_LEN)
++	if (*icvlen < MACSEC_MIN_ICV_LEN || *icvlen > MACSEC_STD_ICV_LEN)
+ 		invarg("ICV length must be in the range {"
+-		       STR(MACSEC_MIN_ICV_LEN) ".." STR(MACSEC_MAX_ICV_LEN)
++		       STR(MACSEC_MIN_ICV_LEN) ".." STR(MACSEC_STD_ICV_LEN)
+ 		       "}", arg);
+ }
+ 
+-- 
+1.8.3.1
+

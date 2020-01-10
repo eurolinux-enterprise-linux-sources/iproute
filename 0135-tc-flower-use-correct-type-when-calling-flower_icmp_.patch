@@ -1,0 +1,46 @@
+From 16088fc85ab012a10eee1c855d2fd1318a5e2cb2 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 17 Mar 2017 13:25:13 +0100
+Subject: [PATCH] tc: flower: use correct type when calling
+ flower_icmp_attr_type
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1422629
+Upstream Status: iproute2.git commit 81f6e5a7279ea
+
+commit 81f6e5a7279eaab826ba8b291b98fb2e89df0572
+Author: Simon Horman <simon.horman@netronome.com>
+Date:   Wed Feb 8 13:04:31 2017 +0100
+
+    tc: flower: use correct type when calling flower_icmp_attr_type
+
+    Use enum flower_icmp_field rather than bool as type of third parameter
+    when calling flower_icmp_attr_type.
+
+    Fixes: eb3b5696f163 ("tc: flower: support matching on ICMP type and code")
+    Signed-off-by: Simon Horman <simon.horman@netronome.com>
+---
+ tc/f_flower.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/tc/f_flower.c b/tc/f_flower.c
+index 58a34ce..b4bf886 100644
+--- a/tc/f_flower.c
++++ b/tc/f_flower.c
+@@ -1062,10 +1062,12 @@ static int flower_print_opt(struct filter_util *qu, FILE *f,
+ 	if (nl_type >= 0)
+ 		flower_print_port(f, "src_port", tb[nl_type]);
+ 
+-	nl_type = flower_icmp_attr_type(eth_type, ip_proto, false);
++	nl_type = flower_icmp_attr_type(eth_type, ip_proto,
++					FLOWER_ICMP_FIELD_TYPE);
+ 	if (nl_type >= 0)
+ 		flower_print_icmp(f, "icmp_type", tb[nl_type]);
+-	nl_type = flower_icmp_attr_type(eth_type, ip_proto, true);
++	nl_type = flower_icmp_attr_type(eth_type, ip_proto,
++					FLOWER_ICMP_FIELD_CODE);
+ 	if (nl_type >= 0)
+ 		flower_print_icmp(f, "icmp_code", tb[nl_type]);
+ 
+-- 
+1.8.3.1
+

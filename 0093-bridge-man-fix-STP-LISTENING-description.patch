@@ -1,0 +1,37 @@
+From 98a6989361034f7b1687e01252fc04daf692b992 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 28 Feb 2017 16:12:45 +0100
+Subject: [PATCH] bridge: man: fix STP LISTENING description
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417289
+Upstream Status: iproute2.git commit 3aa8f8cb7af95
+
+commit 3aa8f8cb7af952bd09efb7ec6d4f3f0507ada16a
+Author: Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+Date:   Wed Jun 29 15:26:29 2016 -0400
+
+    bridge: man: fix STP LISTENING description
+
+    Correct the unclear and poorly conjugated STP LISTENING documentation.
+
+    Signed-off-by: Vivien Didelot <vivien.didelot@savoirfairelinux.com>
+---
+ man/man8/bridge.8 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/bridge.8 b/man/man8/bridge.8
+index bf9c2c1..c09b8c3 100644
+--- a/man/man8/bridge.8
++++ b/man/man8/bridge.8
+@@ -235,7 +235,7 @@ error.
+ 
+ .B 1
+ - STP LISTENING state. Only valid if STP is enabled on the bridge. In this
+-state the port for list for STP BPDUs and drop all other traffic.
++state the port listens for STP BPDUs and drops all other traffic frames.
+ .sp
+ 
+ .B 2
+-- 
+1.8.3.1
+
