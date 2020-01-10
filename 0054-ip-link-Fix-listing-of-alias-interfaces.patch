@@ -1,0 +1,57 @@
+From eb3be709aece2325f7eafc113120cf5ef8f077de Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Mon, 11 Mar 2019 16:28:41 +0100
+Subject: [PATCH] ip-link: Fix listing of alias interfaces
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1673226
+Upstream Status: RHEL-only
+Conflicts: Context change due to missing commit 260137e24d3b7
+           ("iplink: Remove flags argument from iplink_get")
+
+Upstream rejected this patch as the alias notation is neither required
+nor wanted by iproute2[1]. With iproute rebase in RHEL7.5 though, we
+changed existing behaviour by accident. Therefore we will carry this
+patch for RHEL7 lifetime.
+
+[1] https://marc.info/?l=linux-netdev&m=154964861913609&w=2
+
+commit a1259acb3c2037f464e31fad1f21556f8bf58c91
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Feb 7 10:18:16 2019 +0100
+
+    ip-link: Fix listing of alias interfaces
+
+    Commit 50b9950dd9011 ("link dump filter") accidentally broke listing of
+    links in the old alias interface notation:
+
+    | % ip link show eth0:1
+    | RTNETLINK answers: No such device
+    | Cannot send link get request: No such device
+
+    Prior to the above commit, link lookup was performed via ifindex
+    returned by if_nametoindex(). The latter uses SIOCGIFINDEX ioctl call
+    which on kernel side causes the colon-suffix to be dropped before doing
+    the interface lookup. Netlink API though doesn't care about that at all.
+    To keep things backward compatible, mimick ioctl API behaviour and drop
+    the colon-suffix prior to sending the RTM_GETLINK request.
+
+    Fixes: 50b9950dd9011 ("link dump filter")
+---
+ ip/ipaddress.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ip/ipaddress.c b/ip/ipaddress.c
+index 7492075..14e9e22 100644
+--- a/ip/ipaddress.c
++++ b/ip/ipaddress.c
+@@ -1707,6 +1707,7 @@ static int ipaddr_list_flush_or_save(int argc, char **argv, int action)
+ 	 * the link device
+ 	 */
+ 	if (filter_dev && filter.group == -1 && do_link == 1) {
++		*strchrnul(filter_dev, ':') = '\0';
+ 		if (iplink_get(0, filter_dev, RTEXT_FILTER_VF) < 0) {
+ 			perror("Cannot send link get request");
+ 			exit(1);
+-- 
+1.8.3.1
+

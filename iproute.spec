@@ -2,7 +2,7 @@
 
 %define rpmversion 4.11.0
 %define baserelease 0.el7
-%define specrelease 14%{?dist}
+%define specrelease 14%{?dist}.2
 %define pkg_release %{specrelease}%{?buildid}
 
 Summary:            Advanced IP routing and network device configuration tools
@@ -58,6 +58,11 @@ Patch39:            0040-link_gre6-Detect-invalid-encaplimit-values.patch
 Patch40:            0041-man-tc-csum.8-Fix-inconsistency-in-example-descripti.patch
 Patch41:            0042-tc-fix-command-tc-actions-del-hang-issue.patch
 Patch42:            0043-ip-link-Fix-use-after-free-in-nl_get_ll_addr_len.patch
+Patch43:            0050-iproute-Abort-if-nexthop-cannot-be-parsed.patch
+Patch44:            0051-ip-route-Fix-segfault-with-many-nexthops.patch
+Patch45:            0052-man-ip-route.8-Document-nexthop-limit.patch
+Patch46:            0053-ip-route-Fix-nexthop-encap-parsing.patch
+Patch47:            0054-ip-link-Fix-listing-of-alias-interfaces.patch
 License:            GPLv2+ and Public Domain
 BuildRequires:      bison
 BuildRequires:      flex
@@ -170,6 +175,15 @@ cat %{SOURCE3} >>%{buildroot}%{_sysconfdir}/iproute2/rt_dsfield
 %{_includedir}/iproute2/bpf_elf.h
 
 %changelog
+* Tue Mar 12 2019 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7_6.2]
+- ip-link: Fix listing of alias interfaces (Phil Sutter) [1687717]
+
+* Fri Mar 01 2019 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7_6.1]
+- ip-route: Fix nexthop encap parsing (Phil Sutter) [1679996]
+- man: ip-route.8: Document nexthop limit (Phil Sutter) [1679996]
+- ip-route: Fix segfault with many nexthops (Phil Sutter) [1679996]
+- iproute: Abort if nexthop cannot be parsed (Phil Sutter) [1679996]
+
 * Tue Mar 06 2018 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7]
 - ip-link: Fix use after free in nl_get_ll_addr_len() (Phil Sutter) [1550097]
 

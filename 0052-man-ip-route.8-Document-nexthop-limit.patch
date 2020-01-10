@@ -1,0 +1,46 @@
+From d511d7e60866060e260ec3f96b51a61c98c2c06f Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Thu, 21 Feb 2019 14:39:46 +0100
+Subject: [PATCH] man: ip-route.8: Document nexthop limit
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1624656
+Upstream Status: iproute2.git commit 6cd959bb125c5
+
+commit 6cd959bb125c50a04ab6671645fa38c5b07426f4
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Tue Nov 13 16:55:13 2018 +0100
+
+    man: ip-route.8: Document nexthop limit
+
+    Add a note to 'nexthop' description stating the maximum number of
+    nexthops per command and pointing at 'append' command as a workaround.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ man/man8/ip-route.8.in | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/man/man8/ip-route.8.in b/man/man8/ip-route.8.in
+index d6e0664..d9a5477 100644
+--- a/man/man8/ip-route.8.in
++++ b/man/man8/ip-route.8.in
+@@ -548,6 +548,15 @@ argument lists:
+ route reflecting its relative bandwidth or quality.
+ .in -8
+ 
++The internal buffer used in iproute2 limits the maximum number of nexthops that
++may be specified in one go. If only
++.I ADDRESS
++is given, the current buffer size allows for 144 IPv6 nexthops and 253 IPv4
++ones. For IPv4, this effectively limits the number of nexthops possible per
++route. With IPv6, further nexthops may be appended to the same route via
++.B "ip route append"
++command.
++
+ .TP
+ .BI scope " SCOPE_VAL"
+ the scope of the destinations covered by the route prefix.
+-- 
+1.8.3.1
+
