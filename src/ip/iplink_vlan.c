@@ -21,15 +21,17 @@
 static void print_explain(FILE *f)
 {
 	fprintf(f,
-		"Usage: ... vlan [ protocol VLANPROTO ] id VLANID"
-		"                [ FLAG-LIST ]\n"
-		"                [ ingress-qos-map QOS-MAP ] [ egress-qos-map QOS-MAP ]\n"
+		"Usage: ... vlan id VLANID\n"
+		"                [ protocol VLANPROTO ]\n"
+		"                [ reorder_hdr { on | off } ]\n"
+		"                [ gvrp { on | off } ]\n"
+		"                [ mvrp { on | off } ]\n"
+		"                [ loose_binding { on | off } ]\n"
+		"                [ ingress-qos-map QOS-MAP ]\n"
+		"                [ egress-qos-map QOS-MAP ]\n"
 		"\n"
-		"VLANPROTO: [ 802.1Q / 802.1ad ]\n"
 		"VLANID := 0-4095\n"
-		"FLAG-LIST := [ FLAG-LIST ] FLAG\n"
-		"FLAG := [ reorder_hdr { on | off } ] [ gvrp { on | off } ] [ mvrp { on | off } ]\n"
-		"        [ loose_binding { on | off } ]\n"
+		"VLANPROTO: [ 802.1Q / 802.1ad ]\n"
 		"QOS-MAP := [ QOS-MAP ] QOS-MAPPING\n"
 		"QOS-MAPPING := FROM:TO\n"
 	);
@@ -182,7 +184,7 @@ static void vlan_print_flags(FILE *fp, __u32 flags)
 {
 	fprintf(fp, "<");
 #define _PF(f)	if (flags & VLAN_FLAG_##f) { \
-			flags &= ~ VLAN_FLAG_##f; \
+			flags &= ~VLAN_FLAG_##f; \
 			fprintf(fp, #f "%s", flags ? "," : ""); \
 		}
 	_PF(REORDER_HDR);
@@ -198,6 +200,7 @@ static void vlan_print_flags(FILE *fp, __u32 flags)
 static void vlan_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 {
 	struct ifla_vlan_flags *flags;
+
 	SPRINT_BUF(b1);
 
 	if (!tb)

@@ -5,64 +5,67 @@ tc \- show / manipulate traffic control settings
 .B tc
 .RI "[ " OPTIONS " ]"
 .B qdisc [ add | change | replace | link | delete ] dev
-DEV
+\fIDEV\fR
 .B
 [ parent
-qdisc-id
+\fIqdisc-id\fR
 .B | root ]
 .B [ handle
-qdisc-id ] qdisc
+\fIqdisc-id\fR ] qdisc
 [ qdisc specific parameters ]
 .P
 
 .B tc
 .RI "[ " OPTIONS " ]"
 .B class [ add | change | replace | delete ] dev
-DEV
+\fIDEV\fR
 .B parent
-qdisc-id
+\fIqdisc-id\fR
 .B [ classid
-class-id ] qdisc
+\fIclass-id\fR ] qdisc
 [ qdisc specific parameters ]
 .P
 
 .B tc
 .RI "[ " OPTIONS " ]"
-.B filter [ add | change | replace | delete ] dev
-DEV
+.B filter [ add | change | replace | delete | get ] dev
+\fIDEV\fR
 .B [ parent
-qdisc-id
-.B | root ] protocol
-protocol
+\fIqdisc-id\fR
+.B | root ] [ handle \fIfilter-id\fR ]
+.B protocol
+\fIprotocol\fR
 .B prio
-priority filtertype
+\fIpriority\fR filtertype
 [ filtertype specific parameters ]
 .B flowid
-flow-id
+\fIflow-id\fR
 
 .B tc
 .RI "[ " OPTIONS " ]"
 .RI "[ " FORMAT " ]"
 .B qdisc show [ dev
-DEV
+\fIDEV\fR
 .B ]
 .P
 .B tc
 .RI "[ " OPTIONS " ]"
 .RI "[ " FORMAT " ]"
 .B class show dev
-DEV
+\fIDEV\fR
 .P
 .B tc
 .RI "[ " OPTIONS " ]"
 .B filter show dev
-DEV
+\fIDEV\fR
 
 .P
 .ti 8
 .IR OPTIONS " := {"
-\fB[ -force ] [ -OK ] -b\fR[\fIatch\fR] \fB[ filename ] \fR|
-\fB[ \fB-n\fR[\fIetns\fR] name \fB] \fR}
+\fB[ -force ] -b\fR[\fIatch\fR] \fB[ filename ] \fR|
+\fB[ \fB-n\fR[\fIetns\fR] name \fB] \fR|
+\fB[ \fB-nm \fR| \fB-nam\fR[\fIes\fR] \fB] \fR|
+\fB[ \fR{ \fB-cf \fR| \fB-c\fR[\fIonf\fR] \fR} \fB[ filename ] \fB] \fR}
 
 .ti 8
 .IR FORMAT " := {"
@@ -70,7 +73,8 @@ DEV
 \fB\-d\fR[\fIetails\fR] |
 \fB\-r\fR[\fIaw\fR] |
 \fB\-p\fR[\fIretty\fR] |
-\fB\-i\fR[\fIec\fR] }
+\fB\-i\fR[\fIec\fR] |
+\fB\-g\fR[\fIraph\fR] }
 
 .SH DESCRIPTION
 .B Tc
@@ -158,9 +162,10 @@ Filter packets based on the control group of their process. See
 . BR tc-cgroup (8)
 for details.
 .TP
-flow
-Flow-based classifier, filtering packets based on their flow (identified by selectable keys). See
-.BR tc-flow (8)
+flow, flower
+Flow-based classifiers, filtering packets based on their flow (identified by selectable keys). See
+.BR tc-flow "(8) and"
+.BR tc-flower (8)
 for details.
 .TP
 fw
@@ -177,11 +182,16 @@ Match Resource Reservation Protocol (RSVP) packets.
 .TP
 tcindex
 Filter packets based on traffic control index. See
-.BR tc-index (8).
+.BR tc-tcindex (8).
 .TP
 u32
 Generic filtering on arbitrary packet data, assisted by syntax to abstract common operations. See
 .BR tc-u32 (8)
+for details.
+.TP
+matchall
+Traffic control filter that matches every packet. See
+.BR tc-matchall (8)
 for details.
 
 .SH CLASSLESS QDISCS
@@ -285,14 +295,14 @@ In the absence of classful qdiscs, classless qdiscs can only be attached at
 the root of a device. Full syntax:
 .P
 .B tc qdisc add dev
-DEV
+\fIDEV\fR
 .B root
 QDISC QDISC-PARAMETERS
 
 To remove, issue
 .P
 .B tc qdisc del dev
-DEV
+\fIDEV\fR
 .B root
 
 The
@@ -377,7 +387,7 @@ Type of Service
 Some qdiscs have built in rules for classifying packets based on the TOS field.
 .TP
 skb->priority
-Userspace programs can encode a class-id in the 'skb->priority' field using
+Userspace programs can encode a \fIclass-id\fR in the 'skb->priority' field using
 the SO_PRIORITY option.
 .P
 Each node within the tree can have its own filters but higher level filters
@@ -390,23 +400,33 @@ attached to that class. Check qdisc specific manpages for details, however.
 All qdiscs, classes and filters have IDs, which can either be specified
 or be automatically assigned.
 
-IDs consist of a major number and a minor number, separated by a colon.
-Both major and minor number are limited to 16 bits. There are two special
-values: root is signified by major and minor of all ones, and unspecified
-is all zeros.
+IDs consist of a
+.BR major " number and a " minor
+number, separated by a colon -
+.BR major ":" minor "."
+Both
+.BR major " and " minor
+are hexadecimal numbers and are limited to 16 bits. There are two special
+values: root is signified by
+.BR major " and " minor
+of all ones, and unspecified is all zeros.
 
 .TP
 QDISCS
-A qdisc, which potentially can have children,
-gets assigned a major number, called a 'handle', leaving the minor
+A qdisc, which potentially can have children, gets assigned a
+.B major
+number, called a 'handle', leaving the
+.B minor
 number namespace available for classes. The handle is expressed as '10:'.
-It is customary to explicitly assign a handle to qdiscs expected to have
-children.
+It is customary to explicitly assign a handle to qdiscs expected to have children.
 
 .TP
 CLASSES
-Classes residing under a qdisc share their qdisc major number, but each have
-a separate minor number called a 'classid' that has no relation to their
+Classes residing under a qdisc share their qdisc
+.B major
+number, but each have a separate
+.B minor
+number called a 'classid' that has no relation to their
 parent classes, only to their parent qdisc. The same naming custom as for
 qdiscs applies.
 
@@ -535,7 +555,7 @@ must be passed, either by passing its ID or by attaching directly to the root of
 When creating a qdisc or a filter, it can be named with the
 .B handle
 parameter. A class is named with the
-.B classid
+.B \fBclassid\fR
 parameter.
 
 .TP
@@ -557,6 +577,15 @@ Performs a nearly atomic remove/add on an existing node id. If the node does not
 it is created.
 
 .TP
+get
+Displays a single filter given the interface \fIDEV\fR, \fIqdisc-id\fR,
+\fIpriority\fR, \fIprotocol\fR and \fIfilter-id\fR.
+
+.TP
+show
+Displays all filters attached to the given interface. A valid parent ID must be passed.
+
+.TP
 link
 Only available for qdiscs and performs a replace where the node
 must exist already.
@@ -572,12 +601,6 @@ First failure will cause termination of tc.
 .BR "\-force"
 don't terminate tc on errors in batch mode.
 If there were any errors during execution of the commands, the application return code will be non zero.
-
-.TP
-.BR "\-OK"
-in batch mode, print
-.B OK
-and a new line on standard output after each successfully interpreted command.
 
 .TP
 .BR "\-n" , " \-net" , " \-netns " <NETNS>
@@ -598,6 +621,11 @@ to
 .B tc
 .RI "-n[etns] " NETNS " [ " OPTIONS " ] " OBJECT " { " COMMAND " | "
 .BR help " }"
+
+.TP
+.BR "\-cf" , " \-conf " <FILENAME>
+specifies path to the config file. This option is used in conjunction with other options (e.g.
+.BR -nm ")."
 
 .SH FORMAT
 The show command has additional formatting options:
@@ -622,12 +650,73 @@ decode filter offset and mask values to equivalent filter commands based on TCP/
 .BR "\-iec"
 print rates in IEC units (ie. 1K = 1024).
 
+.TP
+.BR "\-g", " \-graph"
+shows classes as ASCII graph. Prints generic stats info under each class if
+.BR "-s"
+option was specified. Classes can be filtered only by
+.BR "dev"
+option.
+
+.TP
+.BR "\-nm" , " \-name"
+resolve class name from
+.B /etc/iproute2/tc_cls
+file or from file specified by
+.B -cf
+option. This file is just a mapping of
+.B classid
+to class name:
+
+.RS 10
+# Here is comment
+.RE
+.RS 10
+1:40   voip # Here is another comment
+.RE
+.RS 10
+1:50   web
+.RE
+.RS 10
+1:60   ftp
+.RE
+.RS 10
+1:2    home
+.RE
+
+.RS
+.B tc
+will not fail if
+.B -nm
+was specified without
+.B -cf
+option but
+.B /etc/iproute2/tc_cls
+file does not exist, which makes it possible to pass
+.B -nm
+option for creating
+.B tc
+alias.
+.RE
+
+.SH "EXAMPLES"
+.PP
+tc -g class show dev eth0
+.RS 4
+Shows classes as ASCII graph on eth0 interface.
+.RE
+.PP
+tc -g -s class show dev eth0
+.RS 4
+Shows classes as ASCII graph with stats info under each class.
+
 .SH HISTORY
 .B tc
 was written by Alexey N. Kuznetsov and added in Linux 2.2.
 .SH SEE ALSO
 .BR tc-basic (8),
 .BR tc-bfifo (8),
+.BR tc-bpf (8),
 .BR tc-cbq (8),
 .BR tc-cgroup (8),
 .BR tc-choke (8),
@@ -635,12 +724,14 @@ was written by Alexey N. Kuznetsov and added in Linux 2.2.
 .BR tc-drr (8),
 .BR tc-ematch (8),
 .BR tc-flow (8),
+.BR tc-flower (8),
 .BR tc-fq (8),
 .BR tc-fq_codel (8),
 .BR tc-fw (8),
 .BR tc-hfsc (7),
 .BR tc-hfsc (8),
 .BR tc-htb (8),
+.BR tc-mqprio (8),
 .BR tc-pfifo (8),
 .BR tc-pfifo_fast (8),
 .BR tc-red (8),

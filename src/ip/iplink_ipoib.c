@@ -22,8 +22,9 @@
 static void print_explain(FILE *f)
 {
 	fprintf(f,
-		"Usage: ... ipoib [pkey PKEY] [mode {datagram | connected}]"
-		"[umcast {0|1}]\n"
+		"Usage: ... ipoib [ pkey PKEY ]\n"
+		"                 [ mode {datagram | connected} ]\n"
+		"                 [ umcast {0|1} ]\n"
 		"\n"
 		"PKEY  := 0x8001-0xffff\n"
 	);
@@ -36,8 +37,7 @@ static void explain(void)
 
 static int mode_arg(void)
 {
-	fprintf(stderr, "Error: argument of \"mode\" must be \"datagram\""
-		"or \"connected\"\n");
+	fprintf(stderr, "Error: argument of \"mode\" must be \"datagram\"or \"connected\"\n");
 	return -1;
 }
 

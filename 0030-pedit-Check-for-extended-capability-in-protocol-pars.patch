@@ -1,0 +1,55 @@
+From 0bc6d74ce3291b669bc05524b404bc6914dab5ba Mon Sep 17 00:00:00 2001
+From: Kamal Heib <kheib@redhat.com>
+Date: Thu, 9 Nov 2017 04:44:32 -0500
+Subject: [PATCH] pedit: Check for extended capability in protocol parser
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1456539
+
+commit a13426fe1a2b0fdebacc33820105523934eb355f
+Author: Amir Vadai <amir@vadai.me>
+Date:   Sun May 14 11:17:45 2017 +0300
+
+    pedit: Check for extended capability in protocol parser
+
+    Do not allow using eth and udp header types if non-extended pedit kABI
+    is being used. Other protocol parsers already have this check.
+
+    Signed-off-by: Amir Vadai <amir@vadai.me>
+
+Signed-off-by: Kamal Heib <kheib@redhat.com>
+---
+ tc/p_eth.c | 3 +++
+ tc/p_udp.c | 3 +++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/tc/p_eth.c b/tc/p_eth.c
+index ad3e28f..2d2f96c 100644
+--- a/tc/p_eth.c
++++ b/tc/p_eth.c
+@@ -34,6 +34,9 @@ parse_eth(int *argc_p, char ***argv_p,
+ 	if (argc < 2)
+ 		return -1;
+ 
++	if (!sel->extended)
++		return -1;
++
+ 	tkey->htype = TCA_PEDIT_KEY_EX_HDR_TYPE_ETH;
+ 
+ 	if (strcmp(*argv, "type") == 0) {
+diff --git a/tc/p_udp.c b/tc/p_udp.c
+index a56a1b5..3916d95 100644
+--- a/tc/p_udp.c
++++ b/tc/p_udp.c
+@@ -34,6 +34,9 @@ parse_udp(int *argc_p, char ***argv_p,
+ 	if (argc < 2)
+ 		return -1;
+ 
++	if (!sel->extended)
++		return -1;
++
+ 	tkey->htype = TCA_PEDIT_KEY_EX_HDR_TYPE_UDP;
+ 
+ 	if (strcmp(*argv, "sport") == 0) {
+-- 
+1.8.3.1
+

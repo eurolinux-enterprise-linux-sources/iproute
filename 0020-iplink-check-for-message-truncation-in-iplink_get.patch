@@ -1,0 +1,51 @@
+From 8372b7bb8f7211563d888fdd30e473c161f7d0a0 Mon Sep 17 00:00:00 2001
+From: Hangbin Liu <haliu@redhat.com>
+Date: Wed, 8 Nov 2017 14:39:10 +0800
+Subject: [PATCH] iplink: check for message truncation in iplink_get()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1380803
+Upstream Status: iproute2.git commit 6599162b958e
+
+commit 6599162b958ea5a43d729df4f30aad515db26ff4
+Author: Michal Kubecek <mkubecek@suse.cz>
+Date:   Fri Sep 1 18:39:11 2017 +0200
+
+    iplink: check for message truncation in iplink_get()
+
+    If message length exceeds maxlen argument of rtnl_talk(), it is truncated
+    to maxlen but unlike in the case of truncation to the length of local
+    buffer in rtnl_talk(), the caller doesn't get any indication of a problem.
+
+    In particular, iplink_get() passes the truncated message on and parsing it
+    results in various warnings and sometimes even a segfault (observed with
+    "ip link show dev ..." for a NIC with 125 VFs).
+
+    Handle message truncation in iplink_get() the same way as truncation in
+    rtnl_talk() would be handled: return an error.
+
+    Signed-off-by: Michal Kubecek <mkubecek@suse.cz>
+
+Signed-off-by: Hangbin Liu <haliu@redhat.com>
+---
+ ip/iplink.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/ip/iplink.c b/ip/iplink.c
+index da3f9a7..2b2421f 100644
+--- a/ip/iplink.c
++++ b/ip/iplink.c
+@@ -1031,6 +1031,11 @@ int iplink_get(unsigned int flags, char *name, __u32 filt_mask)
+ 
+ 	if (rtnl_talk(&rth, &req.n, &answer.n, sizeof(answer)) < 0)
+ 		return -2;
++	if (answer.n.nlmsg_len > sizeof(answer.buf)) {
++		fprintf(stderr, "Message truncated from %u to %lu\n",
++			answer.n.nlmsg_len, sizeof(answer.buf));
++		return -2;
++	}
+ 
+ 	if (brief)
+ 		print_linkinfo_brief(NULL, &answer.n, stdout);
+-- 
+1.8.3.1
+

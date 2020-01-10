@@ -36,7 +36,7 @@ static void print_slave_state(FILE *f, struct rtattr *tb)
 {
 	unsigned int state = rta_getattr_u8(tb);
 
-	if (state >= sizeof(slave_states) / sizeof(slave_states[0]))
+	if (state >= ARRAY_SIZE(slave_states))
 		fprintf(f, "state %d ", state);
 	else
 		fprintf(f, "state %s ", slave_states[state]);
@@ -53,7 +53,7 @@ static void print_slave_mii_status(FILE *f, struct rtattr *tb)
 {
 	unsigned int status = rta_getattr_u8(tb);
 
-	if (status >= sizeof(slave_mii_status) / sizeof(slave_mii_status[0]))
+	if (status >= ARRAY_SIZE(slave_mii_status))
 		fprintf(f, "mii_status %d ", status);
 	else
 		fprintf(f, "mii_status %s ", slave_mii_status[status]);
@@ -130,10 +130,9 @@ static void bond_slave_print_help(struct link_util *lu, int argc, char **argv,
 }
 
 struct link_util bond_slave_link_util = {
-	.id		= "bond",
+	.id		= "bond_slave",
 	.maxattr	= IFLA_BOND_SLAVE_MAX,
 	.print_opt	= bond_slave_print_opt,
 	.parse_opt	= bond_slave_parse_opt,
 	.print_help	= bond_slave_print_help,
-	.slave		= true,
 };

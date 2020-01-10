@@ -1,0 +1,93 @@
+From 2dc48cc4101b9788dcafd38b07a82f8c91b4d3f6 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Thu, 31 Aug 2017 14:23:11 +0200
+Subject: [PATCH] ss: Fix for added diag support check
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1487152
+Upstream Status: iproute2.git commit 6c6bbc30f4e7f
+
+commit 6c6bbc30f4e7fedc74381627f7ec86d26050b404
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Mon Aug 28 19:31:22 2017 +0200
+
+    ss: Fix for added diag support check
+
+    Commit 9f66764e308e9 ("libnetlink: Add test for error code returned from
+    netlink reply") changed rtnl_dump_filter_l() to return an error in case
+    NLMSG_DONE would contain one, even if it was ENOENT.
+
+    This in turn breaks ss when it tries to dump DCCP sockets on a system
+    without support for it: The function tcp_show(), which is shared between
+    TCP and DCCP, will start parsing /proc since inet_show_netlink() returns
+    an error - yet it parses /proc/net/tcp which doesn't make sense for DCCP
+    sockets at all.
+
+    On my system, a call to 'ss' without further arguments prints the list
+    of connected TCP sockets twice.
+
+    Fix this by introducing a dedicated function dccp_show() which does not
+    have a fallback to /proc, just like sctp_show(). And since tcp_show()
+    is no longer "multi-purpose", drop it's socktype parameter.
+
+    Fixes: 9f66764e308e9 ("libnetlink: Add test for error code returned from netlink reply")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ misc/ss.c | 20 ++++++++++++++++----
+ 1 file changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/misc/ss.c b/misc/ss.c
+index 12763c9..b84baf3 100644
+--- a/misc/ss.c
++++ b/misc/ss.c
+@@ -2735,7 +2735,7 @@ static int tcp_show_netlink_file(struct filter *f)
+ 	}
+ }
+ 
+-static int tcp_show(struct filter *f, int socktype)
++static int tcp_show(struct filter *f)
+ {
+ 	FILE *fp = NULL;
+ 	char *buf = NULL;
+@@ -2750,7 +2750,7 @@ static int tcp_show(struct filter *f, int socktype)
+ 		return tcp_show_netlink_file(f);
+ 
+ 	if (!getenv("PROC_NET_TCP") && !getenv("PROC_ROOT")
+-	    && inet_show_netlink(f, NULL, socktype) == 0)
++	    && inet_show_netlink(f, NULL, IPPROTO_TCP) == 0)
+ 		return 0;
+ 
+ 	/* Sigh... We have to parse /proc/net/tcp... */
+@@ -2818,6 +2818,18 @@ outerr:
+ 	} while (0);
+ }
+ 
++static int dccp_show(struct filter *f)
++{
++	if (!filter_af_get(f, AF_INET) && !filter_af_get(f, AF_INET6))
++		return 0;
++
++	if (!getenv("PROC_NET_DCCP") && !getenv("PROC_ROOT")
++	    && inet_show_netlink(f, NULL, IPPROTO_DCCP) == 0)
++		return 0;
++
++	return 0;
++}
++
+ static int sctp_show(struct filter *f)
+ {
+ 	if (!filter_af_get(f, AF_INET) && !filter_af_get(f, AF_INET6))
+@@ -4368,9 +4380,9 @@ int main(int argc, char *argv[])
+ 	if (current_filter.dbs & (1<<UDP_DB))
+ 		udp_show(&current_filter);
+ 	if (current_filter.dbs & (1<<TCP_DB))
+-		tcp_show(&current_filter, IPPROTO_TCP);
++		tcp_show(&current_filter);
+ 	if (current_filter.dbs & (1<<DCCP_DB))
+-		tcp_show(&current_filter, IPPROTO_DCCP);
++		dccp_show(&current_filter);
+ 	if (current_filter.dbs & (1<<SCTP_DB))
+ 		sctp_show(&current_filter);
+ 
+-- 
+1.8.3.1
+

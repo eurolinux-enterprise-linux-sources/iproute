@@ -1,0 +1,102 @@
+From 3d016b2ca5862b3f47da5b28aca43bd96d5c3c49 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 11 Aug 2017 11:13:26 +0200
+Subject: [PATCH] tc-simple: Fix documentation
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1477523
+Upstream Status: iproute2.git commit e2a055dd23f0e
+
+commit e2a055dd23f0e7527a987c24687cb6b0b86f0cde
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Aug 3 17:00:51 2017 +0200
+
+    tc-simple: Fix documentation
+
+    - CONTROL has to come last, otherwise 'index' applies to gact and not
+      simple itself.
+    - Man page wasn't updated to reflect syntax changes.
+
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ man/man8/tc-simple.8 | 29 ++++++++++++++++++++++++++---
+ tc/m_simple.c        |  4 ++--
+ 2 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/man/man8/tc-simple.8 b/man/man8/tc-simple.8
+index 2206dc3..7363ab5 100644
+--- a/man/man8/tc-simple.8
++++ b/man/man8/tc-simple.8
+@@ -6,15 +6,37 @@ simple - basic example action
+ .in +8
+ .ti -8
+ .BR tc " ... " "action simple"
+-.I STRING
++[
++.BI sdata " STRING"
++] [
++.BI index " INDEX"
++] [
++.I CONTROL
++]
++
++.ti -8
++.IR CONTROL " := {"
++.BR reclassify " | " pipe " | " drop " | " continue " | " ok " }"
++
+ .SH DESCRIPTION
+ This is a pedagogical example rather than an actually useful action. Upon every access, it prints the given
+ .I STRING
+ which may be of arbitrary length.
+ .SH OPTIONS
+ .TP
+-.I STRING
++.BI sdata " STRING"
+ The actual string to print.
++.TP
++.BI index " INDEX"
++Optional action index value.
++.TP
++.I CONTROL
++Indicate how
++.B tc
++should proceed after executing the action. For a description of the possible
++.I CONTROL
++values, see
++.BR tc-actions (8).
+ .SH EXAMPLES
+ The following example makes the kernel yell "Incoming ICMP!" every time it sees
+ an incoming ICMP on eth0. Steps are:
+@@ -36,7 +58,7 @@ display stats again and observe increment by 1
+ .EX
+   hadi@noma1:$ tc qdisc add dev eth0 ingress
+   hadi@noma1:$tc filter add dev eth0 parent ffff: protocol ip prio 5 \\
+-	 u32 match ip protocol 1 0xff flowid 1:1 action simple "Incoming ICMP"
++	 u32 match ip protocol 1 0xff flowid 1:1 action simple sdata "Incoming ICMP"
+ 
+   hadi@noma1:$ sudo tc -s filter ls  dev eth0 parent ffff:
+    filter protocol ip pref 5 u32
+@@ -74,3 +96,4 @@ display stats again and observe increment by 1
+ .EE
+ .SH SEE ALSO
+ .BR tc (8)
++.BR tc-actions (8)
+diff --git a/tc/m_simple.c b/tc/m_simple.c
+index 3a8bd91..ab63384 100644
+--- a/tc/m_simple.c
++++ b/tc/m_simple.c
+@@ -81,10 +81,10 @@
+ #endif
+ static void explain(void)
+ {
+-	fprintf(stderr, "Usage:... simple [sdata STRING] [CONTROL] [index INDEX]\n");
++	fprintf(stderr, "Usage:... simple [sdata STRING] [index INDEX] [CONTROL]\n");
+ 	fprintf(stderr, "\tSTRING being an arbitrary string\n"
+-		"\tCONTROL := reclassify|pipe|drop|continue|ok\n"
+ 		"\tINDEX := optional index value used\n");
++		"\tCONTROL := reclassify|pipe|drop|continue|ok\n"
+ }
+ 
+ static void usage(void)
+-- 
+1.8.3.1
+

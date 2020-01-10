@@ -1,0 +1,92 @@
+From 61ccf0f453306e727e254e6de1641bb934a3b7ec Mon Sep 17 00:00:00 2001
+From: Hangbin Liu <haliu@redhat.com>
+Date: Wed, 8 Nov 2017 14:39:07 +0800
+Subject: [PATCH] netlink: Change rtnl_dump_done to always show error
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1380803
+Upstream Status: iproute2.git commit 05a14fc12188
+
+commit 05a14fc1218885ba6236b409fbf6b89976b8636e
+Author: David Ahern <dsahern@gmail.com>
+Date:   Tue May 16 14:22:46 2017 -0700
+
+    netlink: Change rtnl_dump_done to always show error
+
+    The original code which became rtnl_dump_done only shows netlink errors
+    if the protocol is NETLINK_SOCK_DIAG, but netlink dumps always appends
+    the length which contains any error encountered during the dump. Update
+    rtnl_dump_done to always show the error if there is one.
+
+    As an *example* without this patch, dumping a route object that exceeds
+    the internal buffer size terminates with no message to the user -- the
+    dump just ends because the NLMSG_DONE attribute was received. With this
+    patch the user at least gets a message that the dump was aborted.
+
+    $ ip ro ls
+    default via 10.0.2.2 dev eth0
+    10.0.2.0/24 dev eth0 proto kernel scope link src 10.0.2.15
+    10.10.0.0/16 dev veth1 proto kernel scope link src 10.10.0.1
+    172.16.1.0/24 dev br0.11 proto kernel scope link src 172.16.1.1
+    Error: Buffer too small for object
+    Dump terminated
+
+    The point of this patch is to notify the user of a failure versus
+    silently exiting on a partial dump. Because the NLMSG_DONE attribute
+    was received, the entire dump needs to be restarted to use a larger
+    buffer for EMSGSIZE errors. That could be done automatically but it
+    has other user impacts (e.g., duplicate output if the dump is
+    restarted) and should be the subject of a different patch.
+
+    Signed-off-by: David Ahern <dsahern@gmail.com>
+
+Signed-off-by: Hangbin Liu <haliu@redhat.com>
+---
+ lib/libnetlink.c | 28 +++++++++++++++++-----------
+ 1 file changed, 17 insertions(+), 11 deletions(-)
+
+diff --git a/lib/libnetlink.c b/lib/libnetlink.c
+index 9303b66..e91bd5a 100644
+--- a/lib/libnetlink.c
++++ b/lib/libnetlink.c
+@@ -266,21 +266,27 @@ static int rtnl_dump_done(const struct rtnl_handle *rth,
+ {
+ 	int len = *(int *)NLMSG_DATA(h);
+ 
+-	if (rth->proto == NETLINK_SOCK_DIAG) {
+-		if (h->nlmsg_len < NLMSG_LENGTH(sizeof(int))) {
+-			fprintf(stderr, "DONE truncated\n");
+-			return -1;
+-		}
+-
++	if (h->nlmsg_len < NLMSG_LENGTH(sizeof(int))) {
++		fprintf(stderr, "DONE truncated\n");
++		return -1;
++	}
+ 
+-		if (len < 0) {
+-			errno = -len;
+-			if (errno == ENOENT || errno == EOPNOTSUPP)
+-				return -1;
++	if (len < 0) {
++		errno = -len;
++		switch (errno) {
++		case ENOENT:
++		case EOPNOTSUPP:
++			return -1;
++		case EMSGSIZE:
++			fprintf(stderr,
++				"Error: Buffer too small for object.\n");
++			break;
++		default:
+ 			perror("RTNETLINK answers");
+-			return len;
+ 		}
++		return len;
+ 	}
++
+ 	return 0;
+ }
+ 
+-- 
+1.8.3.1
+

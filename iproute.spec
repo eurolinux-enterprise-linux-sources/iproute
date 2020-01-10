@@ -1,8 +1,8 @@
 %global             cbq_version v0.7.3
 
-%define rpmversion 3.10.0
-%define baserelease 74.el7
-%define specrelease 87%{?dist}
+%define rpmversion 4.11.0
+%define baserelease 0.el7
+%define specrelease 14%{?dist}
 %define pkg_release %{specrelease}%{?buildid}
 
 Summary:            Advanced IP routing and network device configuration tools
@@ -14,175 +14,50 @@ URL:                http://kernel.org/pub/linux/utils/net/%{name}2/
 Source0:            %{name}-%{rpmversion}-%{baserelease}.tar.xz
 Source1:            cbq-0000.example
 Source2:            avpkt
-Patch0:             0001-misc-ss-tcp-cwnd-should-be-unsigned.patch
-Patch1:             0002-macsec-fix-input-of-port-improve-documentation-of-ad.patch
-Patch2:             0003-macsec-fix-byte-ordering-on-input-display-of-sci.patch
-Patch3:             0004-update-inet_diag.h-header.patch
-Patch4:             0005-include-Add-linux-sctp.h.patch
-Patch5:             0006-ss-Add-support-for-SCTP-protocol.patch
-Patch6:             0007-remove-unnecessary-extern.patch
-Patch7:             0008-utils-add-missing-return-value.patch
-Patch8:             0009-libnetlink-introduce-rta_nest-and-u8-u16-u64-helpers.patch
-Patch14:            0015-ip-route-Prevent-some-double-spaces-in-output.patch
-Patch15:            0016-ipaddress-Simplify-vf_info-parsing.patch
-Patch16:            0017-ipaddress-Print-IFLA_VF_QUERY_RSS_EN-setting.patch
-Patch17:            0018-ip-vfinfo-remove-code-duplication-for-IFLA_VF_RSS_QU.patch
-Patch18:            0019-macsec-fix-input-range-of-icvlen-parameter.patch
-Patch19:            0020-iplink-bridge_slave-add-support-for-IFLA_BRPORT_MULT.patch
-Patch20:            0021-iplink-bridge_slave-add-support-for-IFLA_BRPORT_FAST.patch
-Patch21:            0022-man-ip-link-Remove-bits-about-proxy_arp-and-proxy_ar.patch
-Patch22:            0023-iplink-add-missing-link-type.patch
-Patch23:            0024-Revert-man-ip-link-Remove-bits-about-proxy_arp-and-p.patch
-Patch24:            0025-iplink-bridge_slave-add-support-for-IFLA_BRPORT_PROX.patch
-Patch25:            0026-iplink-bridge_slave-add-support-for-IFLA_BRPORT_PROX.patch
-Patch26:            0027-bridge-fix-reporting-of-IPv6-addresses.patch
-Patch27:            0028-iproute2-ipa-show-port-id.patch
-Patch28:            0029-bridge-Add-learning-and-flood-support.patch
-Patch29:            0030-bridge-Make-filter_index-match-in-signedness.patch
-Patch30:            0031-link-dump-filter.patch
-Patch31:            0032-iproute2-bridge-bring-to-above-par-with-brctl-show-m.patch
-Patch32:            0033-bridge-fdb-fix-statistics-output-spacing.patch
-Patch33:            0034-bridge-fdb-add-flag-indication-for-FDB-entry-synced-.patch
-Patch34:            0035-bridge-link-add-option-self.patch
-Patch35:            0036-bridge-link-add-learning_sync-policy-flag.patch
-Patch36:            0037-iproute2-bridge-support-vlan-range-adds.patch
-Patch37:            0038-iproute2-bridge-vlan-show-new-option-to-print-ranges.patch
-Patch38:            0039-Allow-specifying-bridge-port-STP-state-by-name-rathe.patch
-Patch39:            0040-bridge-link-add-support-to-specify-master.patch
-Patch40:            0041-fix-ip-force-batch-to-continue-on-errors.patch
-Patch41:            0042-route-label-externally-offloaded-routes.patch
-Patch42:            0043-iproute2-unify-naming-for-entries-offloaded-to-hardw.patch
-Patch43:            0044-ip-return-correct-exit-code-on-route-failure.patch
-Patch44:            0045-iproute2-ipa-show-switch-id.patch
-Patch45:            0046-ip-fix-all-the-checkpatch-warnings.patch
-Patch46:            0047-bridge-mdb-add-support-for-router-add-del-notificati.patch
-Patch47:            0048-ip-link-proto_down-config-and-display.patch
-Patch48:            0049-bridge-mdb-add-support-for-vlans.patch
-Patch49:            0050-bridge-mdb-add-deleted-when-monitoring-delmdb-event.patch
-Patch50:            0051-iplink-add-support-for-IFLA_BR_VLAN_FILTERING-attrib.patch
-Patch51:            0052-iplink-Add-support-for-IFLA_BR_VLAN_PROTOCOL-attribu.patch
-Patch52:            0053-bridge-add-batch-command-support.patch
-Patch53:            0054-ip-bridge-document-timestamp-option.patch
-Patch54:            0055-bridge-add-calls-to-fflush-in-fdb-and-mdb-print-func.patch
-Patch55:            0056-bridge-fdb-minor-syntax-fix-in-help-text.patch
-Patch56:            0057-bridge.8-document-fdb-replace-command.patch
-Patch57:            0058-bridge.8-minor-formatting-cleanup.patch
-Patch58:            0059-bridge-support-for-static-fdb-entries.patch
-Patch59:            0060-iplink-bridge-export-bridge_id-and-designated_root.patch
-Patch60:            0061-iplink-bridge-export-root_-port-path_cost-topology_c.patch
-Patch61:            0062-iplink-bridge-export-read-only-timers.patch
-Patch62:            0063-iplink-bridge-add-support-for-IFLA_BR_GROUP_FWD_MASK.patch
-Patch63:            0064-iplink-bridge-add-support-for-IFLA_BR_GROUP_ADDR.patch
-Patch64:            0065-iplink-bridge-add-support-for-IFLA_BR_VLAN_DEFAULT_P.patch
-Patch65:            0066-iplink-bridge-add-support-for-IFLA_BR_MCAST_ROUTER.patch
-Patch66:            0067-iplink-bridge-add-support-for-IFLA_BR_MCAST_SNOOPING.patch
-Patch67:            0068-iplink-bridge-add-support-for-IFLA_BR_MCAST_QUERY_US.patch
-Patch68:            0069-iplink-bridge-add-support-for-IFLA_BR_MCAST_QUERIER.patch
-Patch69:            0070-iplink-bridge-add-support-for-IFLA_BR_MCAST_HASH_ELA.patch
-Patch70:            0071-iplink-bridge-add-support-for-IFLA_BR_MCAST_HASH_MAX.patch
-Patch71:            0072-iplink-bridge-add-support-for-IFLA_BR_MCAST_LAST_MEM.patch
-Patch72:            0073-iplink-bridge-add-support-for-IFLA_BR_MCAST_STARTUP_.patch
-Patch73:            0074-iplink-bridge-add-support-for-IFLA_BR_MCAST_LAST_MEM.patch
-Patch74:            0075-iplink-bridge-add-support-for-IFLA_BR_MCAST_MEMBERSH.patch
-Patch75:            0076-iplink-bridge-add-support-for-IFLA_BR_MCAST_QUERIER_.patch
-Patch76:            0077-iplink-bridge-add-support-for-IFLA_BR_MCAST_QUERY_IN.patch
-Patch77:            0078-iplink-bridge-add-support-for-IFLA_BR_MCAST_QUERY_RE.patch
-Patch78:            0079-iplink-bridge-add-support-for-IFLA_BR_MCAST_STARTUP_.patch
-Patch79:            0080-iplink-bridge_slave-export-read-only-values.patch
-Patch80:            0081-bridge-add-support-for-dynamic-fdb-entries.patch
-Patch81:            0082-iplink-bridge-remove-unnecessary-returns.patch
-Patch82:            0083-bridge-mdb-add-user-space-support-for-extended-attri.patch
-Patch83:            0084-bridge-mdb-add-support-for-offloaded-mdb-entries.patch
-Patch84:            0085-bridge-mdb-add-support-for-extended-router-port-info.patch
-Patch85:            0086-bridge-code-cleanup.patch
-Patch86:            0087-bridge-fdb-add-support-to-filter-by-vlan-id.patch
-Patch87:            0088-bridge-mdb-add-support-to-filter-by-vlan-id.patch
-Patch88:            0089-bridge-vlan-add-support-to-filter-by-vlan-id.patch
-Patch89:            0090-bridge-vlan-fix-a-few-fdb-typos-in-vlan-doc.patch
-Patch90:            0091-bridge-man-fix-brige-typo.patch
-Patch91:            0092-bridge-man-fix-BPUD-typo.patch
-Patch92:            0093-bridge-man-fix-STP-LISTENING-description.patch
-Patch93:            0094-RH-INTERNAL-Update-kernel-headers-to-v4.10.0.patch
-Patch94:            0095-bridge-add-support-for-the-multicast-flood-flag.patch
-Patch95:            0096-change-of-rtnetlink-to-use-RTN_F_OFFLOAD.patch
-Patch96:            0097-ip-make-resolve-addr-to-print-names-rather-than-addr.patch
-Patch97:            0098-tc-add-support-for-Flower-classifier.patch
-Patch98:            0099-tc-improve-filter-help-texts-a-bit.patch
-Patch99:            0100-tc-add-a-man-page-for-flower-filter.patch
-Patch100:           0101-tc-ship-filter-man-pages-and-refer-to-them-in-tc.8.patch
-Patch101:           0102-ip6tunnel-print-local-remote-addresses-like-iptunnel.patch
-Patch102:           0103-tc-flower-no-need-to-specify-the-ethertype.patch
-Patch103:           0104-make-format_host-non-reentrant-by-default.patch
-Patch104:           0105-utils-make-rt_addr_n2a-non-reentrant-by-default.patch
-Patch105:           0106-lib-utils-introduce-rt_addr_n2a_rta.patch
-Patch106:           0107-utils-add-get_be-16-32-64-use-them-where-possible.patch
-Patch107:           0108-tc-flower-Add-skip_-hw-sw-support.patch
-Patch108:           0109-tc-flower-Introduce-vlan-support.patch
-Patch109:           0110-tc-flower-checkpatch-cleanups.patch
-Patch110:           0111-tc-flower-Fix-usage-message.patch
-Patch111:           0112-tc-flower-Support-matching-on-SCTP-ports.patch
-Patch112:           0113-libnetlink-Introduce-rta_getattr_be.patch
-Patch113:           0114-tc-cls_flower-Classify-packet-in-ip-tunnels.patch
-Patch114:           0115-tc-flower-remove-references-to-eth_type-in-manpage.patch
-Patch115:           0116-tc-flower-document-SCTP-ip_proto.patch
-Patch116:           0117-tc-flower-correct-name-of-ip_proto-parameter-to-flow.patch
-Patch117:           0118-tc-flower-make-use-of-flower_port_attr_type-safe-and.patch
-Patch118:           0119-tc-flower-introduce-enum-flower_endpoint.patch
-Patch119:           0120-tc-flower-support-matching-on-ICMP-type-and-code.patch
-Patch120:           0121-tc-cls_flower-Add-dest-UDP-port-to-tunnel-params.patch
-Patch121:           0122-tc-flower-Fix-typo-and-style-in-flower-man-page.patch
-Patch122:           0123-tc-flower-document-that-_ip-parameters-take-a-PREFIX.patch
-Patch123:           0124-tc-flower-Allow-_mac-options-to-accept-a-mask.patch
-Patch124:           0125-tc-cls_flower-Add-to-the-usage-encapsulation-dest-UD.patch
-Patch125:           0126-tc-flower-support-matching-flags.patch
-Patch126:           0127-tc-flower-Update-dest-UDP-port-documentation.patch
-Patch127:           0128-tc-flower-Fix-flower-output-for-src-and-dst-ports.patch
-Patch128:           0129-tc-flower-Add-missing-err-check-when-parsing-flower-.patch
-Patch129:           0130-tc-flower-Fix-incorrect-error-msg-about-eth-type.patch
-Patch130:           0131-kernel-headers-update.patch
-Patch131:           0132-tc-flower-Support-matching-ARP.patch
-Patch132:           0133-tc-flower-Refactor-matching-flags-to-be-more-user-fr.patch
-Patch133:           0134-f_flower-don-t-set-TCA_FLOWER_KEY_ETH_TYPE-for-proto.patch
-Patch134:           0135-tc-flower-use-correct-type-when-calling-flower_icmp_.patch
-Patch135:           0136-tc-flower-Update-documentation-to-indicate-ARP-takes.patch
-Patch136:           0137-tc-flower-provide-generic-masked-u8-parser-helper.patch
-Patch137:           0138-tc-flower-provide-generic-masked-u8-print-helper.patch
-Patch138:           0139-tc-flower-support-masked-ICMP-code-and-type-match.patch
-Patch139:           0140-tc-flower-Fix-parsing-ip-address.patch
-Patch140:           0141-libgenl-introduce-genl_init_handle.patch
-Patch141:           0142-macsec-show-usage-even-if-the-module-is-not-availabl.patch
-Patch142:           0143-tc-don-t-accept-qdisc-handle-greater-than-ffff.patch
-Patch143:           0144-ip-address-Support-filtering-by-slave-type-too.patch
-Patch144:           0145-man-ss.8-Add-missing-protocols-to-description-of-A.patch
-Patch145:           0146-xfrm-add-support-of-ESN-and-anti-replay-window.patch
-Patch146:           0147-man-update-doc-after-support-of-ESN-and-anti-replay-.patch
-Patch147:           0148-tc-m_xt-Prevent-segfault-with-standard-targets.patch
-Patch148:           0149-tc-m_xt-Fix-segfault-when-adding-multiple-actions-at.patch
-Patch149:           0150-tc-m_xt-Fix-indenting.patch
-Patch150:           0151-tc-m_xt-Get-rid-of-one-indentation-level-in-parse_ip.patch
-Patch151:           0152-tc-m_xt-Drop-unused-variable-fw-in-parse_ipt.patch
-Patch152:           0153-tc-m_xt-Get-rid-of-rargc-in-parse_ipt.patch
-Patch153:           0154-tc-m_xt-Get-rid-of-iargc-variable-in-parse_ipt.patch
-Patch154:           0155-tc-m_xt-Simplify-argc-adjusting-in-parse_ipt.patch
-Patch155:           0156-tc-m_xt-Introduce-get_xtables_target_opts.patch
-Patch156:           0157-m_xt-whitespace-cleanup.patch
-Patch157:           0158-tc-m_xt-Fix-segfault-with-iptables-1.6.0.patch
-Patch158:           0159-tc-m_xt-Drop-needless-parentheses-from-if-checks.patch
-Patch159:           0160-man-ip-link.8-document-bridge-options.patch
-Patch160:           0161-man-ip-link-Specify-min-max-values-for-bridge-slave-.patch
-Patch161:           0162-ip-route-Prevent-some-other-double-spaces-in-output.patch
-Patch163:           0164-tc-Add-support-for-the-matchall-traffic-classifier.patch
-Patch164:           0165-tc-man-Add-man-entry-for-the-matchall-classifier.patch
-Patch165:           0166-tc-add-missing-limits.h-header.patch
-Patch166:           0167-tc-man-matchall-Fix-example-indentation.patch
-Patch167:           0168-tc-matchall-Print-skip-flags-when-dumping-a-filter.patch
-Patch168:           0169-tc-clsact-add-clsact-frontend.patch
-Patch169:           0170-devlink-Add-e-switch-support.patch
-Patch170:           0171-devlink-whitespace-cleanup.patch
-Patch171:           0172-devlink-Convert-conditional-in-dl_argv_handle_port-t.patch
-Patch172:           0173-devlink-write-usage-help-messages-to-stderr.patch
-Patch173:           0174-devlink-Add-usage-help-for-eswitch-subcommand.patch
-Patch174:           0175-devlink-Call-dl_free-in-early-exit-case.patch
+Source3:            rt_dsfield.deprecated
+Patch0:             0001-Confirm-success-for-each-tc-batch-command.patch
+Patch1:             0002-Really-fix-get_addr-and-get_prefix-error-messages.patch
+Patch2:             0003-tc-simple-Fix-documentation.patch
+Patch3:             0004-tc-fix-m_simple-usage.patch
+Patch4:             0005-bpf-Make-bytecode-file-reading-a-little-more-robust.patch
+Patch5:             0006-ss-Fix-for-added-diag-support-check.patch
+Patch6:             0007-tc-simple.8-Fix-reference-to-non-existing-tc-actions.patch
+Patch7:             0008-lib-bpf-Fix-bytecode-file-parsing.patch
+Patch8:             0009-tc-simple.8-Fix-one-more-reference-to-non-existing-t.patch
+Patch9:             0010-tc-m_xt-Prevent-a-segfault-in-libipt.patch
+Patch10:            0011-link_gre6-really-support-encaplimit-option.patch
+Patch11:            0012-tc-fix-typo-in-manpage.patch
+Patch12:            0013-ip-neigh-allow-flush-FAILED-neighbour-entry.patch
+Patch13:            0014-netns-avoid-directory-traversal.patch
+Patch14:            0015-utils-return-default-family-when-rtm_family-is-not-R.patch
+Patch15:            0016-link_gre6-Fix-for-changing-tclass-flowlabel.patch
+Patch16:            0017-netlink-Change-rtnl_dump_done-to-always-show-error.patch
+Patch17:            0018-libnetlink-drop-unused-parameter-to-rtnl_dump_done.patch
+Patch18:            0019-iproute-Add-support-for-extended-ack-to-rtnl_talk.patch
+Patch19:            0020-iplink-check-for-message-truncation-in-iplink_get.patch
+Patch20:            0021-iplink-double-the-buffer-size-also-in-iplink_get.patch
+Patch21:            0022-lib-libnetlink-re-malloc-buff-if-size-is-not-enough.patch
+Patch22:            0023-lib-libnetlink-update-rtnl_talk-to-support-malloc-bu.patch
+Patch23:            0024-Update-linux-headers.patch
+Patch24:            0025-devlink-Change-netlink-attribute-validation.patch
+Patch25:            0026-devlink-Add-support-for-pipeline-debug-dpipe.patch
+Patch26:            0027-tc-Reflect-HW-offload-status.patch
+Patch27:            0028-pedit-Fix-a-typo-in-warning.patch
+Patch28:            0029-pedit-Do-not-allow-using-retain-for-too-big-fields.patch
+Patch29:            0030-pedit-Check-for-extended-capability-in-protocol-pars.patch
+Patch30:            0031-pedit-Introduce-ipv6-support.patch
+Patch31:            0032-devlink-Add-option-to-set-and-show-eswitch-encapsula.patch
+Patch32:            0033-tc-flower-add-support-for-tcp-flags.patch
+Patch33:            0034-iplink-Update-usage-in-help-message.patch
+Patch34:            0035-tc-flower-add-support-for-matching-on-ip-tos-and-ttl.patch
+Patch35:            0036-iproute-build-more-easily-on-Android.patch
+Patch36:            0037-uapi-add-include-linux-vm_sockets_diag.h.patch
+Patch37:            0038-ss-allow-AF_FAMILY-constants-32.patch
+Patch38:            0039-ss-add-AF_VSOCK-support.patch
+Patch39:            0040-link_gre6-Detect-invalid-encaplimit-values.patch
+Patch40:            0041-man-tc-csum.8-Fix-inconsistency-in-example-descripti.patch
+Patch41:            0042-tc-fix-command-tc-actions-del-hang-issue.patch
+Patch42:            0043-ip-link-Fix-use-after-free-in-nl_get_ll_addr_len.patch
 License:            GPLv2+ and Public Domain
 BuildRequires:      bison
 BuildRequires:      flex
@@ -208,12 +83,13 @@ Provides:           /sbin/ip
 %description
 The iproute package contains networking utilities (ip and rtmon, for example)
 which are designed to use the advanced networking capabilities of the Linux
-2.4.x and 2.6.x kernel.
+kernel.
 
 %package doc
 Summary:            ip and tc documentation with examples
 Group:              Applications/System
 License:            GPLv2+
+Requires:           %{name} = %{version}-%{release}
 
 %description doc
 The iproute documentation contains howtos and examples of settings.
@@ -222,258 +98,50 @@ The iproute documentation contains howtos and examples of settings.
 Summary:            iproute development files
 Group:              Development/Libraries
 License:            GPLv2+
+Requires:           %{name} = %{version}-%{release}
 Provides:           iproute-static = %{version}-%{release}
 
 %description devel
 The libnetlink static library.
 
 %prep
-%setup -q -n %{name}-%{version}-%{baserelease}
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
-%patch6 -p1
-%patch7 -p1
-%patch8 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
-%patch18 -p1
-%patch19 -p1
-%patch20 -p1
-%patch21 -p1
-%patch22 -p1
-%patch23 -p1
-%patch24 -p1
-%patch25 -p1
-%patch26 -p1
-%patch27 -p1
-%patch28 -p1
-%patch29 -p1
-%patch30 -p1
-%patch31 -p1
-%patch32 -p1
-%patch33 -p1
-%patch34 -p1
-%patch35 -p1
-%patch36 -p1
-%patch37 -p1
-%patch38 -p1
-%patch39 -p1
-%patch40 -p1
-%patch41 -p1
-%patch42 -p1
-%patch43 -p1
-%patch44 -p1
-%patch45 -p1
-%patch46 -p1
-%patch47 -p1
-%patch48 -p1
-%patch49 -p1
-%patch50 -p1
-%patch51 -p1
-%patch52 -p1
-%patch53 -p1
-%patch54 -p1
-%patch55 -p1
-%patch56 -p1
-%patch57 -p1
-%patch58 -p1
-%patch59 -p1
-%patch60 -p1
-%patch61 -p1
-%patch62 -p1
-%patch63 -p1
-%patch64 -p1
-%patch65 -p1
-%patch66 -p1
-%patch67 -p1
-%patch68 -p1
-%patch69 -p1
-%patch70 -p1
-%patch71 -p1
-%patch72 -p1
-%patch73 -p1
-%patch74 -p1
-%patch75 -p1
-%patch76 -p1
-%patch77 -p1
-%patch78 -p1
-%patch79 -p1
-%patch80 -p1
-%patch81 -p1
-%patch82 -p1
-%patch83 -p1
-%patch84 -p1
-%patch85 -p1
-%patch86 -p1
-%patch87 -p1
-%patch88 -p1
-%patch89 -p1
-%patch90 -p1
-%patch91 -p1
-%patch92 -p1
-%patch93 -p1
-%patch94 -p1
-%patch95 -p1
-%patch96 -p1
-%patch97 -p1
-%patch98 -p1
-%patch99 -p1
-%patch100 -p1
-%patch101 -p1
-%patch102 -p1
-%patch103 -p1
-%patch104 -p1
-%patch105 -p1
-%patch106 -p1
-%patch107 -p1
-%patch108 -p1
-%patch109 -p1
-%patch110 -p1
-%patch111 -p1
-%patch112 -p1
-%patch113 -p1
-%patch114 -p1
-%patch115 -p1
-%patch116 -p1
-%patch117 -p1
-%patch118 -p1
-%patch119 -p1
-%patch120 -p1
-%patch121 -p1
-%patch122 -p1
-%patch123 -p1
-%patch124 -p1
-%patch125 -p1
-%patch126 -p1
-%patch127 -p1
-%patch128 -p1
-%patch129 -p1
-%patch130 -p1
-%patch131 -p1
-%patch132 -p1
-%patch133 -p1
-%patch134 -p1
-%patch135 -p1
-%patch136 -p1
-%patch137 -p1
-%patch138 -p1
-%patch139 -p1
-%patch140 -p1
-%patch141 -p1
-%patch142 -p1
-%patch143 -p1
-%patch144 -p1
-%patch145 -p1
-%patch146 -p1
-%patch147 -p1
-%patch148 -p1
-%patch149 -p1
-%patch150 -p1
-%patch151 -p1
-%patch152 -p1
-%patch153 -p1
-%patch154 -p1
-%patch155 -p1
-%patch156 -p1
-%patch157 -p1
-%patch158 -p1
-%patch159 -p1
-%patch160 -p1
-%patch161 -p1
-%patch163 -p1
-%patch164 -p1
-%patch165 -p1
-%patch166 -p1
-%patch167 -p1
-%patch168 -p1
-%patch169 -p1
-%patch170 -p1
-%patch171 -p1
-%patch172 -p1
-%patch173 -p1
-%patch174 -p1
+%autosetup -p1 -n %{name}-%{version}-%{baserelease}
 sed -i 's/iproute-doc/%{name}-%{version}/' man/man8/lnstat.8
 
 %build
 export LIBDIR=/%{_libdir}
 export IPT_LIB_DIR=/%{_lib}/xtables
-export CFLAGS="${CFLAGS:-%optflags}"
+export CFLAGS="${CFLAGS:-%optflags} -fno-exceptions"
 ./configure
 make %{?_smp_mflags}
 make -C doc
 
 %install
-mkdir -p \
-    %{buildroot}%{_includedir} \
-    %{buildroot}%{_sbindir} \
-    %{buildroot}%{_mandir}/man3 \
-    %{buildroot}%{_mandir}/man7 \
-    %{buildroot}%{_mandir}/man8 \
-    %{buildroot}%{_libdir}/tc \
-    %{buildroot}%{_sysconfdir}/iproute2 \
-    %{buildroot}%{_sysconfdir}/sysconfig/cbq
-
-for binary in \
-    bridge/bridge \
-    devlink/devlink \
-    examples/cbq.init-%{cbq_version} \
-    genl/genl \
-    ip/ifcfg \
-    ip/ip \
-    ip/routef \
-    ip/routel \
-    ip/rtmon \
-    ip/rtpr \
-    misc/arpd \
-    misc/ifstat \
-    misc/lnstat \
-    misc/nstat \
-    misc/rtacct \
-    misc/ss \
-    tc/tc
-    do install -m755 ${binary} %{buildroot}%{_sbindir}
-done
-mv %{buildroot}%{_sbindir}/cbq.init-%{cbq_version} %{buildroot}%{_sbindir}/cbq
-cd %{buildroot}%{_sbindir}
-    ln -s lnstat ctstat
-    ln -s lnstat rtstat
-cd -
-
-# Libs
-install -m644 netem/*.dist %{buildroot}%{_libdir}/tc
-%if 0%{?fedora}
-install -m755 tc/q_atm.so %{buildroot}%{_libdir}/tc
-%endif
-install -m755 tc/m_xt.so %{buildroot}%{_libdir}/tc
-cd %{buildroot}%{_libdir}/tc
-    ln -s m_xt.so m_ipt.so
-cd -
-
-# libnetlink
+export SBINDIR=%{_sbindir}
+export MANDIR=%{_mandir}
+export LIBDIR=%{_libdir}
+export CONFDIR=%{_sysconfdir}/iproute2
+export DOCDIR=%{_docdir}
+%make_install
+# libnetlink for iproute-devel
 install -m644 include/libnetlink.h %{buildroot}%{_includedir}
 install -m644 lib/libnetlink.a %{buildroot}%{_libdir}
-
-# Manpages
-iconv -f latin1 -t utf8 man/man8/ss.8 > man/man8/ss.8.utf8 &&
-    mv man/man8/ss.8.utf8 man/man8/ss.8
-install -m644 man/man3/*.3 %{buildroot}%{_mandir}/man3
-install -m644 man/man7/*.7 %{buildroot}%{_mandir}/man7
-install -m644 man/man8/*.8 %{buildroot}%{_mandir}/man8
+# RHEL7 ships cbq tool in standard location
+install -m755 examples/cbq.init-%{cbq_version} %{buildroot}%{_sbindir}/cbq
 echo '.so man8/tc-cbq.8' > %{buildroot}%{_mandir}/man8/cbq.8
-
-# Config files
-install -m644 etc/iproute2/* %{buildroot}%{_sysconfdir}/iproute2
-for config in \
-    %{SOURCE1} \
-    %{SOURCE2}
-    do install -m644 ${config} %{buildroot}%{_sysconfdir}/sysconfig/cbq
+install -d -m755 %{buildroot}%{_sysconfdir}/sysconfig/cbq
+install -m644 %{SOURCE1} %{SOURCE2} %{buildroot}%{_sysconfdir}/sysconfig/cbq
+# These man pages are missing in respective Makefile
+for manpage in genl ifcfg ip-vrf; do
+	install -m644 man/man8/${manpage}.8 %{buildroot}%{_mandir}/man8
 done
+# files in here are extracted manually from %{_builddir}
+rm -rf %{buildroot}%{_docdir}
+# RHEL7 does not support TIPC so remove tipc tool and its man pages
+rm -f %{buildroot}%{_sbindir}/tipc
+rm -rf %{buildroot}%{_mandir}/man8/tipc*
+# Append deprecated values to rt_dsfield for compatibility reasons
+cat %{SOURCE3} >>%{buildroot}%{_sysconfdir}/iproute2/rt_dsfield
 
 %files
 %dir %{_sysconfdir}/iproute2
@@ -487,6 +155,7 @@ done
 %{_libdir}/tc/*
 %dir %{_sysconfdir}/sysconfig/cbq
 %config(noreplace) %{_sysconfdir}/sysconfig/cbq/*
+%{_datadir}/bash-completion/completions/tc
 
 %files doc
 %doc COPYING
@@ -498,8 +167,84 @@ done
 %{_mandir}/man3/*
 %{_libdir}/libnetlink.a
 %{_includedir}/libnetlink.h
+%{_includedir}/iproute2/bpf_elf.h
 
 %changelog
+* Tue Mar 06 2018 Phil Sutter <psutter@redhat.com> [4.11.0-14.el7]
+- ip-link: Fix use after free in nl_get_ll_addr_len() (Phil Sutter) [1550097]
+
+* Fri Dec 15 2017 Phil Sutter <psutter@redhat.com> [4.11.0-13.el7]
+- tc: fix command "tc actions del" hang issue (Phil Sutter) [1526394]
+
+* Wed Dec 06 2017 Phil Sutter <psutter@redhat.com> [4.11.0-12.el7]
+- man: tc-csum.8: Fix inconsistency in example description (Phil Sutter) [1417162]
+- link_gre6: Detect invalid encaplimit values (Phil Sutter) [1459600]
+
+* Mon Nov 13 2017 Phil Sutter <psutter@redhat.com> [4.11.0-11.el7]
+- ss: add AF_VSOCK support (Stefano Brivio) [1472759]
+- ss: allow AF_FAMILY constants >32 (Stefano Brivio) [1472759]
+- uapi: add include linux/vm_sockets_diag.h (Stefano Brivio) [1472759]
+- iproute: build more easily on Android (Phil Sutter) [1472759]
+
+* Fri Nov 10 2017 Phil Sutter <psutter@redhat.com> [4.11.0-10.el7]
+- tc: flower: add support for matching on ip tos and ttl (Kamal Heib) [1456539]
+- iplink: Update usage in help message (Kamal Heib) [1456539]
+- tc: flower: add support for tcp flags (Kamal Heib) [1456539]
+- devlink: Add option to set and show eswitch encapsulation support (Kamal Heib) [1456539]
+- pedit: Introduce ipv6 support (Kamal Heib) [1456539]
+- pedit: Check for extended capability in protocol parser (Kamal Heib) [1456539]
+- pedit: Do not allow using retain for too big fields (Kamal Heib) [1456539]
+- pedit: Fix a typo in warning (Kamal Heib) [1456539]
+- tc: Reflect HW offload status (Kamal Heib) [1456539]
+- devlink: Add support for pipeline debug (dpipe) (Kamal Heib) [1456539]
+- devlink: Change netlink attribute validation (Kamal Heib) [1456539]
+- Update linux headers (Phil Sutter) [1456539]
+
+* Wed Nov 08 2017 Phil Sutter <psutter@redhat.com> [4.11.0-9.el7]
+- lib/libnetlink: update rtnl_talk to support malloc buff at run time (Hangbin Liu) [1380803]
+- lib/libnetlink: re malloc buff if size is not enough (Hangbin Liu) [1380803]
+- iplink: double the buffer size also in iplink_get() (Hangbin Liu) [1380803]
+- iplink: check for message truncation in iplink_get() (Hangbin Liu) [1380803]
+- iproute: Add support for extended ack to rtnl_talk (Hangbin Liu) [1380803]
+- libnetlink: drop unused parameter to rtnl_dump_done (Hangbin Liu) [1380803]
+- netlink: Change rtnl_dump_done to always show error (Hangbin Liu) [1380803]
+
+* Fri Oct 20 2017 Phil Sutter <psutter@redhat.com> [4.11.0-8.el7]
+- Fix subpackage dependencies (don't require base package ARCH) (Phil Sutter) [1489548]
+
+* Wed Oct 18 2017 Phil Sutter <psutter@redhat.com> [4.11.0-7.el7]
+- Make sub-packages depend on base package (Phil Sutter) [1489548]
+
+* Fri Oct 06 2017 Phil Sutter <psutter@redhat.com> [4.11.0-6.el7]
+- link_gre6: Fix for changing tclass/flowlabel (Phil Sutter) [1487486]
+- utils: return default family when rtm_family is not RTNL_FAMILY_IPMR/IP6MR (Stefano Brivio) [1475762]
+- netns: avoid directory traversal (Phil Sutter) [1468529]
+- Disable -fexceptions CFLAG passed by build system (Phil Sutter) [1418715]
+
+* Thu Sep 28 2017 Phil Sutter <psutter@redhat.com> [4.11.0-5.el7]
+- ip neigh: allow flush FAILED neighbour entry (Matteo Croce) [1469945]
+- tc: fix typo in manpage (Phil Sutter) [1417162]
+- link_gre6: really support encaplimit option (Phil Sutter) [1459600]
+- tc: m_xt: Prevent a segfault in libipt (Phil Sutter) [1465599]
+
+* Wed Sep 06 2017 Phil Sutter <psutter@redhat.com> [4.11.0-4.el7]
+- tc-simple.8: Fix one more reference to non-existing tc-actions.8 (Phil Sutter) [1477523]
+
+* Wed Sep 06 2017 Phil Sutter <psutter@redhat.com> [4.11.0-3.el7]
+- lib/bpf: Fix bytecode-file parsing (Phil Sutter) [1477491]
+- tc-simple.8: Fix reference to non-existing tc-actions.8 (Phil Sutter) [1477523]
+- ss: Fix for added diag support check (Phil Sutter) [1487152]
+
+* Fri Aug 11 2017 Phil Sutter <psutter@redhat.com> [4.11.0-2.el7]
+- rt_dsfield: Ship deprecated values for compatibility (Phil Sutter) [1480136]
+- bpf: Make bytecode-file reading a little more robust (Phil Sutter) [1477491]
+- tc: fix m_simple usage (Phil Sutter) [1477523]
+- tc-simple: Fix documentation (Phil Sutter) [1477523]
+- Really fix get_addr() and get_prefix() error messages (Phil Sutter) [1477206]
+
+* Tue Jun 27 2017 Phil Sutter <psutter@redhat.com> [4.11.0-1.el7]
+- Rebase onto upstream version 4.11.0 (Phil Sutter) [1418715]
+
 * Tue Jun 13 2017 Sabrina Dubroca <sdubroca@redhat.com> [3.10.0-87.el7]
 - devlink: Add e-switch support (Sabrina Dubroca) [1459772]
 - devlink: whitespace cleanup (Sabrina Dubroca) [1459772]

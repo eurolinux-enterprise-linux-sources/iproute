@@ -1,0 +1,31 @@
+From 4917021d1ebea2b75cdcf31272452aa5cc3ff7ec Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 1 Sep 2017 13:05:45 +0200
+Subject: [PATCH] tc-simple.8: Fix reference to non-existing tc-actions.8
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1477523
+Upstream Status: RHEL-only
+
+The referenced man page doesn't exist in RHEL iproute package, so better
+refer to an existing one which also contains the CONTROL value
+description.
+---
+ man/man8/tc-simple.8 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/tc-simple.8 b/man/man8/tc-simple.8
+index 7363ab5..a0deb0b 100644
+--- a/man/man8/tc-simple.8
++++ b/man/man8/tc-simple.8
+@@ -36,7 +36,7 @@ Indicate how
+ should proceed after executing the action. For a description of the possible
+ .I CONTROL
+ values, see
+-.BR tc-actions (8).
++.BR tc-pedit (8).
+ .SH EXAMPLES
+ The following example makes the kernel yell "Incoming ICMP!" every time it sees
+ an incoming ICMP on eth0. Steps are:
+-- 
+1.8.3.1
+

@@ -1,0 +1,60 @@
+From 41b38afb79a82eec66fea08fc021a35cf1d550fc Mon Sep 17 00:00:00 2001
+From: Kamal Heib <kheib@redhat.com>
+Date: Thu, 9 Nov 2017 04:44:32 -0500
+Subject: [PATCH] iplink: Update usage in help message
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1456539
+
+commit 5a3ec4ba64783a640e7716a37faae4be49489e51
+Author: Eli Cohen <eli@mellanox.com>
+Date:   Sun Jun 4 15:36:48 2017 +0300
+
+    iplink: Update usage in help message
+
+    Add to usage message a description of how to configure Infiniband node
+    and port GUIDs. Also modify the man page to emphasize the GUIDs are
+    configured for Infiniband VFs.
+
+    Fixes: d91fb3f4c7e4 ("Add support for configuring Infiniband GUIDs")
+    Signed-off-by: Eli Cohen <eli@mellanox.com>
+    Signed-off-by: Tariq Toukan <tariqt@mellanox.com>
+
+Signed-off-by: Kamal Heib <kheib@redhat.com>
+---
+ ip/iplink.c           | 2 ++
+ man/man8/ip-link.8.in | 4 ++--
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/ip/iplink.c b/ip/iplink.c
+index b08d227..193997c 100644
+--- a/ip/iplink.c
++++ b/ip/iplink.c
+@@ -91,6 +91,8 @@ void iplink_usage(void)
+ 		"				   [ query_rss { on | off} ]\n"
+ 		"				   [ state { auto | enable | disable} ] ]\n"
+ 		"				   [ trust { on | off} ] ]\n"
++		"				   [ node_guid { eui64 } ]\n"
++		"				   [ port_guid { eui64 } ]\n"
+ 		"			  [ xdp { off |\n"
+ 		"				  object FILE [ section NAME ] [ verbose ] |\n"
+ 		"				  pinned FILE } ]\n"
+diff --git a/man/man8/ip-link.8.in b/man/man8/ip-link.8.in
+index a5ddfe7..48417db 100644
+--- a/man/man8/ip-link.8.in
++++ b/man/man8/ip-link.8.in
+@@ -1564,10 +1564,10 @@ sent by the VF.
+ which may impact security and/or performance. (e.g. VF multicast promiscuous mode)
+ .sp
+ .BI node_guid " eui64"
+-- configure node GUID for the VF.
++- configure node GUID for Infiniband VFs.
+ .sp
+ .BI port_guid " eui64"
+-- configure port GUID for the VF.
++- configure port GUID for Infiniband VFs.
+ .in -8
+ 
+ .TP
+-- 
+1.8.3.1
+

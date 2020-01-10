@@ -21,59 +21,114 @@
 
 #ifndef MDBA_RTA
 #define MDBA_RTA(r) \
-	((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct br_port_msg))))
+	((struct rtattr *)(((char *)(r)) + NLMSG_ALIGN(sizeof(struct br_port_msg))))
 #endif
 
-int filter_index;
+static unsigned int filter_index, filter_vlan;
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: bridge mdb { add | del } dev DEV port PORT grp GROUP [permanent | temp]\n");
-	fprintf(stderr, "       bridge mdb {show} [ dev DEV ]\n");
+	fprintf(stderr, "Usage: bridge mdb { add | del } dev DEV port PORT grp GROUP [permanent | temp] [vid VID]\n");
+	fprintf(stderr, "       bridge mdb {show} [ dev DEV ] [ vid VID ]\n");
 	exit(-1);
 }
 
-static void br_print_router_ports(FILE *f, struct rtattr *attr)
+static bool is_temp_mcast_rtr(__u8 type)
+{
+	return type == MDB_RTR_TYPE_TEMP_QUERY || type == MDB_RTR_TYPE_TEMP;
+}
+
+static void __print_router_port_stats(FILE *f, struct rtattr *pattr)
+{
+	struct rtattr *tb[MDBA_ROUTER_PATTR_MAX + 1];
+	struct timeval tv;
+	__u8 type;
+
+	parse_rtattr(tb, MDBA_ROUTER_PATTR_MAX, MDB_RTR_RTA(RTA_DATA(pattr)),
+		     RTA_PAYLOAD(pattr) - RTA_ALIGN(sizeof(uint32_t)));
+	if (tb[MDBA_ROUTER_PATTR_TIMER]) {
+		__jiffies_to_tv(&tv,
+				rta_getattr_u32(tb[MDBA_ROUTER_PATTR_TIMER]));
+		fprintf(f, " %4i.%.2i",
+			(int)tv.tv_sec, (int)tv.tv_usec/10000);
+	}
+	if (tb[MDBA_ROUTER_PATTR_TYPE]) {
+		type = rta_getattr_u8(tb[MDBA_ROUTER_PATTR_TYPE]);
+		fprintf(f, " %s",
+			is_temp_mcast_rtr(type) ? "temp" : "permanent");
+	}
+}
+
+static void br_print_router_ports(FILE *f, struct rtattr *attr, __u32 brifidx)
 {
 	uint32_t *port_ifindex;
 	struct rtattr *i;
 	int rem;
 
+	if (!show_stats)
+		fprintf(f, "router ports on %s: ", ll_index_to_name(brifidx));
+
 	rem = RTA_PAYLOAD(attr);
 	for (i = RTA_DATA(attr); RTA_OK(i, rem); i = RTA_NEXT(i, rem)) {
 		port_ifindex = RTA_DATA(i);
-		fprintf(f, "%s ", ll_index_to_name(*port_ifindex));
+		if (show_stats) {
+			fprintf(f, "router ports on %s: %s",
+				ll_index_to_name(brifidx),
+				ll_index_to_name(*port_ifindex));
+			__print_router_port_stats(f, i);
+			fprintf(f, "\n");
+		} else {
+			fprintf(f, "%s ", ll_index_to_name(*port_ifindex));
+		}
 	}
+	if (!show_stats)
+		fprintf(f, "\n");
+}
 
+static void print_mdb_entry(FILE *f, int ifindex, struct br_mdb_entry *e,
+			    struct nlmsghdr *n, struct rtattr **tb)
+{
+	SPRINT_BUF(abuf);
+	const void *src;
+	int af;
+
+	if (filter_vlan && e->vid != filter_vlan)
+		return;
+	af = e->addr.proto == htons(ETH_P_IP) ? AF_INET : AF_INET6;
+	src = af == AF_INET ? (const void *)&e->addr.u.ip4 :
+			      (const void *)&e->addr.u.ip6;
+	if (n->nlmsg_type == RTM_DELMDB)
+		fprintf(f, "Deleted ");
+	fprintf(f, "dev %s port %s grp %s %s %s", ll_index_to_name(ifindex),
+		ll_index_to_name(e->ifindex),
+		inet_ntop(af, src, abuf, sizeof(abuf)),
+		(e->state & MDB_PERMANENT) ? "permanent" : "temp",
+		(e->flags & MDB_FLAGS_OFFLOAD) ? "offload" : "");
+	if (e->vid)
+		fprintf(f, " vid %hu", e->vid);
+	if (show_stats && tb && tb[MDBA_MDB_EATTR_TIMER]) {
+		struct timeval tv;
+
+		__jiffies_to_tv(&tv, rta_getattr_u32(tb[MDBA_MDB_EATTR_TIMER]));
+		fprintf(f, "%4i.%.2i", (int)tv.tv_sec, (int)tv.tv_usec/10000);
+	}
 	fprintf(f, "\n");
 }
 
-static void print_mdb_entry(FILE *f, int ifindex, struct br_mdb_entry *e)
+static void br_print_mdb_entry(FILE *f, int ifindex, struct rtattr *attr,
+			       struct nlmsghdr *n)
 {
-	SPRINT_BUF(abuf);
-
-	if (e->addr.proto == htons(ETH_P_IP))
-		fprintf(f, "dev %s port %s grp %s %s\n", ll_index_to_name(ifindex),
-			ll_index_to_name(e->ifindex),
-			inet_ntop(AF_INET, &e->addr.u.ip4, abuf, sizeof(abuf)),
-			(e->state & MDB_PERMANENT) ? "permanent" : "temp");
-	else
-		fprintf(f, "dev %s port %s grp %s %s\n", ll_index_to_name(ifindex),
-			ll_index_to_name(e->ifindex),
-			inet_ntop(AF_INET6, &e->addr.u.ip6, abuf, sizeof(abuf)),
-			(e->state & MDB_PERMANENT) ? "permanent" : "temp");
-}
-
-static void br_print_mdb_entry(FILE *f, int ifindex, struct rtattr *attr)
-{
+	struct rtattr *etb[MDBA_MDB_EATTR_MAX + 1];
+	struct br_mdb_entry *e;
 	struct rtattr *i;
 	int rem;
-	struct br_mdb_entry *e;
 
 	rem = RTA_PAYLOAD(attr);
 	for (i = RTA_DATA(attr); RTA_OK(i, rem); i = RTA_NEXT(i, rem)) {
 		e = RTA_DATA(i);
-		print_mdb_entry(f, ifindex, e);
+		parse_rtattr(etb, MDBA_MDB_EATTR_MAX, MDB_RTA(RTA_DATA(i)),
+			     RTA_PAYLOAD(i) - RTA_ALIGN(sizeof(*e)));
+		print_mdb_entry(f, ifindex, e, n, etb);
 	}
 }
 
@@ -82,7 +137,7 @@ int print_mdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
 	FILE *fp = arg;
 	struct br_port_msg *r = NLMSG_DATA(n);
 	int len = n->nlmsg_len;
-	struct rtattr * tb[MDBA_MAX+1];
+	struct rtattr *tb[MDBA_MAX+1], *i;
 
 	if (n->nlmsg_type != RTM_GETMDB && n->nlmsg_type != RTM_NEWMDB && n->nlmsg_type != RTM_DELMDB) {
 		fprintf(stderr, "Not RTM_GETMDB, RTM_NEWMDB or RTM_DELMDB: %08x %08x %08x\n",
@@ -103,19 +158,31 @@ int print_mdb(const struct sockaddr_nl *who, struct nlmsghdr *n, void *arg)
 	parse_rtattr(tb, MDBA_MAX, MDBA_RTA(r), n->nlmsg_len - NLMSG_LENGTH(sizeof(*r)));
 
 	if (tb[MDBA_MDB]) {
-		struct rtattr *i;
 		int rem = RTA_PAYLOAD(tb[MDBA_MDB]);
 
 		for (i = RTA_DATA(tb[MDBA_MDB]); RTA_OK(i, rem); i = RTA_NEXT(i, rem))
-			br_print_mdb_entry(fp, r->ifindex, i);
+			br_print_mdb_entry(fp, r->ifindex, i, n);
 	}
 
 	if (tb[MDBA_ROUTER]) {
-		if (show_details) {
-			fprintf(fp, "router ports on %s: ", ll_index_to_name(r->ifindex));
-			br_print_router_ports(fp, tb[MDBA_ROUTER]);
+		if (n->nlmsg_type == RTM_GETMDB) {
+			if (show_details)
+				br_print_router_ports(fp, tb[MDBA_ROUTER],
+						      r->ifindex);
+		} else {
+			uint32_t *port_ifindex;
+
+			i = RTA_DATA(tb[MDBA_ROUTER]);
+			port_ifindex = RTA_DATA(i);
+			if (n->nlmsg_type == RTM_DELMDB)
+				fprintf(fp, "Deleted ");
+			fprintf(fp, "router port dev %s master %s\n",
+				ll_index_to_name(*port_ifindex),
+				ll_index_to_name(r->ifindex));
 		}
 	}
+
+	fflush(fp);
 
 	return 0;
 }
@@ -130,6 +197,11 @@ static int mdb_show(int argc, char **argv)
 			if (filter_dev)
 				duparg("dev", *argv);
 			filter_dev = *argv;
+		} else if (strcmp(*argv, "vid") == 0) {
+			NEXT_ARG();
+			if (filter_vlan)
+				duparg("vid", *argv);
+			filter_vlan = atoi(*argv);
 		}
 		argc--; argv++;
 	}
@@ -145,12 +217,12 @@ static int mdb_show(int argc, char **argv)
 
 	if (rtnl_wilddump_request(&rth, PF_BRIDGE, RTM_GETMDB) < 0) {
 		perror("Cannot send dump request");
-		exit(1);
+		return -1;
 	}
 
 	if (rtnl_dump_filter(&rth, print_mdb, stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
-		exit(1);
+		return -1;
 	}
 
 	return 0;
@@ -159,20 +231,18 @@ static int mdb_show(int argc, char **argv)
 static int mdb_modify(int cmd, int flags, int argc, char **argv)
 {
 	struct {
-		struct nlmsghdr 	n;
+		struct nlmsghdr	n;
 		struct br_port_msg	bpm;
-		char   			buf[1024];
-	} req;
-	struct br_mdb_entry entry;
+		char			buf[1024];
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct br_port_msg)),
+		.n.nlmsg_flags = NLM_F_REQUEST | flags,
+		.n.nlmsg_type = cmd,
+		.bpm.family = PF_BRIDGE,
+	};
+	struct br_mdb_entry entry = {};
 	char *d = NULL, *p = NULL, *grp = NULL;
-
-	memset(&req, 0, sizeof(req));
-	memset(&entry, 0, sizeof(entry));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct br_port_msg));
-	req.n.nlmsg_flags = NLM_F_REQUEST|flags;
-	req.n.nlmsg_type = cmd;
-	req.bpm.family = PF_BRIDGE;
+	short vid = 0;
 
 	while (argc > 0) {
 		if (strcmp(*argv, "dev") == 0) {
@@ -189,6 +259,9 @@ static int mdb_modify(int cmd, int flags, int argc, char **argv)
 				entry.state |= MDB_PERMANENT;
 		} else if (strcmp(*argv, "temp") == 0) {
 			;/* nothing */
+		} else if (strcmp(*argv, "vid") == 0) {
+			NEXT_ARG();
+			vid = atoi(*argv);
 		} else {
 			if (matches(*argv, "help") == 0)
 				usage();
@@ -198,7 +271,7 @@ static int mdb_modify(int cmd, int flags, int argc, char **argv)
 
 	if (d == NULL || grp == NULL || p == NULL) {
 		fprintf(stderr, "Device, group address and port name are required arguments.\n");
-		exit(-1);
+		return -1;
 	}
 
 	req.bpm.ifindex = ll_name_to_index(d);
@@ -222,10 +295,11 @@ static int mdb_modify(int cmd, int flags, int argc, char **argv)
 	} else
 		entry.addr.proto = htons(ETH_P_IP);
 
+	entry.vid = vid;
 	addattr_l(&req.n, sizeof(req), MDBA_SET_ENTRY, &entry, sizeof(entry));
 
 	if (rtnl_talk(&rth, &req.n, NULL, 0) < 0)
-		exit(2);
+		return -1;
 
 	return 0;
 }

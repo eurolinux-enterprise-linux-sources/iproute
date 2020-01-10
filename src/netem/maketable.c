@@ -149,6 +149,8 @@ inverttable(int *table, int inversesize, int tablesize, int cumulative)
 		inversevalue = (int)rint(findex*TABLEFACTOR);
 		if (inversevalue <= MINSHORT) inversevalue = MINSHORT+1;
 		if (inversevalue > MAXSHORT) inversevalue = MAXSHORT;
+		if (inverseindex >= inversesize) inverseindex = inversesize- 1;
+
 		inverse[inverseindex] = inversevalue;
 	}
 	return inverse;
@@ -210,7 +212,7 @@ main(int argc, char **argv)
 		}
 	} else {
 		fp = stdin;
-	}				
+	}
 	x = readdoubles(fp, &limit);
 	if (limit <= 0) {
 		fprintf(stderr, "Nothing much read!\n");
@@ -221,7 +223,7 @@ main(int argc, char **argv)
 	fprintf(stderr, "%d values, mu %10.4f, sigma %10.4f, rho %10.4f\n",
 		limit, mu, sigma, rho);
 #endif
-	
+
 	table = makedist(x, limit, mu, sigma);
 	free((void *) x);
 	cumulativedist(table, DISTTABLESIZE, &total);

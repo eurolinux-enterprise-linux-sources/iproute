@@ -1,0 +1,64 @@
+From 74e00895532b878a902f9b0477e1b00d1be9df59 Mon Sep 17 00:00:00 2001
+From: Stefano Brivio <sbrivio@redhat.com>
+Date: Sun, 22 Oct 2017 21:44:25 +0200
+Subject: [PATCH] uapi: add include linux/vm_sockets_diag.h
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1472759
+Upstream Status: iproute2.git commit e9b0d82dfac2
+
+commit e9b0d82dfac25912cf757945d9caf6fe2371f526
+Author: Stephen Hemminger <stephen@networkplumber.org>
+Date:   Wed Oct 11 10:49:25 2017 -0700
+
+    uapi: add include linux/vm_sockets_diag.h
+
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+
+Signed-off-by: Stefano Brivio <sbrivio@redhat.com>
+---
+ include/uapi/linux/vm_sockets_diag.h | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+ create mode 100644 include/uapi/linux/vm_sockets_diag.h
+
+diff --git a/include/uapi/linux/vm_sockets_diag.h b/include/uapi/linux/vm_sockets_diag.h
+new file mode 100644
+index 0000000..a732a6f
+--- /dev/null
++++ b/include/uapi/linux/vm_sockets_diag.h
+@@ -0,0 +1,33 @@
++/* AF_VSOCK sock_diag(7) interface for querying open sockets */
++
++#ifndef __VM_SOCKETS_DIAG_H__
++#define __VM_SOCKETS_DIAG_H__
++
++#include <linux/types.h>
++
++/* Request */
++struct vsock_diag_req {
++	__u8	sdiag_family;	/* must be AF_VSOCK */
++	__u8	sdiag_protocol;	/* must be 0 */
++	__u16	pad;		/* must be 0 */
++	__u32	vdiag_states;	/* query bitmap (e.g. 1 << TCP_LISTEN) */
++	__u32	vdiag_ino;	/* must be 0 (reserved) */
++	__u32	vdiag_show;	/* must be 0 (reserved) */
++	__u32	vdiag_cookie[2];
++};
++
++/* Response */
++struct vsock_diag_msg {
++	__u8	vdiag_family;	/* AF_VSOCK */
++	__u8	vdiag_type;	/* SOCK_STREAM or SOCK_DGRAM */
++	__u8	vdiag_state;	/* sk_state (e.g. TCP_LISTEN) */
++	__u8	vdiag_shutdown; /* local RCV_SHUTDOWN | SEND_SHUTDOWN */
++	__u32   vdiag_src_cid;
++	__u32   vdiag_src_port;
++	__u32   vdiag_dst_cid;
++	__u32   vdiag_dst_port;
++	__u32	vdiag_ino;
++	__u32	vdiag_cookie[2];
++};
++
++#endif /* __VM_SOCKETS_DIAG_H__ */
+-- 
+1.8.3.1
+

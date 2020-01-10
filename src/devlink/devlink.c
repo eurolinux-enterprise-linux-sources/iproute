@@ -24,6 +24,14 @@
 #include "SNAPSHOT.h"
 #include "list.h"
 #include "mnlg.h"
+#include "json_writer.h"
+
+#define ESWITCH_MODE_LEGACY "legacy"
+#define ESWITCH_MODE_SWITCHDEV "switchdev"
+#define ESWITCH_INLINE_MODE_NONE "none"
+#define ESWITCH_INLINE_MODE_LINK "link"
+#define ESWITCH_INLINE_MODE_NETWORK "network"
+#define ESWITCH_INLINE_MODE_TRANSPORT "transport"
 
 #define pr_err(args...) fprintf(stderr, ##args)
 #define pr_out(args...) fprintf(stdout, ##args)
@@ -127,6 +135,8 @@ static void ifname_map_free(struct ifname_map *ifname_map)
 #define DL_OPT_SB_THTYPE	BIT(8)
 #define DL_OPT_SB_TH		BIT(9)
 #define DL_OPT_SB_TC		BIT(10)
+#define DL_OPT_ESWITCH_MODE	BIT(11)
+#define DL_OPT_ESWITCH_INLINE_MODE	BIT(12)
 
 struct dl_opts {
 	uint32_t present; /* flags of present items */
@@ -142,6 +152,8 @@ struct dl_opts {
 	enum devlink_sb_threshold_type sb_pool_thtype;
 	uint32_t sb_threshold;
 	uint16_t sb_tc_index;
+	enum devlink_eswitch_mode eswitch_mode;
+	enum devlink_eswitch_inline_mode eswitch_inline_mode;
 };
 
 struct dl {
@@ -151,6 +163,15 @@ struct dl {
 	char **argv;
 	bool no_nice_names;
 	struct dl_opts opts;
+	json_writer_t *jw;
+	bool json_output;
+	bool pretty_output;
+	struct {
+		bool present;
+		char *bus_name;
+		char *dev_name;
+		uint32_t port_index;
+	} arr_last;
 };
 
 static int dl_argc(struct dl *dl)
@@ -286,6 +307,12 @@ static int attr_cb(const struct nlattr *attr, void *data)
 		return MNL_CB_ERROR;
 	if (type == DEVLINK_ATTR_SB_OCC_MAX &&
 	    mnl_attr_validate(attr, MNL_TYPE_U32) < 0)
+		return MNL_CB_ERROR;
+	if (type == DEVLINK_ATTR_ESWITCH_MODE &&
+	    mnl_attr_validate(attr, MNL_TYPE_U16) < 0)
+		return MNL_CB_ERROR;
+	if (type == DEVLINK_ATTR_ESWITCH_INLINE_MODE &&
+	    mnl_attr_validate(attr, MNL_TYPE_U8) < 0)
 		return MNL_CB_ERROR;
 	tb[type] = attr;
 	return MNL_CB_OK;
@@ -506,19 +533,18 @@ static int dl_argv_handle_port(struct dl *dl, char **p_bus_name,
 		return -EINVAL;
 	}
 	slash_count = strslashcount(str);
-	if (slash_count != 2 && slash_count != 0) {
+	switch (slash_count) {
+	case 0:
+		return __dl_argv_handle_port_ifname(dl, str, p_bus_name,
+						    p_dev_name, p_port_index);
+	case 2:
+		return __dl_argv_handle_port(str, p_bus_name,
+					     p_dev_name, p_port_index);
+	default:
 		pr_err("Wrong port identification string format.\n");
 		pr_err("Expected \"bus_name/dev_name/port_index\" or \"netdev_ifname\".\n");
 		return -EINVAL;
 	}
-	if (slash_count == 2) {
-		return __dl_argv_handle_port(str, p_bus_name,
-					     p_dev_name, p_port_index);
-	} else if (slash_count == 0) {
-		return __dl_argv_handle_port_ifname(dl, str, p_bus_name,
-						    p_dev_name, p_port_index);
-	}
-	return 0;
 }
 
 static int dl_argv_handle_both(struct dl *dl, char **p_bus_name,
@@ -651,6 +677,38 @@ static int threshold_type_get(const char *typestr,
 	return 0;
 }
 
+static int eswitch_mode_get(const char *typestr,
+			    enum devlink_eswitch_mode *p_mode)
+{
+	if (strcmp(typestr, ESWITCH_MODE_LEGACY) == 0) {
+		*p_mode = DEVLINK_ESWITCH_MODE_LEGACY;
+	} else if (strcmp(typestr, ESWITCH_MODE_SWITCHDEV) == 0) {
+		*p_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
+	} else {
+		pr_err("Unknown eswitch mode \"%s\"\n", typestr);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int eswitch_inline_mode_get(const char *typestr,
+				   enum devlink_eswitch_inline_mode *p_mode)
+{
+	if (strcmp(typestr, ESWITCH_INLINE_MODE_NONE) == 0) {
+		*p_mode = DEVLINK_ESWITCH_INLINE_MODE_NONE;
+	} else if (strcmp(typestr, ESWITCH_INLINE_MODE_LINK) == 0) {
+		*p_mode = DEVLINK_ESWITCH_INLINE_MODE_LINK;
+	} else if (strcmp(typestr, ESWITCH_INLINE_MODE_NETWORK) == 0) {
+		*p_mode = DEVLINK_ESWITCH_INLINE_MODE_NETWORK;
+	} else if (strcmp(typestr, ESWITCH_INLINE_MODE_TRANSPORT) == 0) {
+		*p_mode = DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT;
+	} else {
+		pr_err("Unknown eswitch inline mode \"%s\"\n", typestr);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int dl_argv_parse(struct dl *dl, uint32_t o_required,
 			 uint32_t o_optional)
 {
@@ -760,6 +818,31 @@ static int dl_argv_parse(struct dl *dl, uint32_t o_required,
 			if (err)
 				return err;
 			o_found |= DL_OPT_SB_TC;
+		} else if (dl_argv_match(dl, "mode") &&
+			   (o_all & DL_OPT_ESWITCH_MODE)) {
+			const char *typestr;
+
+			dl_arg_inc(dl);
+			err = dl_argv_str(dl, &typestr);
+			if (err)
+				return err;
+			err = eswitch_mode_get(typestr, &opts->eswitch_mode);
+			if (err)
+				return err;
+			o_found |= DL_OPT_ESWITCH_MODE;
+		} else if (dl_argv_match(dl, "inline-mode") &&
+			   (o_all & DL_OPT_ESWITCH_INLINE_MODE)) {
+			const char *typestr;
+
+			dl_arg_inc(dl);
+			err = dl_argv_str(dl, &typestr);
+			if (err)
+				return err;
+			err = eswitch_inline_mode_get(
+				typestr, &opts->eswitch_inline_mode);
+			if (err)
+				return err;
+			o_found |= DL_OPT_ESWITCH_INLINE_MODE;
 		} else {
 			pr_err("Unknown option \"%s\"\n", dl_argv(dl));
 			return -EINVAL;
@@ -813,6 +896,19 @@ static int dl_argv_parse(struct dl *dl, uint32_t o_required,
 		pr_err("TC index option expected.\n");
 		return -EINVAL;
 	}
+
+	if ((o_required & DL_OPT_ESWITCH_MODE) &&
+	    !(o_found & DL_OPT_ESWITCH_MODE)) {
+		pr_err("E-Switch mode option expected.\n");
+		return -EINVAL;
+	}
+
+	if ((o_required & DL_OPT_ESWITCH_INLINE_MODE) &&
+	    !(o_found & DL_OPT_ESWITCH_INLINE_MODE)) {
+		pr_err("E-Switch inline-mode option expected.\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -856,6 +952,12 @@ static void dl_opts_put(struct nlmsghdr *nlh, struct dl *dl)
 	if (opts->present & DL_OPT_SB_TC)
 		mnl_attr_put_u16(nlh, DEVLINK_ATTR_SB_TC_INDEX,
 				 opts->sb_tc_index);
+	if (opts->present & DL_OPT_ESWITCH_MODE)
+		mnl_attr_put_u16(nlh, DEVLINK_ATTR_ESWITCH_MODE,
+				 opts->eswitch_mode);
+	if (opts->present & DL_OPT_ESWITCH_INLINE_MODE)
+		mnl_attr_put_u8(nlh, DEVLINK_ATTR_ESWITCH_INLINE_MODE,
+				opts->eswitch_inline_mode);
 }
 
 static int dl_argv_parse_put(struct nlmsghdr *nlh, struct dl *dl,
@@ -909,55 +1011,167 @@ static bool dl_dump_filter(struct dl *dl, struct nlattr **tb)
 
 static void cmd_dev_help(void)
 {
-	pr_out("Usage: devlink dev show [ DEV ]\n");
+	pr_err("Usage: devlink dev show [ DEV ]\n");
+	pr_err("       devlink dev eswitch set DEV [ mode { legacy | switchdev } ]\n");
+	pr_err("                               [ inline-mode { none | link | network | transport } ]\n");
+	pr_err("       devlink dev eswitch show DEV\n");
 }
 
-static void __pr_out_handle(const char *bus_name, const char *dev_name)
+static bool cmp_arr_last_handle(struct dl *dl, const char *bus_name,
+				const char *dev_name)
 {
-	pr_out("%s/%s", bus_name, dev_name);
+	if (!dl->arr_last.present)
+		return false;
+	return strcmp(dl->arr_last.bus_name, bus_name) == 0 &&
+	       strcmp(dl->arr_last.dev_name, dev_name) == 0;
 }
 
-static void pr_out_handle(struct nlattr **tb)
+static void arr_last_handle_set(struct dl *dl, const char *bus_name,
+				const char *dev_name)
 {
-	__pr_out_handle(mnl_attr_get_str(tb[DEVLINK_ATTR_BUS_NAME]),
-			mnl_attr_get_str(tb[DEVLINK_ATTR_DEV_NAME]));
+	dl->arr_last.present = true;
+	free(dl->arr_last.dev_name);
+	free(dl->arr_last.bus_name);
+	dl->arr_last.bus_name = strdup(bus_name);
+	dl->arr_last.dev_name = strdup(dev_name);
 }
 
-static void __pr_out_port_handle(const char *bus_name, const char *dev_name,
-				 uint32_t port_index)
+static bool should_arr_last_handle_start(struct dl *dl, const char *bus_name,
+					 const char *dev_name)
 {
-	__pr_out_handle(bus_name, dev_name);
-	pr_out("/%d", port_index);
+	return !cmp_arr_last_handle(dl, bus_name, dev_name);
 }
 
-static void pr_out_port_handle(struct nlattr **tb)
+static bool should_arr_last_handle_end(struct dl *dl, const char *bus_name,
+				       const char *dev_name)
 {
-	__pr_out_port_handle(mnl_attr_get_str(tb[DEVLINK_ATTR_BUS_NAME]),
-			     mnl_attr_get_str(tb[DEVLINK_ATTR_DEV_NAME]),
-			     mnl_attr_get_u32(tb[DEVLINK_ATTR_PORT_INDEX]));
+	return dl->arr_last.present &&
+	       !cmp_arr_last_handle(dl, bus_name, dev_name);
 }
 
-static void __pr_out_port_handle_nice(struct dl *dl, const char *bus_name,
-				      const char *dev_name, uint32_t port_index)
+static void __pr_out_handle_start(struct dl *dl, struct nlattr **tb,
+				  bool content, bool array)
 {
-	char *ifname;
-	int err;
+	const char *bus_name = mnl_attr_get_str(tb[DEVLINK_ATTR_BUS_NAME]);
+	const char *dev_name = mnl_attr_get_str(tb[DEVLINK_ATTR_DEV_NAME]);
+	char buf[32];
 
-	if (dl->no_nice_names)
-		goto no_nice_names;
+	sprintf(buf, "%s/%s", bus_name, dev_name);
 
-	err = ifname_map_rev_lookup(dl, bus_name, dev_name,
-				    port_index, &ifname);
-	if (err)
-		goto no_nice_names;
-	pr_out("%s", ifname);
-	return;
-
-no_nice_names:
-	__pr_out_port_handle(bus_name, dev_name, port_index);
+	if (dl->json_output) {
+		if (array) {
+			if (should_arr_last_handle_end(dl, bus_name, dev_name))
+				jsonw_end_array(dl->jw);
+			if (should_arr_last_handle_start(dl, bus_name,
+							 dev_name)) {
+				jsonw_name(dl->jw, buf);
+				jsonw_start_array(dl->jw);
+				jsonw_start_object(dl->jw);
+				arr_last_handle_set(dl, bus_name, dev_name);
+			} else {
+				jsonw_start_object(dl->jw);
+			}
+		} else {
+			jsonw_name(dl->jw, buf);
+			jsonw_start_object(dl->jw);
+		}
+	} else {
+		pr_out("%s%s", buf, content ? ":" : "");
+	}
 }
 
-static void pr_out_port_handle_nice(struct dl *dl, struct nlattr **tb)
+static void pr_out_handle_start_arr(struct dl *dl, struct nlattr **tb)
+{
+	__pr_out_handle_start(dl, tb, true, true);
+}
+
+static void pr_out_handle_end(struct dl *dl)
+{
+	if (dl->json_output)
+		jsonw_end_object(dl->jw);
+	else
+		pr_out("\n");
+}
+
+static void pr_out_handle(struct dl *dl, struct nlattr **tb)
+{
+	__pr_out_handle_start(dl, tb, false, false);
+	pr_out_handle_end(dl);
+}
+
+static bool cmp_arr_last_port_handle(struct dl *dl, const char *bus_name,
+				     const char *dev_name, uint32_t port_index)
+{
+	return cmp_arr_last_handle(dl, bus_name, dev_name) &&
+	       dl->arr_last.port_index == port_index;
+}
+
+static void arr_last_port_handle_set(struct dl *dl, const char *bus_name,
+				     const char *dev_name, uint32_t port_index)
+{
+	arr_last_handle_set(dl, bus_name, dev_name);
+	dl->arr_last.port_index = port_index;
+}
+
+static bool should_arr_last_port_handle_start(struct dl *dl,
+					      const char *bus_name,
+					      const char *dev_name,
+					      uint32_t port_index)
+{
+	return !cmp_arr_last_port_handle(dl, bus_name, dev_name, port_index);
+}
+
+static bool should_arr_last_port_handle_end(struct dl *dl,
+					    const char *bus_name,
+					    const char *dev_name,
+					    uint32_t port_index)
+{
+	return dl->arr_last.present &&
+	       !cmp_arr_last_port_handle(dl, bus_name, dev_name, port_index);
+}
+
+static void __pr_out_port_handle_start(struct dl *dl, const char *bus_name,
+				       const char *dev_name,
+				       uint32_t port_index, bool try_nice,
+				       bool array)
+{
+	static char buf[32];
+	char *ifname = NULL;
+
+	if (dl->no_nice_names || !try_nice ||
+	    ifname_map_rev_lookup(dl, bus_name, dev_name,
+				  port_index, &ifname) != 0)
+		sprintf(buf, "%s/%s/%d", bus_name, dev_name, port_index);
+	else
+		sprintf(buf, "%s", ifname);
+
+	if (dl->json_output) {
+		if (array) {
+			if (should_arr_last_port_handle_end(dl, bus_name,
+							    dev_name,
+							    port_index))
+				jsonw_end_array(dl->jw);
+			if (should_arr_last_port_handle_start(dl, bus_name,
+							      dev_name,
+							      port_index)) {
+				jsonw_name(dl->jw, buf);
+				jsonw_start_array(dl->jw);
+				jsonw_start_object(dl->jw);
+				arr_last_port_handle_set(dl, bus_name, dev_name,
+							 port_index);
+			} else {
+				jsonw_start_object(dl->jw);
+			}
+		} else {
+			jsonw_name(dl->jw, buf);
+			jsonw_start_object(dl->jw);
+		}
+	} else {
+		pr_out("%s:", buf);
+	}
+}
+
+static void pr_out_port_handle_start(struct dl *dl, struct nlattr **tb, bool try_nice)
 {
 	const char *bus_name;
 	const char *dev_name;
@@ -966,25 +1180,191 @@ static void pr_out_port_handle_nice(struct dl *dl, struct nlattr **tb)
 	bus_name = mnl_attr_get_str(tb[DEVLINK_ATTR_BUS_NAME]);
 	dev_name = mnl_attr_get_str(tb[DEVLINK_ATTR_DEV_NAME]);
 	port_index = mnl_attr_get_u32(tb[DEVLINK_ATTR_PORT_INDEX]);
-
-	__pr_out_port_handle_nice(dl, bus_name, dev_name, port_index);
+	__pr_out_port_handle_start(dl, bus_name, dev_name, port_index, try_nice, false);
 }
 
-static void pr_out_dev(struct nlattr **tb)
+static void pr_out_port_handle_start_arr(struct dl *dl, struct nlattr **tb, bool try_nice)
 {
-	pr_out_handle(tb);
-	pr_out("\n");
+	const char *bus_name;
+	const char *dev_name;
+	uint32_t port_index;
+
+	bus_name = mnl_attr_get_str(tb[DEVLINK_ATTR_BUS_NAME]);
+	dev_name = mnl_attr_get_str(tb[DEVLINK_ATTR_DEV_NAME]);
+	port_index = mnl_attr_get_u32(tb[DEVLINK_ATTR_PORT_INDEX]);
+	__pr_out_port_handle_start(dl, bus_name, dev_name, port_index, try_nice, true);
 }
 
-static int cmd_dev_show_cb(const struct nlmsghdr *nlh, void *data)
+static void pr_out_port_handle_end(struct dl *dl)
 {
+	if (dl->json_output)
+		jsonw_end_object(dl->jw);
+	else
+		pr_out("\n");
+}
+
+
+static void pr_out_str(struct dl *dl, const char *name, const char *val)
+{
+	if (dl->json_output)
+		jsonw_string_field(dl->jw, name, val);
+	else
+		pr_out(" %s %s", name, val);
+}
+
+static void pr_out_uint(struct dl *dl, const char *name, unsigned int val)
+{
+	if (dl->json_output)
+		jsonw_uint_field(dl->jw, name, val);
+	else
+		pr_out(" %s %u", name, val);
+}
+
+static void pr_out_dev(struct dl *dl, struct nlattr **tb)
+{
+	pr_out_handle(dl, tb);
+}
+
+static void pr_out_section_start(struct dl *dl, const char *name)
+{
+	if (dl->json_output) {
+		jsonw_start_object(dl->jw);
+		jsonw_name(dl->jw, name);
+		jsonw_start_object(dl->jw);
+	}
+}
+
+static void pr_out_section_end(struct dl *dl)
+{
+	if (dl->json_output) {
+		if (dl->arr_last.present)
+			jsonw_end_array(dl->jw);
+		jsonw_end_object(dl->jw);
+		jsonw_end_object(dl->jw);
+	}
+}
+
+static const char *eswitch_mode_name(uint32_t mode)
+{
+	switch (mode) {
+	case DEVLINK_ESWITCH_MODE_LEGACY: return ESWITCH_MODE_LEGACY;
+	case DEVLINK_ESWITCH_MODE_SWITCHDEV: return ESWITCH_MODE_SWITCHDEV;
+	default: return "<unknown mode>";
+	}
+}
+
+static const char *eswitch_inline_mode_name(uint32_t mode)
+{
+	switch (mode) {
+	case DEVLINK_ESWITCH_INLINE_MODE_NONE:
+		return ESWITCH_INLINE_MODE_NONE;
+	case DEVLINK_ESWITCH_INLINE_MODE_LINK:
+		return ESWITCH_INLINE_MODE_LINK;
+	case DEVLINK_ESWITCH_INLINE_MODE_NETWORK:
+		return ESWITCH_INLINE_MODE_NETWORK;
+	case DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT:
+		return ESWITCH_INLINE_MODE_TRANSPORT;
+	default:
+		return "<unknown mode>";
+	}
+}
+
+static void pr_out_eswitch(struct dl *dl, struct nlattr **tb)
+{
+	__pr_out_handle_start(dl, tb, true, false);
+
+	if (tb[DEVLINK_ATTR_ESWITCH_MODE])
+		pr_out_str(dl, "mode",
+			   eswitch_mode_name(mnl_attr_get_u16(tb[DEVLINK_ATTR_ESWITCH_MODE])));
+
+	if (tb[DEVLINK_ATTR_ESWITCH_INLINE_MODE])
+		pr_out_str(dl, "inline-mode",
+			   eswitch_inline_mode_name(mnl_attr_get_u8(
+				   tb[DEVLINK_ATTR_ESWITCH_INLINE_MODE])));
+
+	pr_out_handle_end(dl);
+}
+
+static int cmd_dev_eswitch_show_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct dl *dl = data;
 	struct nlattr *tb[DEVLINK_ATTR_MAX + 1] = {};
 	struct genlmsghdr *genl = mnl_nlmsg_get_payload(nlh);
 
 	mnl_attr_parse(nlh, sizeof(*genl), attr_cb, tb);
 	if (!tb[DEVLINK_ATTR_BUS_NAME] || !tb[DEVLINK_ATTR_DEV_NAME])
 		return MNL_CB_ERROR;
-	pr_out_dev(tb);
+	pr_out_eswitch(dl, tb);
+	return MNL_CB_OK;
+}
+
+static int cmd_dev_eswitch_show(struct dl *dl)
+{
+	struct nlmsghdr *nlh;
+	int err;
+
+	nlh = mnlg_msg_prepare(dl->nlg, DEVLINK_CMD_ESWITCH_GET,
+			       NLM_F_REQUEST | NLM_F_ACK);
+
+	err = dl_argv_parse_put(nlh, dl, DL_OPT_HANDLE, 0);
+	if (err)
+		return err;
+
+	pr_out_section_start(dl, "dev");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_dev_eswitch_show_cb, dl);
+	pr_out_section_end(dl);
+	return err;
+}
+
+static int cmd_dev_eswitch_set(struct dl *dl)
+{
+	struct nlmsghdr *nlh;
+	int err;
+
+	nlh = mnlg_msg_prepare(dl->nlg, DEVLINK_CMD_ESWITCH_SET,
+			       NLM_F_REQUEST | NLM_F_ACK);
+
+	err = dl_argv_parse_put(nlh, dl, DL_OPT_HANDLE,
+				DL_OPT_ESWITCH_MODE |
+				DL_OPT_ESWITCH_INLINE_MODE);
+
+	if (err)
+		return err;
+
+	if (dl->opts.present == 1) {
+		pr_err("Need to set at least one option\n");
+		return -ENOENT;
+	}
+
+	return _mnlg_socket_sndrcv(dl->nlg, nlh, NULL, NULL);
+}
+
+static int cmd_dev_eswitch(struct dl *dl)
+{
+	if (dl_argv_match(dl, "help") || dl_no_arg(dl)) {
+		cmd_dev_help();
+		return 0;
+	} else if (dl_argv_match(dl, "set")) {
+		dl_arg_inc(dl);
+		return cmd_dev_eswitch_set(dl);
+	} else if (dl_argv_match(dl, "show")) {
+		dl_arg_inc(dl);
+		return cmd_dev_eswitch_show(dl);
+	}
+	pr_err("Command \"%s\" not found\n", dl_argv(dl));
+	return -ENOENT;
+}
+
+static int cmd_dev_show_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct dl *dl = data;
+	struct nlattr *tb[DEVLINK_ATTR_MAX + 1] = {};
+	struct genlmsghdr *genl = mnl_nlmsg_get_payload(nlh);
+
+	mnl_attr_parse(nlh, sizeof(*genl), attr_cb, tb);
+	if (!tb[DEVLINK_ATTR_BUS_NAME] || !tb[DEVLINK_ATTR_DEV_NAME])
+		return MNL_CB_ERROR;
+	pr_out_dev(dl, tb);
 	return MNL_CB_OK;
 }
 
@@ -1005,7 +1385,10 @@ static int cmd_dev_show(struct dl *dl)
 			return err;
 	}
 
-	return _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_dev_show_cb, NULL);
+	pr_out_section_start(dl, "dev");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_dev_show_cb, dl);
+	pr_out_section_end(dl);
+	return err;
 }
 
 static int cmd_dev(struct dl *dl)
@@ -1017,6 +1400,9 @@ static int cmd_dev(struct dl *dl)
 		   dl_argv_match(dl, "list") || dl_no_arg(dl)) {
 		dl_arg_inc(dl);
 		return cmd_dev_show(dl);
+	} else if (dl_argv_match(dl, "eswitch")) {
+		dl_arg_inc(dl);
+		return cmd_dev_eswitch(dl);
 	}
 	pr_err("Command \"%s\" not found\n", dl_argv(dl));
 	return -ENOENT;
@@ -1024,10 +1410,10 @@ static int cmd_dev(struct dl *dl)
 
 static void cmd_port_help(void)
 {
-	pr_out("Usage: devlink port show [ DEV/PORT_INDEX ]\n");
-	pr_out("       devlink port set DEV/PORT_INDEX [ type { eth | ib | auto} ]\n");
-	pr_out("       devlink port split DEV/PORT_INDEX count COUNT\n");
-	pr_out("       devlink port unsplit DEV/PORT_INDEX\n");
+	pr_err("Usage: devlink port show [ DEV/PORT_INDEX ]\n");
+	pr_err("       devlink port set DEV/PORT_INDEX [ type { eth | ib | auto} ]\n");
+	pr_err("       devlink port split DEV/PORT_INDEX count COUNT\n");
+	pr_err("       devlink port unsplit DEV/PORT_INDEX\n");
 }
 
 static const char *port_type_name(uint32_t type)
@@ -1041,38 +1427,39 @@ static const char *port_type_name(uint32_t type)
 	}
 }
 
-static void pr_out_port(struct nlattr **tb)
+static void pr_out_port(struct dl *dl, struct nlattr **tb)
 {
 	struct nlattr *pt_attr = tb[DEVLINK_ATTR_PORT_TYPE];
 	struct nlattr *dpt_attr = tb[DEVLINK_ATTR_PORT_DESIRED_TYPE];
 
-	pr_out_port_handle(tb);
-	pr_out(":");
+	pr_out_port_handle_start(dl, tb, false);
 	if (pt_attr) {
 		uint16_t port_type = mnl_attr_get_u16(pt_attr);
 
-		pr_out(" type %s", port_type_name(port_type));
+		pr_out_str(dl, "type", port_type_name(port_type));
 		if (dpt_attr) {
 			uint16_t des_port_type = mnl_attr_get_u16(dpt_attr);
 
 			if (port_type != des_port_type)
-				pr_out("(%s)", port_type_name(des_port_type));
+				pr_out_str(dl, "des_type",
+					   port_type_name(des_port_type));
 		}
 	}
 	if (tb[DEVLINK_ATTR_PORT_NETDEV_NAME])
-		pr_out(" netdev %s",
-		       mnl_attr_get_str(tb[DEVLINK_ATTR_PORT_NETDEV_NAME]));
+		pr_out_str(dl, "netdev",
+			   mnl_attr_get_str(tb[DEVLINK_ATTR_PORT_NETDEV_NAME]));
 	if (tb[DEVLINK_ATTR_PORT_IBDEV_NAME])
-		pr_out(" ibdev %s",
-		       mnl_attr_get_str(tb[DEVLINK_ATTR_PORT_IBDEV_NAME]));
+		pr_out_str(dl, "ibdev",
+			   mnl_attr_get_str(tb[DEVLINK_ATTR_PORT_IBDEV_NAME]));
 	if (tb[DEVLINK_ATTR_PORT_SPLIT_GROUP])
-		pr_out(" split_group %u",
-		       mnl_attr_get_u32(tb[DEVLINK_ATTR_PORT_SPLIT_GROUP]));
-	pr_out("\n");
+		pr_out_uint(dl, "split_group",
+			    mnl_attr_get_u32(tb[DEVLINK_ATTR_PORT_SPLIT_GROUP]));
+	pr_out_port_handle_end(dl);
 }
 
 static int cmd_port_show_cb(const struct nlmsghdr *nlh, void *data)
 {
+	struct dl *dl = data;
 	struct nlattr *tb[DEVLINK_ATTR_MAX + 1] = {};
 	struct genlmsghdr *genl = mnl_nlmsg_get_payload(nlh);
 
@@ -1080,7 +1467,7 @@ static int cmd_port_show_cb(const struct nlmsghdr *nlh, void *data)
 	if (!tb[DEVLINK_ATTR_BUS_NAME] || !tb[DEVLINK_ATTR_DEV_NAME] ||
 	    !tb[DEVLINK_ATTR_PORT_INDEX])
 		return MNL_CB_ERROR;
-	pr_out_port(tb);
+	pr_out_port(dl, tb);
 	return MNL_CB_OK;
 }
 
@@ -1101,7 +1488,10 @@ static int cmd_port_show(struct dl *dl)
 			return err;
 	}
 
-	return _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_port_show_cb, NULL);
+	pr_out_section_start(dl, "port");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_port_show_cb, dl);
+	pr_out_section_end(dl);
+	return err;
 }
 
 static int cmd_port_set(struct dl *dl)
@@ -1174,38 +1564,45 @@ static int cmd_port(struct dl *dl)
 
 static void cmd_sb_help(void)
 {
-	pr_out("Usage: devlink sb show [ DEV [ sb SB_INDEX ] ]\n");
-	pr_out("       devlink sb pool show [ DEV [ sb SB_INDEX ] pool POOL_INDEX ]\n");
-	pr_out("       devlink sb pool set DEV [ sb SB_INDEX ] pool POOL_INDEX\n");
-	pr_out("                           size POOL_SIZE thtype { static | dynamic }\n");
-	pr_out("       devlink sb port pool show [ DEV/PORT_INDEX [ sb SB_INDEX ]\n");
-	pr_out("                                   pool POOL_INDEX ]\n");
-	pr_out("       devlink sb port pool set DEV/PORT_INDEX [ sb SB_INDEX ]\n");
-	pr_out("                                pool POOL_INDEX th THRESHOLD\n");
-	pr_out("       devlink sb tc bind show [ DEV/PORT_INDEX [ sb SB_INDEX ] tc TC_INDEX\n");
-	pr_out("                                 type { ingress | egress } ]\n");
-	pr_out("       devlink sb tc bind set DEV/PORT_INDEX [ sb SB_INDEX ] tc TC_INDEX\n");
-	pr_out("                              type { ingress | egress } pool POOL_INDEX\n");
-	pr_out("                              th THRESHOLD\n");
-	pr_out("       devlink sb occupancy show { DEV | DEV/PORT_INDEX } [ sb SB_INDEX ]\n");
-	pr_out("       devlink sb occupancy snapshot DEV [ sb SB_INDEX ]\n");
-	pr_out("       devlink sb occupancy clearmax DEV [ sb SB_INDEX ]\n");
+	pr_err("Usage: devlink sb show [ DEV [ sb SB_INDEX ] ]\n");
+	pr_err("       devlink sb pool show [ DEV [ sb SB_INDEX ] pool POOL_INDEX ]\n");
+	pr_err("       devlink sb pool set DEV [ sb SB_INDEX ] pool POOL_INDEX\n");
+	pr_err("                           size POOL_SIZE thtype { static | dynamic }\n");
+	pr_err("       devlink sb port pool show [ DEV/PORT_INDEX [ sb SB_INDEX ]\n");
+	pr_err("                                   pool POOL_INDEX ]\n");
+	pr_err("       devlink sb port pool set DEV/PORT_INDEX [ sb SB_INDEX ]\n");
+	pr_err("                                pool POOL_INDEX th THRESHOLD\n");
+	pr_err("       devlink sb tc bind show [ DEV/PORT_INDEX [ sb SB_INDEX ] tc TC_INDEX\n");
+	pr_err("                                 type { ingress | egress } ]\n");
+	pr_err("       devlink sb tc bind set DEV/PORT_INDEX [ sb SB_INDEX ] tc TC_INDEX\n");
+	pr_err("                              type { ingress | egress } pool POOL_INDEX\n");
+	pr_err("                              th THRESHOLD\n");
+	pr_err("       devlink sb occupancy show { DEV | DEV/PORT_INDEX } [ sb SB_INDEX ]\n");
+	pr_err("       devlink sb occupancy snapshot DEV [ sb SB_INDEX ]\n");
+	pr_err("       devlink sb occupancy clearmax DEV [ sb SB_INDEX ]\n");
 }
 
-static void pr_out_sb(struct nlattr **tb)
+static void pr_out_sb(struct dl *dl, struct nlattr **tb)
 {
-	pr_out_handle(tb);
-	pr_out(": sb %u size %u ing_pools %u eg_pools %u ing_tcs %u eg_tcs %u\n",
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]),
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_SIZE]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_INGRESS_POOL_COUNT]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_EGRESS_POOL_COUNT]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_INGRESS_TC_COUNT]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_EGRESS_TC_COUNT]));
+	pr_out_handle_start_arr(dl, tb);
+	pr_out_uint(dl, "sb",
+		    mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]));
+	pr_out_uint(dl, "size",
+		    mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_SIZE]));
+	pr_out_uint(dl, "ing_pools",
+		    mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_INGRESS_POOL_COUNT]));
+	pr_out_uint(dl, "eg_pools",
+		    mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_EGRESS_POOL_COUNT]));
+	pr_out_uint(dl, "ing_tcs",
+		    mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_INGRESS_TC_COUNT]));
+	pr_out_uint(dl, "eg_tcs",
+		    mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_EGRESS_TC_COUNT]));
+	pr_out_handle_end(dl);
 }
 
 static int cmd_sb_show_cb(const struct nlmsghdr *nlh, void *data)
 {
+	struct dl *dl = data;
 	struct nlattr *tb[DEVLINK_ATTR_MAX + 1] = {};
 	struct genlmsghdr *genl = mnl_nlmsg_get_payload(nlh);
 
@@ -1217,7 +1614,7 @@ static int cmd_sb_show_cb(const struct nlmsghdr *nlh, void *data)
 	    !tb[DEVLINK_ATTR_SB_INGRESS_TC_COUNT] ||
 	    !tb[DEVLINK_ATTR_SB_EGRESS_TC_COUNT])
 		return MNL_CB_ERROR;
-	pr_out_sb(tb);
+	pr_out_sb(dl, tb);
 	return MNL_CB_OK;
 }
 
@@ -1238,7 +1635,10 @@ static int cmd_sb_show(struct dl *dl)
 			return err;
 	}
 
-	return _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_show_cb, NULL);
+	pr_out_section_start(dl, "sb");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_show_cb, dl);
+	pr_out_section_end(dl);
+	return err;
 }
 
 static const char *pool_type_name(uint8_t type)
@@ -1259,19 +1659,25 @@ static const char *threshold_type_name(uint8_t type)
 	}
 }
 
-static void pr_out_sb_pool(struct nlattr **tb)
+static void pr_out_sb_pool(struct dl *dl, struct nlattr **tb)
 {
-	pr_out_handle(tb);
-	pr_out(": sb %u pool %u type %s size %u thtype %s\n",
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_POOL_INDEX]),
-	       pool_type_name(mnl_attr_get_u8(tb[DEVLINK_ATTR_SB_POOL_TYPE])),
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_POOL_SIZE]),
-	       threshold_type_name(mnl_attr_get_u8(tb[DEVLINK_ATTR_SB_POOL_THRESHOLD_TYPE])));
+	pr_out_handle_start_arr(dl, tb);
+	pr_out_uint(dl, "sb",
+		    mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]));
+	pr_out_uint(dl, "pool",
+		    mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_POOL_INDEX]));
+	pr_out_str(dl, "type",
+		   pool_type_name(mnl_attr_get_u8(tb[DEVLINK_ATTR_SB_POOL_TYPE])));
+	pr_out_uint(dl, "size",
+		    mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_POOL_SIZE]));
+	pr_out_str(dl, "thtype",
+		   threshold_type_name(mnl_attr_get_u8(tb[DEVLINK_ATTR_SB_POOL_THRESHOLD_TYPE])));
+	pr_out_handle_end(dl);
 }
 
 static int cmd_sb_pool_show_cb(const struct nlmsghdr *nlh, void *data)
 {
+	struct dl *dl = data;
 	struct nlattr *tb[DEVLINK_ATTR_MAX + 1] = {};
 	struct genlmsghdr *genl = mnl_nlmsg_get_payload(nlh);
 
@@ -1281,7 +1687,7 @@ static int cmd_sb_pool_show_cb(const struct nlmsghdr *nlh, void *data)
 	    !tb[DEVLINK_ATTR_SB_POOL_TYPE] || !tb[DEVLINK_ATTR_SB_POOL_SIZE] ||
 	    !tb[DEVLINK_ATTR_SB_POOL_THRESHOLD_TYPE])
 		return MNL_CB_ERROR;
-	pr_out_sb_pool(tb);
+	pr_out_sb_pool(dl, tb);
 	return MNL_CB_OK;
 }
 
@@ -1303,7 +1709,10 @@ static int cmd_sb_pool_show(struct dl *dl)
 			return err;
 	}
 
-	return _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_pool_show_cb, NULL);
+	pr_out_section_start(dl, "pool");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_pool_show_cb, dl);
+	pr_out_section_end(dl);
+	return err;
 }
 
 static int cmd_sb_pool_set(struct dl *dl)
@@ -1341,11 +1750,14 @@ static int cmd_sb_pool(struct dl *dl)
 
 static void pr_out_sb_port_pool(struct dl *dl, struct nlattr **tb)
 {
-	pr_out_port_handle_nice(dl, tb);
-	pr_out(": sb %u pool %u threshold %u\n",
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_POOL_INDEX]),
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_THRESHOLD]));
+	pr_out_port_handle_start_arr(dl, tb, true);
+	pr_out_uint(dl, "sb",
+		    mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]));
+	pr_out_uint(dl, "pool",
+		    mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_POOL_INDEX]));
+	pr_out_uint(dl, "threshold",
+		    mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_THRESHOLD]));
+	pr_out_port_handle_end(dl);
 }
 
 static int cmd_sb_port_pool_show_cb(const struct nlmsghdr *nlh, void *data)
@@ -1382,7 +1794,10 @@ static int cmd_sb_port_pool_show(struct dl *dl)
 			return err;
 	}
 
-	return _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_port_pool_show_cb, dl);
+	pr_out_section_start(dl, "port_pool");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_port_pool_show_cb, dl);
+	pr_out_section_end(dl);
+	return 0;
 }
 
 static int cmd_sb_port_pool_set(struct dl *dl)
@@ -1433,13 +1848,18 @@ static int cmd_sb_port(struct dl *dl)
 
 static void pr_out_sb_tc_bind(struct dl *dl, struct nlattr **tb)
 {
-	pr_out_port_handle_nice(dl, tb);
-	pr_out(": sb %u tc %u type %s pool %u threshold %u\n",
-	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_TC_INDEX]),
-	       pool_type_name(mnl_attr_get_u8(tb[DEVLINK_ATTR_SB_POOL_TYPE])),
-	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_POOL_INDEX]),
+	pr_out_port_handle_start_arr(dl, tb, true);
+	pr_out_uint(dl, "sb",
+	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_INDEX]));
+	pr_out_uint(dl, "tc",
+	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_TC_INDEX]));
+	pr_out_str(dl, "type",
+	       pool_type_name(mnl_attr_get_u8(tb[DEVLINK_ATTR_SB_POOL_TYPE])));
+	pr_out_uint(dl, "pool",
+	       mnl_attr_get_u16(tb[DEVLINK_ATTR_SB_POOL_INDEX]));
+	pr_out_uint(dl, "threshold",
 	       mnl_attr_get_u32(tb[DEVLINK_ATTR_SB_THRESHOLD]));
+	pr_out_port_handle_end(dl);
 }
 
 static int cmd_sb_tc_bind_show_cb(const struct nlmsghdr *nlh, void *data)
@@ -1476,7 +1896,10 @@ static int cmd_sb_tc_bind_show(struct dl *dl)
 			return err;
 	}
 
-	return _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_tc_bind_show_cb, dl);
+	pr_out_section_start(dl, "tc_bind");
+	err = _mnlg_socket_sndrcv(dl->nlg, nlh, cmd_sb_tc_bind_show_cb, dl);
+	pr_out_section_end(dl);
+	return err;
 }
 
 static int cmd_sb_tc_bind_set(struct dl *dl)
@@ -1649,11 +2072,44 @@ static void pr_out_occ_show_item_list(const char *label, struct list_head *list,
 		pr_out("\n");
 }
 
-static void pr_out_occ_show_port(struct occ_port *occ_port)
+static void pr_out_json_occ_show_item_list(struct dl *dl, const char *label,
+					   struct list_head *list,
+					   bool bound_pool)
 {
-	pr_out_occ_show_item_list("pool", &occ_port->pool_list, false);
-	pr_out_occ_show_item_list("itc", &occ_port->ing_tc_list, true);
-	pr_out_occ_show_item_list("etc", &occ_port->eg_tc_list, true);
+	struct occ_item *occ_item;
+	char buf[32];
+
+	jsonw_name(dl->jw, label);
+	jsonw_start_object(dl->jw);
+	list_for_each_entry(occ_item, list, list) {
+		sprintf(buf, "%u", occ_item->index);
+		jsonw_name(dl->jw, buf);
+		jsonw_start_object(dl->jw);
+		if (bound_pool)
+			jsonw_uint_field(dl->jw, "bound_pool",
+					 occ_item->bound_pool_index);
+		jsonw_uint_field(dl->jw, "current", occ_item->cur);
+		jsonw_uint_field(dl->jw, "max", occ_item->max);
+		jsonw_end_object(dl->jw);
+	}
+	jsonw_end_object(dl->jw);
+}
+
+static void pr_out_occ_show_port(struct dl *dl, struct occ_port *occ_port)
+{
+	if (dl->json_output) {
+		pr_out_json_occ_show_item_list(dl, "pool",
+					       &occ_port->pool_list, false);
+		pr_out_json_occ_show_item_list(dl, "itc",
+					       &occ_port->ing_tc_list, true);
+		pr_out_json_occ_show_item_list(dl, "etc",
+					       &occ_port->eg_tc_list, true);
+	} else {
+		pr_out("\n");
+		pr_out_occ_show_item_list("pool", &occ_port->pool_list, false);
+		pr_out_occ_show_item_list("itc", &occ_port->ing_tc_list, true);
+		pr_out_occ_show_item_list("etc", &occ_port->eg_tc_list, true);
+	}
 }
 
 static void pr_out_occ_show(struct occ_show *occ_show)
@@ -1663,10 +2119,10 @@ static void pr_out_occ_show(struct occ_show *occ_show)
 	struct occ_port *occ_port;
 
 	list_for_each_entry(occ_port, &occ_show->port_list, list) {
-		__pr_out_port_handle_nice(dl, opts->bus_name, opts->dev_name,
-					  occ_port->port_index);
-		pr_out(":\n");
-		pr_out_occ_show_port(occ_port);
+		__pr_out_port_handle_start(dl, opts->bus_name, opts->dev_name,
+					   occ_port->port_index, true, false);
+		pr_out_occ_show_port(dl, occ_port);
+		pr_out_port_handle_end(dl);
 	}
 }
 
@@ -1793,7 +2249,9 @@ static int cmd_sb_occ_show(struct dl *dl)
 	if (err)
 		goto out;
 
+	pr_out_section_start(dl, "occupancy");
 	pr_out_occ_show(occ_show);
+	pr_out_section_end(dl);
 
 out:
 	occ_show_free(occ_show);
@@ -1949,7 +2407,7 @@ static int cmd_mon_show_cb(const struct nlmsghdr *nlh, void *data)
 		if (!tb[DEVLINK_ATTR_BUS_NAME] || !tb[DEVLINK_ATTR_DEV_NAME])
 			return MNL_CB_ERROR;
 		pr_out_mon_header(genl->cmd);
-		pr_out_dev(tb);
+		pr_out_dev(dl, tb);
 		break;
 	case DEVLINK_CMD_PORT_GET: /* fall through */
 	case DEVLINK_CMD_PORT_SET: /* fall through */
@@ -1960,7 +2418,7 @@ static int cmd_mon_show_cb(const struct nlmsghdr *nlh, void *data)
 		    !tb[DEVLINK_ATTR_PORT_INDEX])
 			return MNL_CB_ERROR;
 		pr_out_mon_header(genl->cmd);
-		pr_out_port(tb);
+		pr_out_port(dl, tb);
 		break;
 	}
 	return MNL_CB_OK;
@@ -1991,7 +2449,7 @@ static int cmd_mon_show(struct dl *dl)
 
 static void cmd_mon_help(void)
 {
-	pr_out("Usage: devlink monitor [ all | OBJECT-LIST ]\n"
+	pr_err("Usage: devlink monitor [ all | OBJECT-LIST ]\n"
 	       "where  OBJECT-LIST := { dev | port }\n");
 }
 
@@ -2010,9 +2468,9 @@ static int cmd_mon(struct dl *dl)
 
 static void help(void)
 {
-	pr_out("Usage: devlink [ OPTIONS ] OBJECT { COMMAND | help }\n"
+	pr_err("Usage: devlink [ OPTIONS ] OBJECT { COMMAND | help }\n"
 	       "where  OBJECT := { dev | port | sb | monitor }\n"
-	       "       OPTIONS := { -V[ersion] | -n[no-nice-names] }\n");
+	       "       OPTIONS := { -V[ersion] | -n[no-nice-names] | -j[json] | -p[pretty] }\n");
 }
 
 static int dl_cmd(struct dl *dl)
@@ -2055,8 +2513,18 @@ static int dl_init(struct dl *dl, int argc, char **argv)
 		pr_err("Failed to create index map\n");
 		goto err_ifname_map_create;
 	}
+	if (dl->json_output) {
+		dl->jw = jsonw_new(stdout);
+		if (!dl->jw) {
+			pr_err("Failed to create JSON writer\n");
+			goto err_json_new;
+		}
+		jsonw_pretty(dl->jw, dl->pretty_output);
+	}
 	return 0;
 
+err_json_new:
+	ifname_map_fini(dl);
 err_ifname_map_create:
 	mnlg_socket_close(dl->nlg);
 	return err;
@@ -2064,6 +2532,8 @@ err_ifname_map_create:
 
 static void dl_fini(struct dl *dl)
 {
+	if (dl->json_output)
+		jsonw_destroy(&dl->jw);
 	ifname_map_fini(dl);
 	mnlg_socket_close(dl->nlg);
 }
@@ -2088,6 +2558,8 @@ int main(int argc, char **argv)
 	static const struct option long_options[] = {
 		{ "Version",		no_argument,		NULL, 'V' },
 		{ "no-nice-names",	no_argument,		NULL, 'n' },
+		{ "json",		no_argument,		NULL, 'j' },
+		{ "pretty",		no_argument,		NULL, 'p' },
 		{ NULL, 0, NULL, 0 }
 	};
 	struct dl *dl;
@@ -2101,20 +2573,28 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	while ((opt = getopt_long(argc, argv, "Vn",
+	while ((opt = getopt_long(argc, argv, "Vnjp",
 				  long_options, NULL)) >= 0) {
 
 		switch (opt) {
 		case 'V':
 			printf("devlink utility, iproute2-ss%s\n", SNAPSHOT);
-			return EXIT_SUCCESS;
+			ret = EXIT_SUCCESS;
+			goto dl_free;
 		case 'n':
 			dl->no_nice_names = true;
+			break;
+		case 'j':
+			dl->json_output = true;
+			break;
+		case 'p':
+			dl->pretty_output = true;
 			break;
 		default:
 			pr_err("Unknown option.\n");
 			help();
-			return EXIT_FAILURE;
+			ret = EXIT_FAILURE;
+			goto dl_free;
 		}
 	}
 

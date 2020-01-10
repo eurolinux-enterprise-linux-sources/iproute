@@ -1,0 +1,96 @@
+From 91cda136ef27402256dbf85434374b43ab52d932 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 11 Aug 2017 11:15:30 +0200
+Subject: [PATCH] bpf: Make bytecode-file reading a little more robust
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1477491
+Upstream Status: iproute2.git commit 3da3ebfca85b8
+
+commit 3da3ebfca85b8f1e8252b898453d8cb383c5c398
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Aug 2 14:57:56 2017 +0200
+
+    bpf: Make bytecode-file reading a little more robust
+
+    bpf_parse_string() will now correctly handle:
+
+    - Extraneous whitespace,
+    - OPs on multiple lines and
+    - overlong file names.
+
+    The added feature of allowing to have OPs on multiple lines (like e.g.
+    tcpdump prints them) is rather a side effect of fixing detection of
+    malformed bytecode files having random content on a second line, like
+    e.g.:
+
+    | 4,40 0 0 12,21 0 1 2048,6 0 0 262144,6 0 0 0
+    | foobar
+
+    Cc: Daniel Borkmann <daniel@iogearbox.net>
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+    Acked-by: Daniel Borkmann <daniel@iogearbox.net>
+---
+ lib/bpf.c | 32 ++++++++++++++++++++++++--------
+ 1 file changed, 24 insertions(+), 8 deletions(-)
+
+diff --git a/lib/bpf.c b/lib/bpf.c
+index 04ee1ab..73dac5c 100644
+--- a/lib/bpf.c
++++ b/lib/bpf.c
+@@ -160,11 +160,11 @@ static int bpf_parse_string(char *arg, bool from_file, __u16 *bpf_len,
+ 
+ 	if (from_file) {
+ 		size_t tmp_len, op_len = sizeof("65535 255 255 4294967295,");
+-		char *tmp_string, *last;
++		char *tmp_string, *pos, c, c_prev = ' ';
+ 		FILE *fp;
+ 
+ 		tmp_len = sizeof("4096,") + BPF_MAXINSNS * op_len;
+-		tmp_string = calloc(1, tmp_len);
++		tmp_string = pos = calloc(1, tmp_len);
+ 		if (tmp_string == NULL)
+ 			return -ENOMEM;
+ 
+@@ -175,17 +175,33 @@ static int bpf_parse_string(char *arg, bool from_file, __u16 *bpf_len,
+ 			return -ENOENT;
+ 		}
+ 
+-		if (!fgets(tmp_string, tmp_len, fp)) {
++		while ((c = fgetc(fp)) != EOF) {
++			switch (c) {
++			case '\n':
++				if (c_prev != ',')
++					*(pos++) = ',';
++				break;
++			case ' ':
++			case '\t':
++				if (c_prev != ' ')
++					*(pos++) = c;
++				break;
++			default:
++				*(pos++) = c;
++			}
++			if (pos - tmp_string == tmp_len)
++				break;
++			c_prev = c;
++		}
++
++		if (!feof(fp)) {
+ 			free(tmp_string);
+ 			fclose(fp);
+-			return -EIO;
++			return -E2BIG;
+ 		}
+ 
+ 		fclose(fp);
+-
+-		last = &tmp_string[strlen(tmp_string) - 1];
+-		if (*last == '\n')
+-			*last = 0;
++		*pos = 0;
+ 
+ 		*need_release = true;
+ 		*bpf_string = tmp_string;
+-- 
+1.8.3.1
+

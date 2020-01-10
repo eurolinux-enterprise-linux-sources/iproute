@@ -1,0 +1,37 @@
+From d203110b883afafa58b735a3e94c71f255db7608 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 11 Aug 2017 11:13:26 +0200
+Subject: [PATCH] tc: fix m_simple usage
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1477523
+Upstream Status: iproute2.git commit 620fc6696d4f4
+
+commit 620fc6696d4f4e9ad540a45892873b0382907739
+Author: Stephen Hemminger <stephen@networkplumber.org>
+Date:   Thu Aug 3 16:10:18 2017 -0700
+
+    tc: fix m_simple usage
+
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ tc/m_simple.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/tc/m_simple.c b/tc/m_simple.c
+index ab63384..65e48ad 100644
+--- a/tc/m_simple.c
++++ b/tc/m_simple.c
+@@ -83,8 +83,8 @@ static void explain(void)
+ {
+ 	fprintf(stderr, "Usage:... simple [sdata STRING] [index INDEX] [CONTROL]\n");
+ 	fprintf(stderr, "\tSTRING being an arbitrary string\n"
+-		"\tINDEX := optional index value used\n");
+-		"\tCONTROL := reclassify|pipe|drop|continue|ok\n"
++		"\tINDEX := optional index value used\n"
++		"\tCONTROL := reclassify|pipe|drop|continue|ok\n");
+ }
+ 
+ static void usage(void)
+-- 
+1.8.3.1
+

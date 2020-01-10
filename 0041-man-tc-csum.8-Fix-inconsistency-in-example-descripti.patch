@@ -1,0 +1,42 @@
+From f08752c12351c79145e3a6caf346e3d971370a9c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 6 Dec 2017 13:21:16 +0100
+Subject: [PATCH] man: tc-csum.8: Fix inconsistency in example description
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417162
+Upstream Status: iproute2.git commit 6bf156415a588
+
+commit 6bf156415a588fa1c975be9a18a1579f63a936a2
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Wed Nov 29 18:34:09 2017 +0100
+
+    man: tc-csum.8: Fix inconsistency in example description
+
+    Commit 6bbe5e6290db5 ("man: tc-csum.8: Fix example") changed both source
+    and destination IP addresses in example code but missed to update the
+    example's description accordingly.
+
+    Fixes: 6bbe5e6290db5 ("man: tc-csum.8: Fix example")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ man/man8/tc-csum.8 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/man/man8/tc-csum.8 b/man/man8/tc-csum.8
+index 409ab71..65724b8 100644
+--- a/man/man8/tc-csum.8
++++ b/man/man8/tc-csum.8
+@@ -53,8 +53,8 @@ SCTP header
+ .B SWEETS
+ These are merely syntactic sugar and ignored internally.
+ .SH EXAMPLES
+-The following performs stateless NAT for incoming packets from 192.168.1.100 to
+-new destination 18.52.86.120 (0x12345678 in hex). Assuming these are UDP
++The following performs stateless NAT for incoming packets from 192.0.2.100 to
++new destination 198.51.100.1. Assuming these are UDP
+ packets, both IP and UDP checksums have to be recalculated:
+ 
+ .RS
+-- 
+1.8.3.1
+

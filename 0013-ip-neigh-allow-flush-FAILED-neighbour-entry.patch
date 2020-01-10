@@ -1,0 +1,52 @@
+From 3b6fd8227cbb03b5b211d2cb53534ad405673668 Mon Sep 17 00:00:00 2001
+From: Matteo Croce <mcroce@redhat.com>
+Date: Wed, 2 Aug 2017 13:57:17 +0200
+Subject: [PATCH] ip neigh: allow flush FAILED neighbour entry
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1469945
+Tested: locally using proper reproducer
+Upstream Status: merged 37a5f7c5
+
+commit 37a5f7c571623059ae671992f72feaa444a6ffc8
+Author: Hangbin Liu <liuhangbin@gmail.com>
+Date:   Fri Jun 16 11:31:52 2017 +0800
+
+    ip neigh: allow flush FAILED neighbour entry
+
+    After upstream commit 5071034e4af7 ('neigh: Really delete an arp/neigh entry
+    on "ip neigh delete" or "arp -d"'), we could delete a single FAILED neighbour
+    entry now. But `ip neigh flush` still skip the FAILED entry.
+
+    Move the filter after first round flush so we can flush FAILED entry on fixed
+    kernel and also do not keep retrying on old kernel.
+
+    Signed-off-by: Hangbin Liu <liuhangbin@gmail.com>
+
+Signed-off-by: Matteo Croce <mcroce@redhat.com>
+---
+ ip/ipneigh.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/ipneigh.c b/ip/ipneigh.c
+index 4d8fc85..9c38a60 100644
+--- a/ip/ipneigh.c
++++ b/ip/ipneigh.c
+@@ -445,7 +445,6 @@ static int do_show_or_flush(int argc, char **argv, int flush)
+ 		filter.flushb = flushb;
+ 		filter.flushp = 0;
+ 		filter.flushe = sizeof(flushb);
+-		filter.state &= ~NUD_FAILED;
+ 
+ 		while (round < MAX_ROUNDS) {
+ 			if (rtnl_dump_request_n(&rth, &req.n) < 0) {
+@@ -474,6 +473,7 @@ static int do_show_or_flush(int argc, char **argv, int flush)
+ 				printf("\n*** Round %d, deleting %d entries ***\n", round, filter.flushed);
+ 				fflush(stdout);
+ 			}
++			filter.state &= ~NUD_FAILED;
+ 		}
+ 		printf("*** Flush not complete bailing out after %d rounds\n",
+ 			MAX_ROUNDS);
+-- 
+1.8.3.1
+

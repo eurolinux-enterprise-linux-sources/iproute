@@ -1,0 +1,51 @@
+From 2db276543a03633a61ba0815a01c8bb2846830ab Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Thu, 14 Sep 2017 15:30:37 +0200
+Subject: [PATCH] link_gre6: really support encaplimit option
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1459600
+Upstream Status: iproute2.git commit a11b7b71a6eba
+Conflicts: Context change due to missing commit ad4b1425c3182
+	   ("iplink: Expose IFLA_*_FWMARK attributes for supported link
+	   types").
+
+commit a11b7b71a6eba4ee80e931e4f75321a0cf0116f1
+Author: Nicolas Dichtel <nicolas.dichtel@6wind.com>
+Date:   Wed Jun 14 18:45:42 2017 +0200
+
+    link_gre6: really support encaplimit option
+
+    This option is documented in gre6 help, but was not supported.
+
+    Fixes: af89576d7a8c ("iproute2: GRE over IPv6 tunnel support.")
+    Signed-off-by: Nicolas Dichtel <nicolas.dichtel@6wind.com>
+---
+ ip/link_gre6.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/ip/link_gre6.c b/ip/link_gre6.c
+index 1b4fb05..76416b2 100644
+--- a/ip/link_gre6.c
++++ b/ip/link_gre6.c
+@@ -339,6 +339,18 @@ get_failed:
+ 			encapflags |= TUNNEL_ENCAP_FLAG_REMCSUM;
+ 		} else if (strcmp(*argv, "noencap-remcsum") == 0) {
+ 			encapflags &= ~TUNNEL_ENCAP_FLAG_REMCSUM;
++		} else if (strcmp(*argv, "encaplimit") == 0) {
++			NEXT_ARG();
++			if (strcmp(*argv, "none") == 0) {
++				flags |= IP6_TNL_F_IGN_ENCAP_LIMIT;
++			} else {
++				__u8 uval;
++
++				if (get_u8(&uval, *argv, 0) < -1)
++					invarg("invalid ELIM", *argv);
++				encap_limit = uval;
++				flags &= ~IP6_TNL_F_IGN_ENCAP_LIMIT;
++			}
+ 		} else
+ 			usage();
+ 		argc--; argv++;
+-- 
+1.8.3.1
+

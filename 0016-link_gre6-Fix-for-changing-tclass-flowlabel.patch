@@ -1,0 +1,49 @@
+From 449517f7769dde4905564ce17e126bfd4e1f7147 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 6 Oct 2017 17:27:09 +0200
+Subject: [PATCH] link_gre6: Fix for changing tclass/flowlabel
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1487486
+Upstream Status: iproute2.git commit e7fefb3214b5a
+
+commit e7fefb3214b5a1ed030cab9df513560c503a9851
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Fri Sep 1 16:08:08 2017 +0200
+
+    link_gre6: Fix for changing tclass/flowlabel
+
+    When trying to change tclass or flowlabel of a GREv6 tunnel which has
+    the respective value set already, the code accidentally bitwise OR'ed
+    the old and the new value, leading to unexpected results. Fix this by
+    clearing the relevant bits of flowinfo variable prior to assigning the
+    new value.
+
+    Fixes: af89576d7a8c4 ("iproute2: GRE over IPv6 tunnel support.")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/link_gre6.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/ip/link_gre6.c b/ip/link_gre6.c
+index 76416b2..fe3ab64 100644
+--- a/ip/link_gre6.c
++++ b/ip/link_gre6.c
+@@ -282,6 +282,7 @@ get_failed:
+ 			else {
+ 				if (get_u8(&uval, *argv, 16))
+ 					invarg("invalid TClass", *argv);
++				flowinfo &= ~IP6_FLOWINFO_TCLASS;
+ 				flowinfo |= htonl((__u32)uval << 20) & IP6_FLOWINFO_TCLASS;
+ 				flags &= ~IP6_TNL_F_USE_ORIG_TCLASS;
+ 			}
+@@ -297,6 +298,7 @@ get_failed:
+ 					invarg("invalid Flowlabel", *argv);
+ 				if (uval > 0xFFFFF)
+ 					invarg("invalid Flowlabel", *argv);
++				flowinfo &= ~IP6_FLOWINFO_FLOWLABEL;
+ 				flowinfo |= htonl(uval) & IP6_FLOWINFO_FLOWLABEL;
+ 				flags &= ~IP6_TNL_F_USE_ORIG_FLOWLABEL;
+ 			}
+-- 
+1.8.3.1
+

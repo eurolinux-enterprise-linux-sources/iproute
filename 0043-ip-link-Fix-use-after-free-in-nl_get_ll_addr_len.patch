@@ -1,0 +1,43 @@
+From dcafeb49b2538cc7118cb64f62c685980c106b48 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Tue, 6 Mar 2018 11:35:28 +0100
+Subject: [PATCH] ip-link: Fix use after free in nl_get_ll_addr_len()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1550097
+Upstream Status: iproute2.git commit 06867c3719587
+
+commit 06867c371958773e39b4ccac07cfe3e2fff2ea55
+Author: Phil Sutter <phil@nwl.cc>
+Date:   Thu Mar 1 10:35:12 2018 +0100
+
+    ip-link: Fix use after free in nl_get_ll_addr_len()
+
+    Immediately after freeing the buffer returned from rtnl_talk(), it is
+    accessed again via pointer in struct rtattr array. This leads to some
+    builds not allowing to set an interface's MAC address because the
+    expected length value is garbage.
+
+    Fixes: 86bf43c7c2fdc ("lib/libnetlink: update rtnl_talk to support malloc buff at run time")
+    Signed-off-by: Phil Sutter <phil@nwl.cc>
+---
+ ip/iplink.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/ip/iplink.c b/ip/iplink.c
+index 193997c..db5b2c9 100644
+--- a/ip/iplink.c
++++ b/ip/iplink.c
+@@ -268,8 +268,9 @@ static int nl_get_ll_addr_len(unsigned int dev_index)
+ 		return -1;
+ 	}
+ 
++	len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
+ 	free(answer);
+-	return RTA_PAYLOAD(tb[IFLA_ADDRESS]);
++	return len;
+ }
+ 
+ static void iplink_parse_vf_vlan_info(int vf, int *argcp, char ***argvp,
+-- 
+1.8.3.1
+

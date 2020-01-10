@@ -1,0 +1,2048 @@
+From 7f123fac8aa0ff7741777935121e1b394c56e75a Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 10 Nov 2017 10:19:43 +0100
+Subject: [PATCH] Update linux headers
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1456539
+
+This updates include/linux to the state just before commit 596b1c94aa38e
+("iproute: build more easily on Android").
+---
+ include/linux/bpf.h                  | 253 ++++++++++++++++++++++-
+ include/linux/can/vxcan.h            |  12 ++
+ include/linux/devlink.h              |  92 ++++++++-
+ include/linux/elf-em.h               |   1 -
+ include/linux/if_arp.h               |   2 +
+ include/linux/if_ether.h             |   6 +
+ include/linux/if_link.h              |  37 +++-
+ include/linux/if_packet.h            |   1 +
+ include/linux/if_tunnel.h            |   4 +
+ include/linux/inet_diag.h            |   2 +
+ include/linux/ipsec.h                |  47 +++++
+ include/linux/lwtunnel.h             |   1 +
+ include/linux/magic.h                |   3 +
+ include/linux/mpls_iptunnel.h        |   2 +
+ include/linux/neighbour.h            |   1 +
+ include/linux/netlink.h              |  67 +++++-
+ include/linux/netlink_diag.h         |  10 +
+ include/linux/pfkeyv2.h              | 383 +++++++++++++++++++++++++++++++++++
+ include/linux/pkt_cls.h              |  37 +++-
+ include/linux/pkt_sched.h            |   8 +
+ include/linux/rtnetlink.h            |  36 +++-
+ include/linux/sctp.h                 |  38 ++++
+ include/linux/seg6.h                 |  54 +++++
+ include/linux/seg6_genl.h            |  32 +++
+ include/linux/seg6_hmac.h            |  22 ++
+ include/linux/seg6_iptunnel.h        |  40 ++++
+ include/linux/seg6_local.h           |  68 +++++++
+ include/linux/tc_act/tc_bpf.h        |   1 +
+ include/linux/tc_act/tc_tunnel_key.h |   1 +
+ include/linux/tcp.h                  |  27 ++-
+ include/linux/xfrm.h                 |   9 +
+ 31 files changed, 1272 insertions(+), 25 deletions(-)
+ create mode 100644 include/linux/can/vxcan.h
+ create mode 100644 include/linux/ipsec.h
+ create mode 100644 include/linux/pfkeyv2.h
+ create mode 100644 include/linux/seg6.h
+ create mode 100644 include/linux/seg6_genl.h
+ create mode 100644 include/linux/seg6_hmac.h
+ create mode 100644 include/linux/seg6_iptunnel.h
+ create mode 100644 include/linux/seg6_local.h
+
+diff --git a/include/linux/bpf.h b/include/linux/bpf.h
+index 178e20c..0895a52 100644
+--- a/include/linux/bpf.h
++++ b/include/linux/bpf.h
+@@ -30,9 +30,14 @@
+ #define BPF_FROM_LE	BPF_TO_LE
+ #define BPF_FROM_BE	BPF_TO_BE
+ 
++/* jmp encodings */
+ #define BPF_JNE		0x50	/* jump != */
++#define BPF_JLT		0xa0	/* LT is unsigned, '<' */
++#define BPF_JLE		0xb0	/* LE is unsigned, '<=' */
+ #define BPF_JSGT	0x60	/* SGT is signed '>', GT in x86 */
+ #define BPF_JSGE	0x70	/* SGE is signed '>=', GE in x86 */
++#define BPF_JSLT	0xc0	/* SLT is signed, '<' */
++#define BPF_JSLE	0xd0	/* SLE is signed, '<=' */
+ #define BPF_CALL	0x80	/* function call */
+ #define BPF_EXIT	0x90	/* function return */
+ 
+@@ -81,6 +86,12 @@ enum bpf_cmd {
+ 	BPF_OBJ_GET,
+ 	BPF_PROG_ATTACH,
+ 	BPF_PROG_DETACH,
++	BPF_PROG_TEST_RUN,
++	BPF_PROG_GET_NEXT_ID,
++	BPF_MAP_GET_NEXT_ID,
++	BPF_PROG_GET_FD_BY_ID,
++	BPF_MAP_GET_FD_BY_ID,
++	BPF_OBJ_GET_INFO_BY_FD,
+ };
+ 
+ enum bpf_map_type {
+@@ -96,6 +107,10 @@ enum bpf_map_type {
+ 	BPF_MAP_TYPE_LRU_HASH,
+ 	BPF_MAP_TYPE_LRU_PERCPU_HASH,
+ 	BPF_MAP_TYPE_LPM_TRIE,
++	BPF_MAP_TYPE_ARRAY_OF_MAPS,
++	BPF_MAP_TYPE_HASH_OF_MAPS,
++	BPF_MAP_TYPE_DEVMAP,
++	BPF_MAP_TYPE_SOCKMAP,
+ };
+ 
+ enum bpf_prog_type {
+@@ -112,12 +127,17 @@ enum bpf_prog_type {
+ 	BPF_PROG_TYPE_LWT_IN,
+ 	BPF_PROG_TYPE_LWT_OUT,
+ 	BPF_PROG_TYPE_LWT_XMIT,
++	BPF_PROG_TYPE_SOCK_OPS,
++	BPF_PROG_TYPE_SK_SKB,
+ };
+ 
+ enum bpf_attach_type {
+ 	BPF_CGROUP_INET_INGRESS,
+ 	BPF_CGROUP_INET_EGRESS,
+ 	BPF_CGROUP_INET_SOCK_CREATE,
++	BPF_CGROUP_SOCK_OPS,
++	BPF_SK_SKB_STREAM_PARSER,
++	BPF_SK_SKB_STREAM_VERDICT,
+ 	__MAX_BPF_ATTACH_TYPE
+ };
+ 
+@@ -129,6 +149,13 @@ enum bpf_attach_type {
+  */
+ #define BPF_F_ALLOW_OVERRIDE	(1U << 0)
+ 
++/* If BPF_F_STRICT_ALIGNMENT is used in BPF_PROG_LOAD command, the
++ * verifier will perform strict alignment checking as if the kernel
++ * has been built with CONFIG_EFFICIENT_UNALIGNED_ACCESS not set,
++ * and NET_IP_ALIGN defined to 2.
++ */
++#define BPF_F_STRICT_ALIGNMENT	(1U << 0)
++
+ #define BPF_PSEUDO_MAP_FD	1
+ 
+ /* flags for BPF_MAP_UPDATE_ELEM command */
+@@ -136,6 +163,7 @@ enum bpf_attach_type {
+ #define BPF_NOEXIST	1 /* create new element if it didn't exist */
+ #define BPF_EXIST	2 /* update existing element */
+ 
++/* flags for BPF_MAP_CREATE command */
+ #define BPF_F_NO_PREALLOC	(1U << 0)
+ /* Instead of having one common LRU list in the
+  * BPF_MAP_TYPE_LRU_[PERCPU_]HASH map, use a percpu LRU list
+@@ -144,6 +172,8 @@ enum bpf_attach_type {
+  * across different LRU lists.
+  */
+ #define BPF_F_NO_COMMON_LRU	(1U << 1)
++/* Specify numa node during map creation */
++#define BPF_F_NUMA_NODE		(1U << 2)
+ 
+ union bpf_attr {
+ 	struct { /* anonymous struct used by BPF_MAP_CREATE command */
+@@ -151,7 +181,13 @@ union bpf_attr {
+ 		__u32	key_size;	/* size of key in bytes */
+ 		__u32	value_size;	/* size of value in bytes */
+ 		__u32	max_entries;	/* max number of entries in a map */
+-		__u32	map_flags;	/* prealloc or not */
++		__u32	map_flags;	/* BPF_MAP_CREATE related
++					 * flags defined above.
++					 */
++		__u32	inner_map_fd;	/* fd pointing to the inner map */
++		__u32	numa_node;	/* numa node (effective only if
++					 * BPF_F_NUMA_NODE is set).
++					 */
+ 	};
+ 
+ 	struct { /* anonymous struct used by BPF_MAP_*_ELEM commands */
+@@ -173,6 +209,7 @@ union bpf_attr {
+ 		__u32		log_size;	/* size of user buffer */
+ 		__aligned_u64	log_buf;	/* user supplied buffer */
+ 		__u32		kern_version;	/* checked when prog_type=kprobe */
++		__u32		prog_flags;
+ 	};
+ 
+ 	struct { /* anonymous struct used by BPF_OBJ_* commands */
+@@ -186,6 +223,32 @@ union bpf_attr {
+ 		__u32		attach_type;
+ 		__u32		attach_flags;
+ 	};
++
++	struct { /* anonymous struct used by BPF_PROG_TEST_RUN command */
++		__u32		prog_fd;
++		__u32		retval;
++		__u32		data_size_in;
++		__u32		data_size_out;
++		__aligned_u64	data_in;
++		__aligned_u64	data_out;
++		__u32		repeat;
++		__u32		duration;
++	} test;
++
++	struct { /* anonymous struct used by BPF_*_GET_*_ID */
++		union {
++			__u32		start_id;
++			__u32		prog_id;
++			__u32		map_id;
++		};
++		__u32		next_id;
++	};
++
++	struct { /* anonymous struct used by BPF_OBJ_GET_INFO_BY_FD */
++		__u32		bpf_fd;
++		__u32		info_len;
++		__aligned_u64	info;
++	} info;
+ } __attribute__((aligned(8)));
+ 
+ /* BPF helper function descriptions:
+@@ -290,26 +353,40 @@ union bpf_attr {
+  *     @flags: room for future extensions
+  *     Return: 0 on success or negative error
+  *
+- * u64 bpf_perf_event_read(&map, index)
+- *     Return: Number events read or error code
++ * u64 bpf_perf_event_read(map, flags)
++ *     read perf event counter value
++ *     @map: pointer to perf_event_array map
++ *     @flags: index of event in the map or bitmask flags
++ *     Return: value of perf event counter read or error code
+  *
+  * int bpf_redirect(ifindex, flags)
+  *     redirect to another netdev
+  *     @ifindex: ifindex of the net device
+- *     @flags: bit 0 - if set, redirect to ingress instead of egress
+- *             other bits - reserved
+- *     Return: TC_ACT_REDIRECT
++ *     @flags:
++ *	  cls_bpf:
++ *          bit 0 - if set, redirect to ingress instead of egress
++ *          other bits - reserved
++ *	  xdp_bpf:
++ *	    all bits - reserved
++ *     Return: cls_bpf: TC_ACT_REDIRECT on success or TC_ACT_SHOT on error
++ *	       xdp_bfp: XDP_REDIRECT on success or XDP_ABORT on error
++ * int bpf_redirect_map(map, key, flags)
++ *     redirect to endpoint in map
++ *     @map: pointer to dev map
++ *     @key: index in map to lookup
++ *     @flags: --
++ *     Return: XDP_REDIRECT on success or XDP_ABORT on error
+  *
+  * u32 bpf_get_route_realm(skb)
+  *     retrieve a dst's tclassid
+  *     @skb: pointer to skb
+  *     Return: realm if != 0
+  *
+- * int bpf_perf_event_output(ctx, map, index, data, size)
++ * int bpf_perf_event_output(ctx, map, flags, data, size)
+  *     output perf raw sample
+  *     @ctx: struct pt_regs*
+  *     @map: pointer to perf_event_array map
+- *     @index: index of event in the map
++ *     @flags: index of event in the map or bitmask flags
+  *     @data: data on stack to be output as raw data
+  *     @size: size of data
+  *     Return: 0 on success or negative error
+@@ -456,6 +533,55 @@ union bpf_attr {
+  *     Return:
+  *       > 0 length of the string including the trailing NUL on success
+  *       < 0 error
++ *
++ * u64 bpf_get_socket_cookie(skb)
++ *     Get the cookie for the socket stored inside sk_buff.
++ *     @skb: pointer to skb
++ *     Return: 8 Bytes non-decreasing number on success or 0 if the socket
++ *     field is missing inside sk_buff
++ *
++ * u32 bpf_get_socket_uid(skb)
++ *     Get the owner uid of the socket stored inside sk_buff.
++ *     @skb: pointer to skb
++ *     Return: uid of the socket owner on success or overflowuid if failed.
++ *
++ * u32 bpf_set_hash(skb, hash)
++ *     Set full skb->hash.
++ *     @skb: pointer to skb
++ *     @hash: hash to set
++ *
++ * int bpf_setsockopt(bpf_socket, level, optname, optval, optlen)
++ *     Calls setsockopt. Not all opts are available, only those with
++ *     integer optvals plus TCP_CONGESTION.
++ *     Supported levels: SOL_SOCKET and IPROTO_TCP
++ *     @bpf_socket: pointer to bpf_socket
++ *     @level: SOL_SOCKET or IPROTO_TCP
++ *     @optname: option name
++ *     @optval: pointer to option value
++ *     @optlen: length of optval in byes
++ *     Return: 0 or negative error
++ *
++ * int bpf_skb_adjust_room(skb, len_diff, mode, flags)
++ *     Grow or shrink room in sk_buff.
++ *     @skb: pointer to skb
++ *     @len_diff: (signed) amount of room to grow/shrink
++ *     @mode: operation mode (enum bpf_adj_room_mode)
++ *     @flags: reserved for future use
++ *     Return: 0 on success or negative error code
++ *
++ * int bpf_sk_redirect_map(map, key, flags)
++ *     Redirect skb to a sock in map using key as a lookup key for the
++ *     sock in map.
++ *     @map: pointer to sockmap
++ *     @key: key to lookup sock in map
++ *     @flags: reserved for future use
++ *     Return: SK_REDIRECT
++ *
++ * int bpf_sock_map_update(skops, map, key, flags)
++ *	@skops: pointer to bpf_sock_ops
++ *	@map: pointer to sockmap to update
++ *	@key: key to insert/update sock in map
++ *	@flags: same flags as map update elem
+  */
+ #define __BPF_FUNC_MAPPER(FN)		\
+ 	FN(unspec),			\
+@@ -503,7 +629,15 @@ union bpf_attr {
+ 	FN(get_numa_node_id),		\
+ 	FN(skb_change_head),		\
+ 	FN(xdp_adjust_head),		\
+-	FN(probe_read_str),
++	FN(probe_read_str),		\
++	FN(get_socket_cookie),		\
++	FN(get_socket_uid),		\
++	FN(set_hash),			\
++	FN(setsockopt),			\
++	FN(skb_adjust_room),		\
++	FN(redirect_map),		\
++	FN(sk_redirect_map),		\
++	FN(sock_map_update),		\
+ 
+ /* integer value in 'imm' field of BPF_CALL instruction selects which helper
+  * function eBPF program intends to call
+@@ -553,6 +687,11 @@ enum bpf_func_id {
+ /* BPF_FUNC_perf_event_output for sk_buff input context. */
+ #define BPF_F_CTXLEN_MASK		(0xfffffULL << 32)
+ 
++/* Mode for BPF_FUNC_skb_adjust_room helper. */
++enum bpf_adj_room_mode {
++	BPF_ADJ_ROOM_NET,
++};
++
+ /* user accessible mirror of in-kernel sk_buff.
+  * new fields can only be added to the end of this structure
+  */
+@@ -574,6 +713,16 @@ struct __sk_buff {
+ 	__u32 tc_classid;
+ 	__u32 data;
+ 	__u32 data_end;
++	__u32 napi_id;
++
++	/* accessed by BPF_PROG_TYPE_sk_skb types */
++	__u32 family;
++	__u32 remote_ip4;	/* Stored in network byte order */
++	__u32 local_ip4;	/* Stored in network byte order */
++	__u32 remote_ip6[4];	/* Stored in network byte order */
++	__u32 local_ip6[4];	/* Stored in network byte order */
++	__u32 remote_port;	/* Stored in network byte order */
++	__u32 local_port;	/* stored in host byte order */
+ };
+ 
+ struct bpf_tunnel_key {
+@@ -609,20 +758,23 @@ struct bpf_sock {
+ 	__u32 family;
+ 	__u32 type;
+ 	__u32 protocol;
++	__u32 mark;
++	__u32 priority;
+ };
+ 
+ #define XDP_PACKET_HEADROOM 256
+ 
+ /* User return codes for XDP prog type.
+  * A valid XDP program must return one of these defined values. All other
+- * return codes are reserved for future use. Unknown return codes will result
+- * in packet drop.
++ * return codes are reserved for future use. Unknown return codes will
++ * result in packet drops and a warning via bpf_warn_invalid_xdp_action().
+  */
+ enum xdp_action {
+ 	XDP_ABORTED = 0,
+ 	XDP_DROP,
+ 	XDP_PASS,
+ 	XDP_TX,
++	XDP_REDIRECT,
+ };
+ 
+ /* user accessible metadata for XDP packet hook
+@@ -633,4 +785,83 @@ struct xdp_md {
+ 	__u32 data_end;
+ };
+ 
++enum sk_action {
++	SK_ABORTED = 0,
++	SK_DROP,
++	SK_REDIRECT,
++};
++
++#define BPF_TAG_SIZE	8
++
++struct bpf_prog_info {
++	__u32 type;
++	__u32 id;
++	__u8  tag[BPF_TAG_SIZE];
++	__u32 jited_prog_len;
++	__u32 xlated_prog_len;
++	__aligned_u64 jited_prog_insns;
++	__aligned_u64 xlated_prog_insns;
++} __attribute__((aligned(8)));
++
++struct bpf_map_info {
++	__u32 type;
++	__u32 id;
++	__u32 key_size;
++	__u32 value_size;
++	__u32 max_entries;
++	__u32 map_flags;
++} __attribute__((aligned(8)));
++
++/* User bpf_sock_ops struct to access socket values and specify request ops
++ * and their replies.
++ * Some of this fields are in network (bigendian) byte order and may need
++ * to be converted before use (bpf_ntohl() defined in samples/bpf/bpf_endian.h).
++ * New fields can only be added at the end of this structure
++ */
++struct bpf_sock_ops {
++	__u32 op;
++	union {
++		__u32 reply;
++		__u32 replylong[4];
++	};
++	__u32 family;
++	__u32 remote_ip4;	/* Stored in network byte order */
++	__u32 local_ip4;	/* Stored in network byte order */
++	__u32 remote_ip6[4];	/* Stored in network byte order */
++	__u32 local_ip6[4];	/* Stored in network byte order */
++	__u32 remote_port;	/* Stored in network byte order */
++	__u32 local_port;	/* stored in host byte order */
++};
++
++/* List of known BPF sock_ops operators.
++ * New entries can only be added at the end
++ */
++enum {
++	BPF_SOCK_OPS_VOID,
++	BPF_SOCK_OPS_TIMEOUT_INIT,	/* Should return SYN-RTO value to use or
++					 * -1 if default value should be used
++					 */
++	BPF_SOCK_OPS_RWND_INIT,		/* Should return initial advertized
++					 * window (in packets) or -1 if default
++					 * value should be used
++					 */
++	BPF_SOCK_OPS_TCP_CONNECT_CB,	/* Calls BPF program right before an
++					 * active connection is initialized
++					 */
++	BPF_SOCK_OPS_ACTIVE_ESTABLISHED_CB,	/* Calls BPF program when an
++						 * active connection is
++						 * established
++						 */
++	BPF_SOCK_OPS_PASSIVE_ESTABLISHED_CB,	/* Calls BPF program when a
++						 * passive connection is
++						 * established
++						 */
++	BPF_SOCK_OPS_NEEDS_ECN,		/* If connection's congestion control
++					 * needs ECN
++					 */
++};
++
++#define TCP_BPF_IW		1001	/* Set TCP initial congestion window */
++#define TCP_BPF_SNDCWND_CLAMP	1002	/* Set sndcwnd_clamp */
++
+ #endif /* __LINUX_BPF_H__ */
+diff --git a/include/linux/can/vxcan.h b/include/linux/can/vxcan.h
+new file mode 100644
+index 0000000..5b29e8a
+--- /dev/null
++++ b/include/linux/can/vxcan.h
+@@ -0,0 +1,12 @@
++#ifndef _CAN_VXCAN_H
++#define _CAN_VXCAN_H
++
++enum {
++	VXCAN_INFO_UNSPEC,
++	VXCAN_INFO_PEER,
++
++	__VXCAN_INFO_MAX
++#define VXCAN_INFO_MAX	(__VXCAN_INFO_MAX - 1)
++};
++
++#endif
+diff --git a/include/linux/devlink.h b/include/linux/devlink.h
+index 2ad3585..a62695e 100644
+--- a/include/linux/devlink.h
++++ b/include/linux/devlink.h
+@@ -65,8 +65,12 @@ enum devlink_command {
+ #define DEVLINK_CMD_ESWITCH_MODE_SET /* obsolete, never use this! */ \
+ 	DEVLINK_CMD_ESWITCH_SET
+ 
+-	/* add new commands above here */
++	DEVLINK_CMD_DPIPE_TABLE_GET,
++	DEVLINK_CMD_DPIPE_ENTRIES_GET,
++	DEVLINK_CMD_DPIPE_HEADERS_GET,
++	DEVLINK_CMD_DPIPE_TABLE_COUNTERS_SET,
+ 
++	/* add new commands above here */
+ 	__DEVLINK_CMD_MAX,
+ 	DEVLINK_CMD_MAX = __DEVLINK_CMD_MAX - 1
+ };
+@@ -115,6 +119,11 @@ enum devlink_eswitch_inline_mode {
+ 	DEVLINK_ESWITCH_INLINE_MODE_TRANSPORT,
+ };
+ 
++enum devlink_eswitch_encap_mode {
++	DEVLINK_ESWITCH_ENCAP_MODE_NONE,
++	DEVLINK_ESWITCH_ENCAP_MODE_BASIC,
++};
++
+ enum devlink_attr {
+ 	/* don't change the order or add anything between, this is ABI! */
+ 	DEVLINK_ATTR_UNSPEC,
+@@ -148,10 +157,91 @@ enum devlink_attr {
+ 	DEVLINK_ATTR_ESWITCH_MODE,		/* u16 */
+ 	DEVLINK_ATTR_ESWITCH_INLINE_MODE,	/* u8 */
+ 
++	DEVLINK_ATTR_DPIPE_TABLES,		/* nested */
++	DEVLINK_ATTR_DPIPE_TABLE,		/* nested */
++	DEVLINK_ATTR_DPIPE_TABLE_NAME,		/* string */
++	DEVLINK_ATTR_DPIPE_TABLE_SIZE,		/* u64 */
++	DEVLINK_ATTR_DPIPE_TABLE_MATCHES,	/* nested */
++	DEVLINK_ATTR_DPIPE_TABLE_ACTIONS,	/* nested */
++	DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED,	/* u8 */
++
++	DEVLINK_ATTR_DPIPE_ENTRIES,		/* nested */
++	DEVLINK_ATTR_DPIPE_ENTRY,		/* nested */
++	DEVLINK_ATTR_DPIPE_ENTRY_INDEX,		/* u64 */
++	DEVLINK_ATTR_DPIPE_ENTRY_MATCH_VALUES,	/* nested */
++	DEVLINK_ATTR_DPIPE_ENTRY_ACTION_VALUES,	/* nested */
++	DEVLINK_ATTR_DPIPE_ENTRY_COUNTER,	/* u64 */
++
++	DEVLINK_ATTR_DPIPE_MATCH,		/* nested */
++	DEVLINK_ATTR_DPIPE_MATCH_VALUE,		/* nested */
++	DEVLINK_ATTR_DPIPE_MATCH_TYPE,		/* u32 */
++
++	DEVLINK_ATTR_DPIPE_ACTION,		/* nested */
++	DEVLINK_ATTR_DPIPE_ACTION_VALUE,	/* nested */
++	DEVLINK_ATTR_DPIPE_ACTION_TYPE,		/* u32 */
++
++	DEVLINK_ATTR_DPIPE_VALUE,
++	DEVLINK_ATTR_DPIPE_VALUE_MASK,
++	DEVLINK_ATTR_DPIPE_VALUE_MAPPING,	/* u32 */
++
++	DEVLINK_ATTR_DPIPE_HEADERS,		/* nested */
++	DEVLINK_ATTR_DPIPE_HEADER,		/* nested */
++	DEVLINK_ATTR_DPIPE_HEADER_NAME,		/* string */
++	DEVLINK_ATTR_DPIPE_HEADER_ID,		/* u32 */
++	DEVLINK_ATTR_DPIPE_HEADER_FIELDS,	/* nested */
++	DEVLINK_ATTR_DPIPE_HEADER_GLOBAL,	/* u8 */
++	DEVLINK_ATTR_DPIPE_HEADER_INDEX,	/* u32 */
++
++	DEVLINK_ATTR_DPIPE_FIELD,		/* nested */
++	DEVLINK_ATTR_DPIPE_FIELD_NAME,		/* string */
++	DEVLINK_ATTR_DPIPE_FIELD_ID,		/* u32 */
++	DEVLINK_ATTR_DPIPE_FIELD_BITWIDTH,	/* u32 */
++	DEVLINK_ATTR_DPIPE_FIELD_MAPPING_TYPE,	/* u32 */
++
++	DEVLINK_ATTR_PAD,
++
++	DEVLINK_ATTR_ESWITCH_ENCAP_MODE,	/* u8 */
++
+ 	/* add new attributes above here, update the policy in devlink.c */
+ 
+ 	__DEVLINK_ATTR_MAX,
+ 	DEVLINK_ATTR_MAX = __DEVLINK_ATTR_MAX - 1
+ };
+ 
++/* Mapping between internal resource described by the field and system
++ * structure
++ */
++enum devlink_dpipe_field_mapping_type {
++	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_NONE,
++	DEVLINK_DPIPE_FIELD_MAPPING_TYPE_IFINDEX,
++};
++
++/* Match type - specify the type of the match */
++enum devlink_dpipe_match_type {
++	DEVLINK_DPIPE_MATCH_TYPE_FIELD_EXACT,
++};
++
++/* Action type - specify the action type */
++enum devlink_dpipe_action_type {
++	DEVLINK_DPIPE_ACTION_TYPE_FIELD_MODIFY,
++};
++
++enum devlink_dpipe_field_ethernet_id {
++	DEVLINK_DPIPE_FIELD_ETHERNET_DST_MAC,
++};
++
++enum devlink_dpipe_field_ipv4_id {
++	DEVLINK_DPIPE_FIELD_IPV4_DST_IP,
++};
++
++enum devlink_dpipe_field_ipv6_id {
++	DEVLINK_DPIPE_FIELD_IPV6_DST_IP,
++};
++
++enum devlink_dpipe_header_id {
++	DEVLINK_DPIPE_HEADER_ETHERNET,
++	DEVLINK_DPIPE_HEADER_IPV4,
++	DEVLINK_DPIPE_HEADER_IPV6,
++};
++
+ #endif /* _LINUX_DEVLINK_H_ */
+diff --git a/include/linux/elf-em.h b/include/linux/elf-em.h
+index cb5d1a5..9cd1de9 100644
+--- a/include/linux/elf-em.h
++++ b/include/linux/elf-em.h
+@@ -42,7 +42,6 @@
+ #define EM_TILEGX	191	/* Tilera TILE-Gx */
+ #define EM_BPF		247	/* Linux BPF - in-kernel virtual machine */
+ #define EM_FRV		0x5441	/* Fujitsu FR-V */
+-#define EM_AVR32	0x18ad	/* Atmel AVR32 */
+ 
+ /*
+  * This is an interim value that we will use until the committee comes
+diff --git a/include/linux/if_arp.h b/include/linux/if_arp.h
+index d001bdb..199f253 100644
+--- a/include/linux/if_arp.h
++++ b/include/linux/if_arp.h
+@@ -59,6 +59,7 @@
+ #define ARPHRD_LAPB	516		/* LAPB				*/
+ #define ARPHRD_DDCMP    517		/* Digital's DDCMP protocol     */
+ #define ARPHRD_RAWHDLC	518		/* Raw HDLC			*/
++#define ARPHRD_RAWIP    519		/* Raw IP                       */
+ 
+ #define ARPHRD_TUNNEL	768		/* IPIP tunnel			*/
+ #define ARPHRD_TUNNEL6	769		/* IP6IP6 tunnel       		*/
+@@ -95,6 +96,7 @@
+ #define ARPHRD_IP6GRE	823		/* GRE over IPv6		*/
+ #define ARPHRD_NETLINK	824		/* Netlink header		*/
+ #define ARPHRD_6LOWPAN	825		/* IPv6 over LoWPAN             */
++#define ARPHRD_VSOCKMON	826		/* Vsock monitor header		*/
+ 
+ #define ARPHRD_VOID	  0xFFFF	/* Void type, nothing is known */
+ #define ARPHRD_NONE	  0xFFFE	/* zero header length */
+diff --git a/include/linux/if_ether.h b/include/linux/if_ether.h
+index b7d3beb..7dde037 100644
+--- a/include/linux/if_ether.h
++++ b/include/linux/if_ether.h
+@@ -66,6 +66,7 @@
+ #define ETH_P_ATALK	0x809B		/* Appletalk DDP		*/
+ #define ETH_P_AARP	0x80F3		/* Appletalk AARP		*/
+ #define ETH_P_8021Q	0x8100          /* 802.1Q VLAN Extended Header  */
++#define ETH_P_ERSPAN	0x88BE		/* ERSPAN type II		*/
+ #define ETH_P_IPX	0x8137		/* IPX over DIX			*/
+ #define ETH_P_IPV6	0x86DD		/* IPv6 over bluebook		*/
+ #define ETH_P_PAUSE	0x8808		/* IEEE Pause frames. See 802.3 31B */
+@@ -98,11 +99,13 @@
+ #define ETH_P_FIP	0x8914		/* FCoE Initialization Protocol */
+ #define ETH_P_80221	0x8917		/* IEEE 802.21 Media Independent Handover Protocol */
+ #define ETH_P_HSR	0x892F		/* IEC 62439-3 HSRv1	*/
++#define ETH_P_NSH	0x894F		/* Network Service Header */
+ #define ETH_P_LOOPBACK	0x9000		/* Ethernet loopback packet, per IEEE 802.3 */
+ #define ETH_P_QINQ1	0x9100		/* deprecated QinQ VLAN [ NOT AN OFFICIALLY REGISTERED ID ] */
+ #define ETH_P_QINQ2	0x9200		/* deprecated QinQ VLAN [ NOT AN OFFICIALLY REGISTERED ID ] */
+ #define ETH_P_QINQ3	0x9300		/* deprecated QinQ VLAN [ NOT AN OFFICIALLY REGISTERED ID ] */
+ #define ETH_P_EDSA	0xDADA		/* Ethertype DSA [ NOT AN OFFICIALLY REGISTERED ID ] */
++#define ETH_P_IFE	0xED3E		/* ForCES inter-FE LFB type */
+ #define ETH_P_AF_IUCV   0xFBFB		/* IBM af_iucv [ NOT AN OFFICIALLY REGISTERED ID ] */
+ 
+ #define ETH_P_802_3_MIN	0x0600		/* If the value in the ethernet type is less than this value
+@@ -137,6 +140,9 @@
+ #define ETH_P_IEEE802154 0x00F6		/* IEEE802.15.4 frame		*/
+ #define ETH_P_CAIF	0x00F7		/* ST-Ericsson CAIF protocol	*/
+ #define ETH_P_XDSA	0x00F8		/* Multiplexed DSA protocol	*/
++#define ETH_P_MAP	0x00F9		/* Qualcomm multiplexing and
++					 * aggregation protocol
++					 */
+ 
+ /*
+  *	This is an Ethernet frame header.
+diff --git a/include/linux/if_link.h b/include/linux/if_link.h
+index b0bdbd6..1f97d05 100644
+--- a/include/linux/if_link.h
++++ b/include/linux/if_link.h
+@@ -157,6 +157,7 @@ enum {
+ 	IFLA_GSO_MAX_SIZE,
+ 	IFLA_PAD,
+ 	IFLA_XDP,
++	IFLA_EVENT,
+ 	__IFLA_MAX
+ };
+ 
+@@ -321,6 +322,7 @@ enum {
+ 	IFLA_BRPORT_MCAST_FLOOD,
+ 	IFLA_BRPORT_MCAST_TO_UCAST,
+ 	IFLA_BRPORT_VLAN_TUNNEL,
++	IFLA_BRPORT_BCAST_FLOOD,
+ 	__IFLA_BRPORT_MAX
+ };
+ #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)
+@@ -536,11 +538,18 @@ enum {
+ #define IFLA_PPP_MAX (__IFLA_PPP_MAX - 1)
+ 
+ /* GTP section */
++
++enum ifla_gtp_role {
++	GTP_ROLE_GGSN = 0,
++	GTP_ROLE_SGSN,
++};
++
+ enum {
+ 	IFLA_GTP_UNSPEC,
+ 	IFLA_GTP_FD0,
+ 	IFLA_GTP_FD1,
+ 	IFLA_GTP_PDP_HASHSIZE,
++	IFLA_GTP_ROLE,
+ 	__IFLA_GTP_MAX,
+ };
+ #define IFLA_GTP_MAX (__IFLA_GTP_MAX - 1)
+@@ -878,16 +887,42 @@ enum {
+ /* XDP section */
+ 
+ #define XDP_FLAGS_UPDATE_IF_NOEXIST	(1U << 0)
+-#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST)
++#define XDP_FLAGS_SKB_MODE		(1U << 1)
++#define XDP_FLAGS_DRV_MODE		(1U << 2)
++#define XDP_FLAGS_HW_MODE		(1U << 3)
++#define XDP_FLAGS_MODES			(XDP_FLAGS_SKB_MODE | \
++					 XDP_FLAGS_DRV_MODE | \
++					 XDP_FLAGS_HW_MODE)
++#define XDP_FLAGS_MASK			(XDP_FLAGS_UPDATE_IF_NOEXIST | \
++					 XDP_FLAGS_MODES)
++
++/* These are stored into IFLA_XDP_ATTACHED on dump. */
++enum {
++	XDP_ATTACHED_NONE = 0,
++	XDP_ATTACHED_DRV,
++	XDP_ATTACHED_SKB,
++	XDP_ATTACHED_HW,
++};
+ 
+ enum {
+ 	IFLA_XDP_UNSPEC,
+ 	IFLA_XDP_FD,
+ 	IFLA_XDP_ATTACHED,
+ 	IFLA_XDP_FLAGS,
++	IFLA_XDP_PROG_ID,
+ 	__IFLA_XDP_MAX,
+ };
+ 
+ #define IFLA_XDP_MAX (__IFLA_XDP_MAX - 1)
+ 
++enum {
++	IFLA_EVENT_NONE,
++	IFLA_EVENT_REBOOT,		/* internal reset / reboot */
++	IFLA_EVENT_FEATURES,		/* change in offload features */
++	IFLA_EVENT_BONDING_FAILOVER,	/* change in active slave */
++	IFLA_EVENT_NOTIFY_PEERS,	/* re-sent grat. arp/ndisc */
++	IFLA_EVENT_IGMP_RESEND,		/* re-sent IGMP JOIN */
++	IFLA_EVENT_BONDING_OPTIONS,	/* change in bonding options */
++};
++
+ #endif /* _LINUX_IF_LINK_H */
+diff --git a/include/linux/if_packet.h b/include/linux/if_packet.h
+index 9e7edfd..4df96a7 100644
+--- a/include/linux/if_packet.h
++++ b/include/linux/if_packet.h
+@@ -66,6 +66,7 @@ struct sockaddr_ll {
+ #define PACKET_FANOUT_CBPF		6
+ #define PACKET_FANOUT_EBPF		7
+ #define PACKET_FANOUT_FLAG_ROLLOVER	0x1000
++#define PACKET_FANOUT_FLAG_UNIQUEID	0x2000
+ #define PACKET_FANOUT_FLAG_DEFRAG	0x8000
+ 
+ struct tpacket_stats {
+diff --git a/include/linux/if_tunnel.h b/include/linux/if_tunnel.h
+index 4f975f5..21834ca 100644
+--- a/include/linux/if_tunnel.h
++++ b/include/linux/if_tunnel.h
+@@ -75,6 +75,7 @@ enum {
+ 	IFLA_IPTUN_ENCAP_SPORT,
+ 	IFLA_IPTUN_ENCAP_DPORT,
+ 	IFLA_IPTUN_COLLECT_METADATA,
++	IFLA_IPTUN_FWMARK,
+ 	__IFLA_IPTUN_MAX,
+ };
+ #define IFLA_IPTUN_MAX	(__IFLA_IPTUN_MAX - 1)
+@@ -132,6 +133,8 @@ enum {
+ 	IFLA_GRE_ENCAP_DPORT,
+ 	IFLA_GRE_COLLECT_METADATA,
+ 	IFLA_GRE_IGNORE_DF,
++	IFLA_GRE_FWMARK,
++	IFLA_GRE_ERSPAN_INDEX,
+ 	__IFLA_GRE_MAX,
+ };
+ 
+@@ -147,6 +150,7 @@ enum {
+ 	IFLA_VTI_OKEY,
+ 	IFLA_VTI_LOCAL,
+ 	IFLA_VTI_REMOTE,
++	IFLA_VTI_FWMARK,
+ 	__IFLA_VTI_MAX,
+ };
+ 
+diff --git a/include/linux/inet_diag.h b/include/linux/inet_diag.h
+index f7bf781..bada4d7 100644
+--- a/include/linux/inet_diag.h
++++ b/include/linux/inet_diag.h
+@@ -142,6 +142,8 @@ enum {
+ 	INET_DIAG_PAD,
+ 	INET_DIAG_MARK,
+ 	INET_DIAG_BBRINFO,
++	INET_DIAG_CLASS_ID,
++	INET_DIAG_MD5SIG,
+ 	__INET_DIAG_MAX,
+ };
+ 
+diff --git a/include/linux/ipsec.h b/include/linux/ipsec.h
+new file mode 100644
+index 0000000..d17a630
+--- /dev/null
++++ b/include/linux/ipsec.h
+@@ -0,0 +1,47 @@
++#ifndef _LINUX_IPSEC_H
++#define _LINUX_IPSEC_H
++
++/* The definitions, required to talk to KAME racoon IKE. */
++
++#include <linux/pfkeyv2.h>
++
++#define IPSEC_PORT_ANY		0
++#define IPSEC_ULPROTO_ANY	255
++#define IPSEC_PROTO_ANY		255
++
++enum {
++	IPSEC_MODE_ANY		= 0,	/* We do not support this for SA */
++	IPSEC_MODE_TRANSPORT	= 1,
++	IPSEC_MODE_TUNNEL	= 2,
++	IPSEC_MODE_BEET         = 3
++};
++
++enum {
++	IPSEC_DIR_ANY		= 0,
++	IPSEC_DIR_INBOUND	= 1,
++	IPSEC_DIR_OUTBOUND	= 2,
++	IPSEC_DIR_FWD		= 3,	/* It is our own */
++	IPSEC_DIR_MAX		= 4,
++	IPSEC_DIR_INVALID	= 5
++};
++
++enum {
++	IPSEC_POLICY_DISCARD	= 0,
++	IPSEC_POLICY_NONE	= 1,
++	IPSEC_POLICY_IPSEC	= 2,
++	IPSEC_POLICY_ENTRUST	= 3,
++	IPSEC_POLICY_BYPASS	= 4
++};
++
++enum {
++	IPSEC_LEVEL_DEFAULT	= 0,
++	IPSEC_LEVEL_USE		= 1,
++	IPSEC_LEVEL_REQUIRE	= 2,
++	IPSEC_LEVEL_UNIQUE	= 3
++};
++
++#define IPSEC_MANUAL_REQID_MAX	0x3fff
++
++#define IPSEC_REPLAYWSIZE  32
++
++#endif	/* _LINUX_IPSEC_H */
+diff --git a/include/linux/lwtunnel.h b/include/linux/lwtunnel.h
+index faa6eab..3298426 100644
+--- a/include/linux/lwtunnel.h
++++ b/include/linux/lwtunnel.h
+@@ -11,6 +11,7 @@ enum lwtunnel_encap_types {
+ 	LWTUNNEL_ENCAP_IP6,
+ 	LWTUNNEL_ENCAP_SEG6,
+ 	LWTUNNEL_ENCAP_BPF,
++	LWTUNNEL_ENCAP_SEG6_LOCAL,
+ 	__LWTUNNEL_ENCAP_MAX,
+ };
+ 
+diff --git a/include/linux/magic.h b/include/linux/magic.h
+index e230af2..e439565 100644
+--- a/include/linux/magic.h
++++ b/include/linux/magic.h
+@@ -42,6 +42,7 @@
+ #define MSDOS_SUPER_MAGIC	0x4d44		/* MD */
+ #define NCP_SUPER_MAGIC		0x564c		/* Guess, what 0x564c is :-) */
+ #define NFS_SUPER_MAGIC		0x6969
++#define OCFS2_SUPER_MAGIC	0x7461636f
+ #define OPENPROM_SUPER_MAGIC	0x9fa1
+ #define QNX4_SUPER_MAGIC	0x002f		/* qnx4 fs detection */
+ #define QNX6_SUPER_MAGIC	0x68191122	/* qnx6 fs detection */
+@@ -80,6 +81,8 @@
+ #define BTRFS_TEST_MAGIC	0x73727279
+ #define NSFS_MAGIC		0x6e736673
+ #define BPF_FS_MAGIC		0xcafe4a11
++#define AAFS_MAGIC		0x5a3c69f0
++
+ /* Since UDF 2.01 is ISO 13346 based... */
+ #define UDF_SUPER_MAGIC		0x15013346
+ #define BALLOON_KVM_MAGIC	0x13661366
+diff --git a/include/linux/mpls_iptunnel.h b/include/linux/mpls_iptunnel.h
+index 4132c3c..1a0e57b 100644
+--- a/include/linux/mpls_iptunnel.h
++++ b/include/linux/mpls_iptunnel.h
+@@ -16,11 +16,13 @@
+ /* MPLS tunnel attributes
+  * [RTA_ENCAP] = {
+  *     [MPLS_IPTUNNEL_DST]
++ *     [MPLS_IPTUNNEL_TTL]
+  * }
+  */
+ enum {
+ 	MPLS_IPTUNNEL_UNSPEC,
+ 	MPLS_IPTUNNEL_DST,
++	MPLS_IPTUNNEL_TTL,
+ 	__MPLS_IPTUNNEL_MAX,
+ };
+ #define MPLS_IPTUNNEL_MAX (__MPLS_IPTUNNEL_MAX - 1)
+diff --git a/include/linux/neighbour.h b/include/linux/neighbour.h
+index f3d16db..3199d28 100644
+--- a/include/linux/neighbour.h
++++ b/include/linux/neighbour.h
+@@ -41,6 +41,7 @@ enum {
+ #define NTF_MASTER	0x04
+ #define NTF_PROXY	0x08	/* == ATF_PUBL */
+ #define NTF_EXT_LEARNED	0x10
++#define NTF_OFFLOADED   0x20
+ #define NTF_ROUTER	0x80
+ 
+ /*
+diff --git a/include/linux/netlink.h b/include/linux/netlink.h
+index d1e26a2..ec0690b 100644
+--- a/include/linux/netlink.h
++++ b/include/linux/netlink.h
+@@ -50,12 +50,12 @@ struct nlmsghdr {
+ 
+ /* Flags values */
+ 
+-#define NLM_F_REQUEST		1	/* It is request message. 	*/
+-#define NLM_F_MULTI		2	/* Multipart message, terminated by NLMSG_DONE */
+-#define NLM_F_ACK		4	/* Reply with ack, with zero or error code */
+-#define NLM_F_ECHO		8	/* Echo this request 		*/
+-#define NLM_F_DUMP_INTR		16	/* Dump was inconsistent due to sequence change */
+-#define NLM_F_DUMP_FILTERED	32	/* Dump was filtered as requested */
++#define NLM_F_REQUEST		0x01	/* It is request message. 	*/
++#define NLM_F_MULTI		0x02	/* Multipart message, terminated by NLMSG_DONE */
++#define NLM_F_ACK		0x04	/* Reply with ack, with zero or error code */
++#define NLM_F_ECHO		0x08	/* Echo this request 		*/
++#define NLM_F_DUMP_INTR		0x10	/* Dump was inconsistent due to sequence change */
++#define NLM_F_DUMP_FILTERED	0x20	/* Dump was filtered as requested */
+ 
+ /* Modifiers to GET request */
+ #define NLM_F_ROOT	0x100	/* specify tree	root	*/
+@@ -69,6 +69,13 @@ struct nlmsghdr {
+ #define NLM_F_CREATE	0x400	/* Create, if it does not exist	*/
+ #define NLM_F_APPEND	0x800	/* Add to end of list		*/
+ 
++/* Modifiers to DELETE request */
++#define NLM_F_NONREC	0x100	/* Do not delete recursively	*/
++
++/* Flags for ACK message */
++#define NLM_F_CAPPED	0x100	/* request was capped */
++#define NLM_F_ACK_TLVS	0x200	/* extended ACK TVLs were included */
++
+ /*
+    4.4BSD ADD		NLM_F_CREATE|NLM_F_EXCL
+    4.4BSD CHANGE	NLM_F_REPLACE
+@@ -101,6 +108,37 @@ struct nlmsghdr {
+ struct nlmsgerr {
+ 	int		error;
+ 	struct nlmsghdr msg;
++	/*
++	 * followed by the message contents unless NETLINK_CAP_ACK was set
++	 * or the ACK indicates success (error == 0)
++	 * message length is aligned with NLMSG_ALIGN()
++	 */
++	/*
++	 * followed by TLVs defined in enum nlmsgerr_attrs
++	 * if NETLINK_EXT_ACK was set
++	 */
++};
++
++/**
++ * enum nlmsgerr_attrs - nlmsgerr attributes
++ * @NLMSGERR_ATTR_UNUSED: unused
++ * @NLMSGERR_ATTR_MSG: error message string (string)
++ * @NLMSGERR_ATTR_OFFS: offset of the invalid attribute in the original
++ *	 message, counting from the beginning of the header (u32)
++ * @NLMSGERR_ATTR_COOKIE: arbitrary subsystem specific cookie to
++ *	be used - in the success case - to identify a created
++ *	object or operation or similar (binary)
++ * @__NLMSGERR_ATTR_MAX: number of attributes
++ * @NLMSGERR_ATTR_MAX: highest attribute number
++ */
++enum nlmsgerr_attrs {
++	NLMSGERR_ATTR_UNUSED,
++	NLMSGERR_ATTR_MSG,
++	NLMSGERR_ATTR_OFFS,
++	NLMSGERR_ATTR_COOKIE,
++
++	__NLMSGERR_ATTR_MAX,
++	NLMSGERR_ATTR_MAX = __NLMSGERR_ATTR_MAX - 1
+ };
+ 
+ #define NETLINK_ADD_MEMBERSHIP		1
+@@ -187,5 +225,22 @@ struct nlattr {
+ #define NLA_ALIGN(len)		(((len) + NLA_ALIGNTO - 1) & ~(NLA_ALIGNTO - 1))
+ #define NLA_HDRLEN		((int) NLA_ALIGN(sizeof(struct nlattr)))
+ 
++/* Generic 32 bitflags attribute content sent to the kernel.
++ *
++ * The value is a bitmap that defines the values being set
++ * The selector is a bitmask that defines which value is legit
++ *
++ * Examples:
++ *  value = 0x0, and selector = 0x1
++ *  implies we are selecting bit 1 and we want to set its value to 0.
++ *
++ *  value = 0x2, and selector = 0x2
++ *  implies we are selecting bit 2 and we want to set its value to 1.
++ *
++ */
++struct nla_bitfield32 {
++	__u32 value;
++	__u32 selector;
++};
+ 
+ #endif /* __LINUX_NETLINK_H */
+diff --git a/include/linux/netlink_diag.h b/include/linux/netlink_diag.h
+index defd25f..c8c8c7d 100644
+--- a/include/linux/netlink_diag.h
++++ b/include/linux/netlink_diag.h
+@@ -38,6 +38,7 @@ enum {
+ 	NETLINK_DIAG_GROUPS,
+ 	NETLINK_DIAG_RX_RING,
+ 	NETLINK_DIAG_TX_RING,
++	NETLINK_DIAG_FLAGS,
+ 
+ 	__NETLINK_DIAG_MAX,
+ };
+@@ -50,5 +51,14 @@ enum {
+ #define NDIAG_SHOW_GROUPS	0x00000002 /* show groups of a netlink socket */
+ /* deprecated since 4.6 */
+ #define NDIAG_SHOW_RING_CFG	0x00000004 /* show ring configuration */
++#define NDIAG_SHOW_FLAGS	0x00000008 /* show flags of a netlink socket */
++
++/* flags */
++#define NDIAG_FLAG_CB_RUNNING		0x00000001
++#define NDIAG_FLAG_PKTINFO		0x00000002
++#define NDIAG_FLAG_BROADCAST_ERROR	0x00000004
++#define NDIAG_FLAG_NO_ENOBUFS		0x00000008
++#define NDIAG_FLAG_LISTEN_ALL_NSID	0x00000010
++#define NDIAG_FLAG_CAP_ACK		0x00000020
+ 
+ #endif
+diff --git a/include/linux/pfkeyv2.h b/include/linux/pfkeyv2.h
+new file mode 100644
+index 0000000..ada7f01
+--- /dev/null
++++ b/include/linux/pfkeyv2.h
+@@ -0,0 +1,383 @@
++/* PF_KEY user interface, this is defined by rfc2367 so
++ * do not make arbitrary modifications or else this header
++ * file will not be compliant.
++ */
++
++#ifndef _LINUX_PFKEY2_H
++#define _LINUX_PFKEY2_H
++
++#include <linux/types.h>
++
++#define PF_KEY_V2		2
++#define PFKEYV2_REVISION	199806L
++
++struct sadb_msg {
++	__u8		sadb_msg_version;
++	__u8		sadb_msg_type;
++	__u8		sadb_msg_errno;
++	__u8		sadb_msg_satype;
++	__u16	sadb_msg_len;
++	__u16	sadb_msg_reserved;
++	__u32	sadb_msg_seq;
++	__u32	sadb_msg_pid;
++} __attribute__((packed));
++/* sizeof(struct sadb_msg) == 16 */
++
++struct sadb_ext {
++	__u16	sadb_ext_len;
++	__u16	sadb_ext_type;
++} __attribute__((packed));
++/* sizeof(struct sadb_ext) == 4 */
++
++struct sadb_sa {
++	__u16	sadb_sa_len;
++	__u16	sadb_sa_exttype;
++	__be32		sadb_sa_spi;
++	__u8		sadb_sa_replay;
++	__u8		sadb_sa_state;
++	__u8		sadb_sa_auth;
++	__u8		sadb_sa_encrypt;
++	__u32	sadb_sa_flags;
++} __attribute__((packed));
++/* sizeof(struct sadb_sa) == 16 */
++
++struct sadb_lifetime {
++	__u16	sadb_lifetime_len;
++	__u16	sadb_lifetime_exttype;
++	__u32	sadb_lifetime_allocations;
++	__u64	sadb_lifetime_bytes;
++	__u64	sadb_lifetime_addtime;
++	__u64	sadb_lifetime_usetime;
++} __attribute__((packed));
++/* sizeof(struct sadb_lifetime) == 32 */
++
++struct sadb_address {
++	__u16	sadb_address_len;
++	__u16	sadb_address_exttype;
++	__u8		sadb_address_proto;
++	__u8		sadb_address_prefixlen;
++	__u16	sadb_address_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_address) == 8 */
++
++struct sadb_key {
++	__u16	sadb_key_len;
++	__u16	sadb_key_exttype;
++	__u16	sadb_key_bits;
++	__u16	sadb_key_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_key) == 8 */
++
++struct sadb_ident {
++	__u16	sadb_ident_len;
++	__u16	sadb_ident_exttype;
++	__u16	sadb_ident_type;
++	__u16	sadb_ident_reserved;
++	__u64	sadb_ident_id;
++} __attribute__((packed));
++/* sizeof(struct sadb_ident) == 16 */
++
++struct sadb_sens {
++	__u16	sadb_sens_len;
++	__u16	sadb_sens_exttype;
++	__u32	sadb_sens_dpd;
++	__u8		sadb_sens_sens_level;
++	__u8		sadb_sens_sens_len;
++	__u8		sadb_sens_integ_level;
++	__u8		sadb_sens_integ_len;
++	__u32	sadb_sens_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_sens) == 16 */
++
++/* followed by:
++	__u64	sadb_sens_bitmap[sens_len];
++	__u64	sadb_integ_bitmap[integ_len];  */
++
++struct sadb_prop {
++	__u16	sadb_prop_len;
++	__u16	sadb_prop_exttype;
++	__u8		sadb_prop_replay;
++	__u8		sadb_prop_reserved[3];
++} __attribute__((packed));
++/* sizeof(struct sadb_prop) == 8 */
++
++/* followed by:
++	struct sadb_comb sadb_combs[(sadb_prop_len +
++		sizeof(__u64) - sizeof(struct sadb_prop)) /
++		sizeof(struct sadb_comb)]; */
++
++struct sadb_comb {
++	__u8		sadb_comb_auth;
++	__u8		sadb_comb_encrypt;
++	__u16	sadb_comb_flags;
++	__u16	sadb_comb_auth_minbits;
++	__u16	sadb_comb_auth_maxbits;
++	__u16	sadb_comb_encrypt_minbits;
++	__u16	sadb_comb_encrypt_maxbits;
++	__u32	sadb_comb_reserved;
++	__u32	sadb_comb_soft_allocations;
++	__u32	sadb_comb_hard_allocations;
++	__u64	sadb_comb_soft_bytes;
++	__u64	sadb_comb_hard_bytes;
++	__u64	sadb_comb_soft_addtime;
++	__u64	sadb_comb_hard_addtime;
++	__u64	sadb_comb_soft_usetime;
++	__u64	sadb_comb_hard_usetime;
++} __attribute__((packed));
++/* sizeof(struct sadb_comb) == 72 */
++
++struct sadb_supported {
++	__u16	sadb_supported_len;
++	__u16	sadb_supported_exttype;
++	__u32	sadb_supported_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_supported) == 8 */
++
++/* followed by:
++	struct sadb_alg sadb_algs[(sadb_supported_len +
++		sizeof(__u64) - sizeof(struct sadb_supported)) /
++		sizeof(struct sadb_alg)]; */
++
++struct sadb_alg {
++	__u8		sadb_alg_id;
++	__u8		sadb_alg_ivlen;
++	__u16	sadb_alg_minbits;
++	__u16	sadb_alg_maxbits;
++	__u16	sadb_alg_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_alg) == 8 */
++
++struct sadb_spirange {
++	__u16	sadb_spirange_len;
++	__u16	sadb_spirange_exttype;
++	__u32	sadb_spirange_min;
++	__u32	sadb_spirange_max;
++	__u32	sadb_spirange_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_spirange) == 16 */
++
++struct sadb_x_kmprivate {
++	__u16	sadb_x_kmprivate_len;
++	__u16	sadb_x_kmprivate_exttype;
++	__u32	sadb_x_kmprivate_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_kmprivate) == 8 */
++
++struct sadb_x_sa2 {
++	__u16	sadb_x_sa2_len;
++	__u16	sadb_x_sa2_exttype;
++	__u8		sadb_x_sa2_mode;
++	__u8		sadb_x_sa2_reserved1;
++	__u16	sadb_x_sa2_reserved2;
++	__u32	sadb_x_sa2_sequence;
++	__u32	sadb_x_sa2_reqid;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_sa2) == 16 */
++
++struct sadb_x_policy {
++	__u16	sadb_x_policy_len;
++	__u16	sadb_x_policy_exttype;
++	__u16	sadb_x_policy_type;
++	__u8		sadb_x_policy_dir;
++	__u8		sadb_x_policy_reserved;
++	__u32	sadb_x_policy_id;
++	__u32	sadb_x_policy_priority;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_policy) == 16 */
++
++struct sadb_x_ipsecrequest {
++	__u16	sadb_x_ipsecrequest_len;
++	__u16	sadb_x_ipsecrequest_proto;
++	__u8		sadb_x_ipsecrequest_mode;
++	__u8		sadb_x_ipsecrequest_level;
++	__u16	sadb_x_ipsecrequest_reserved1;
++	__u32	sadb_x_ipsecrequest_reqid;
++	__u32	sadb_x_ipsecrequest_reserved2;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_ipsecrequest) == 16 */
++
++/* This defines the TYPE of Nat Traversal in use.  Currently only one
++ * type of NAT-T is supported, draft-ietf-ipsec-udp-encaps-06
++ */
++struct sadb_x_nat_t_type {
++	__u16	sadb_x_nat_t_type_len;
++	__u16	sadb_x_nat_t_type_exttype;
++	__u8		sadb_x_nat_t_type_type;
++	__u8		sadb_x_nat_t_type_reserved[3];
++} __attribute__((packed));
++/* sizeof(struct sadb_x_nat_t_type) == 8 */
++
++/* Pass a NAT Traversal port (Source or Dest port) */
++struct sadb_x_nat_t_port {
++	__u16	sadb_x_nat_t_port_len;
++	__u16	sadb_x_nat_t_port_exttype;
++	__be16		sadb_x_nat_t_port_port;
++	__u16	sadb_x_nat_t_port_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_nat_t_port) == 8 */
++
++/* Generic LSM security context */
++struct sadb_x_sec_ctx {
++	__u16	sadb_x_sec_len;
++	__u16	sadb_x_sec_exttype;
++	__u8		sadb_x_ctx_alg;  /* LSMs: e.g., selinux == 1 */
++	__u8		sadb_x_ctx_doi;
++	__u16	sadb_x_ctx_len;
++} __attribute__((packed));
++/* sizeof(struct sadb_sec_ctx) = 8 */
++
++/* Used by MIGRATE to pass addresses IKE will use to perform
++ * negotiation with the peer */
++struct sadb_x_kmaddress {
++	__u16	sadb_x_kmaddress_len;
++	__u16	sadb_x_kmaddress_exttype;
++	__u32	sadb_x_kmaddress_reserved;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_kmaddress) == 8 */
++
++/* To specify the SA dump filter */
++struct sadb_x_filter {
++	__u16	sadb_x_filter_len;
++	__u16	sadb_x_filter_exttype;
++	__u32	sadb_x_filter_saddr[4];
++	__u32	sadb_x_filter_daddr[4];
++	__u16	sadb_x_filter_family;
++	__u8	sadb_x_filter_splen;
++	__u8	sadb_x_filter_dplen;
++} __attribute__((packed));
++/* sizeof(struct sadb_x_filter) == 40 */
++
++/* Message types */
++#define SADB_RESERVED		0
++#define SADB_GETSPI		1
++#define SADB_UPDATE		2
++#define SADB_ADD		3
++#define SADB_DELETE		4
++#define SADB_GET		5
++#define SADB_ACQUIRE		6
++#define SADB_REGISTER		7
++#define SADB_EXPIRE		8
++#define SADB_FLUSH		9
++#define SADB_DUMP		10
++#define SADB_X_PROMISC		11
++#define SADB_X_PCHANGE		12
++#define SADB_X_SPDUPDATE	13
++#define SADB_X_SPDADD		14
++#define SADB_X_SPDDELETE	15
++#define SADB_X_SPDGET		16
++#define SADB_X_SPDACQUIRE	17
++#define SADB_X_SPDDUMP		18
++#define SADB_X_SPDFLUSH		19
++#define SADB_X_SPDSETIDX	20
++#define SADB_X_SPDEXPIRE	21
++#define SADB_X_SPDDELETE2	22
++#define SADB_X_NAT_T_NEW_MAPPING	23
++#define SADB_X_MIGRATE		24
++#define SADB_MAX		24
++
++/* Security Association flags */
++#define SADB_SAFLAGS_PFS	1
++#define SADB_SAFLAGS_NOPMTUDISC	0x20000000
++#define SADB_SAFLAGS_DECAP_DSCP	0x40000000
++#define SADB_SAFLAGS_NOECN	0x80000000
++
++/* Security Association states */
++#define SADB_SASTATE_LARVAL	0
++#define SADB_SASTATE_MATURE	1
++#define SADB_SASTATE_DYING	2
++#define SADB_SASTATE_DEAD	3
++#define SADB_SASTATE_MAX	3
++
++/* Security Association types */
++#define SADB_SATYPE_UNSPEC	0
++#define SADB_SATYPE_AH		2
++#define SADB_SATYPE_ESP		3
++#define SADB_SATYPE_RSVP	5
++#define SADB_SATYPE_OSPFV2	6
++#define SADB_SATYPE_RIPV2	7
++#define SADB_SATYPE_MIP		8
++#define SADB_X_SATYPE_IPCOMP	9
++#define SADB_SATYPE_MAX		9
++
++/* Authentication algorithms */
++#define SADB_AALG_NONE			0
++#define SADB_AALG_MD5HMAC		2
++#define SADB_AALG_SHA1HMAC		3
++#define SADB_X_AALG_SHA2_256HMAC	5
++#define SADB_X_AALG_SHA2_384HMAC	6
++#define SADB_X_AALG_SHA2_512HMAC	7
++#define SADB_X_AALG_RIPEMD160HMAC	8
++#define SADB_X_AALG_AES_XCBC_MAC	9
++#define SADB_X_AALG_NULL		251	/* kame */
++#define SADB_AALG_MAX			251
++
++/* Encryption algorithms */
++#define SADB_EALG_NONE			0
++#define SADB_EALG_DESCBC		2
++#define SADB_EALG_3DESCBC		3
++#define SADB_X_EALG_CASTCBC		6
++#define SADB_X_EALG_BLOWFISHCBC		7
++#define SADB_EALG_NULL			11
++#define SADB_X_EALG_AESCBC		12
++#define SADB_X_EALG_AESCTR		13
++#define SADB_X_EALG_AES_CCM_ICV8	14
++#define SADB_X_EALG_AES_CCM_ICV12	15
++#define SADB_X_EALG_AES_CCM_ICV16	16
++#define SADB_X_EALG_AES_GCM_ICV8	18
++#define SADB_X_EALG_AES_GCM_ICV12	19
++#define SADB_X_EALG_AES_GCM_ICV16	20
++#define SADB_X_EALG_CAMELLIACBC		22
++#define SADB_X_EALG_NULL_AES_GMAC	23
++#define SADB_EALG_MAX                   253 /* last EALG */
++/* private allocations should use 249-255 (RFC2407) */
++#define SADB_X_EALG_SERPENTCBC  252     /* draft-ietf-ipsec-ciph-aes-cbc-00 */
++#define SADB_X_EALG_TWOFISHCBC  253     /* draft-ietf-ipsec-ciph-aes-cbc-00 */
++
++/* Compression algorithms */
++#define SADB_X_CALG_NONE		0
++#define SADB_X_CALG_OUI			1
++#define SADB_X_CALG_DEFLATE		2
++#define SADB_X_CALG_LZS			3
++#define SADB_X_CALG_LZJH		4
++#define SADB_X_CALG_MAX			4
++
++/* Extension Header values */
++#define SADB_EXT_RESERVED		0
++#define SADB_EXT_SA			1
++#define SADB_EXT_LIFETIME_CURRENT	2
++#define SADB_EXT_LIFETIME_HARD		3
++#define SADB_EXT_LIFETIME_SOFT		4
++#define SADB_EXT_ADDRESS_SRC		5
++#define SADB_EXT_ADDRESS_DST		6
++#define SADB_EXT_ADDRESS_PROXY		7
++#define SADB_EXT_KEY_AUTH		8
++#define SADB_EXT_KEY_ENCRYPT		9
++#define SADB_EXT_IDENTITY_SRC		10
++#define SADB_EXT_IDENTITY_DST		11
++#define SADB_EXT_SENSITIVITY		12
++#define SADB_EXT_PROPOSAL		13
++#define SADB_EXT_SUPPORTED_AUTH		14
++#define SADB_EXT_SUPPORTED_ENCRYPT	15
++#define SADB_EXT_SPIRANGE		16
++#define SADB_X_EXT_KMPRIVATE		17
++#define SADB_X_EXT_POLICY		18
++#define SADB_X_EXT_SA2			19
++/* The next four entries are for setting up NAT Traversal */
++#define SADB_X_EXT_NAT_T_TYPE		20
++#define SADB_X_EXT_NAT_T_SPORT		21
++#define SADB_X_EXT_NAT_T_DPORT		22
++#define SADB_X_EXT_NAT_T_OA		23
++#define SADB_X_EXT_SEC_CTX		24
++/* Used with MIGRATE to pass @ to IKE for negotiation */
++#define SADB_X_EXT_KMADDRESS		25
++#define SADB_X_EXT_FILTER		26
++#define SADB_EXT_MAX			26
++
++/* Identity Extension values */
++#define SADB_IDENTTYPE_RESERVED	0
++#define SADB_IDENTTYPE_PREFIX	1
++#define SADB_IDENTTYPE_FQDN	2
++#define SADB_IDENTTYPE_USERFQDN	3
++#define SADB_IDENTTYPE_MAX	3
++
++#endif /* !(_LINUX_PFKEY2_H) */
+diff --git a/include/linux/pkt_cls.h b/include/linux/pkt_cls.h
+index 7a69f2a..d5e2bf6 100644
+--- a/include/linux/pkt_cls.h
++++ b/include/linux/pkt_cls.h
+@@ -37,7 +37,28 @@ enum {
+ #define TC_ACT_QUEUED		5
+ #define TC_ACT_REPEAT		6
+ #define TC_ACT_REDIRECT		7
+-#define TC_ACT_JUMP		0x10000000
++#define TC_ACT_TRAP		8 /* For hw path, this means "trap to cpu"
++				   * and don't further process the frame
++				   * in hardware. For sw path, this is
++				   * equivalent of TC_ACT_STOLEN - drop
++				   * the skb and act like everything
++				   * is alright.
++				   */
++
++/* There is a special kind of actions called "extended actions",
++ * which need a value parameter. These have a local opcode located in
++ * the highest nibble, starting from 1. The rest of the bits
++ * are used to carry the value. These two parts together make
++ * a combined opcode.
++ */
++#define __TC_ACT_EXT_SHIFT 28
++#define __TC_ACT_EXT(local) ((local) << __TC_ACT_EXT_SHIFT)
++#define TC_ACT_EXT_VAL_MASK ((1 << __TC_ACT_EXT_SHIFT) - 1)
++#define TC_ACT_EXT_CMP(combined, opcode) \
++	(((combined) & (~TC_ACT_EXT_VAL_MASK)) == opcode)
++
++#define TC_ACT_JUMP __TC_ACT_EXT(1)
++#define TC_ACT_GOTO_CHAIN __TC_ACT_EXT(2)
+ 
+ /* Action type identifiers*/
+ enum {
+@@ -348,6 +369,7 @@ enum {
+ 	TCA_BPF_FLAGS,
+ 	TCA_BPF_FLAGS_GEN,
+ 	TCA_BPF_TAG,
++	TCA_BPF_ID,
+ 	__TCA_BPF_MAX,
+ };
+ 
+@@ -432,6 +454,19 @@ enum {
+ 	TCA_FLOWER_KEY_ARP_THA,		/* ETH_ALEN */
+ 	TCA_FLOWER_KEY_ARP_THA_MASK,	/* ETH_ALEN */
+ 
++	TCA_FLOWER_KEY_MPLS_TTL,	/* u8 - 8 bits */
++	TCA_FLOWER_KEY_MPLS_BOS,	/* u8 - 1 bit */
++	TCA_FLOWER_KEY_MPLS_TC,		/* u8 - 3 bits */
++	TCA_FLOWER_KEY_MPLS_LABEL,	/* be32 - 20 bits */
++
++	TCA_FLOWER_KEY_TCP_FLAGS,	/* be16 */
++	TCA_FLOWER_KEY_TCP_FLAGS_MASK,	/* be16 */
++
++	TCA_FLOWER_KEY_IP_TOS,		/* u8 */
++	TCA_FLOWER_KEY_IP_TOS_MASK,	/* u8 */
++	TCA_FLOWER_KEY_IP_TTL,		/* u8 */
++	TCA_FLOWER_KEY_IP_TTL_MASK,	/* u8 */
++
+ 	__TCA_FLOWER_MAX,
+ };
+ 
+diff --git a/include/linux/pkt_sched.h b/include/linux/pkt_sched.h
+index df7451d..099bf55 100644
+--- a/include/linux/pkt_sched.h
++++ b/include/linux/pkt_sched.h
+@@ -617,6 +617,14 @@ struct tc_drr_stats {
+ #define TC_QOPT_BITMASK 15
+ #define TC_QOPT_MAX_QUEUE 16
+ 
++enum {
++	TC_MQPRIO_HW_OFFLOAD_NONE,	/* no offload requested */
++	TC_MQPRIO_HW_OFFLOAD_TCS,	/* offload TCs, no queue counts */
++	__TC_MQPRIO_HW_OFFLOAD_MAX
++};
++
++#define TC_MQPRIO_HW_OFFLOAD_MAX (__TC_MQPRIO_HW_OFFLOAD_MAX - 1)
++
+ struct tc_mqprio_qopt {
+ 	__u8	num_tc;
+ 	__u8	prio_tc_map[TC_QOPT_BITMASK + 1];
+diff --git a/include/linux/rtnetlink.h b/include/linux/rtnetlink.h
+index d42fe83..813e9e0 100644
+--- a/include/linux/rtnetlink.h
++++ b/include/linux/rtnetlink.h
+@@ -122,6 +122,8 @@ enum {
+ 
+ 	RTM_NEWNETCONF = 80,
+ #define RTM_NEWNETCONF RTM_NEWNETCONF
++	RTM_DELNETCONF,
++#define RTM_DELNETCONF RTM_DELNETCONF
+ 	RTM_GETNETCONF = 82,
+ #define RTM_GETNETCONF RTM_GETNETCONF
+ 
+@@ -144,6 +146,9 @@ enum {
+ 	RTM_GETSTATS = 94,
+ #define RTM_GETSTATS RTM_GETSTATS
+ 
++	RTM_NEWCACHEREPORT = 96,
++#define RTM_NEWCACHEREPORT RTM_NEWCACHEREPORT
++
+ 	__RTM_MAX,
+ #define RTM_MAX		(((__RTM_MAX + 3) & ~3) - 1)
+ };
+@@ -276,6 +281,7 @@ enum rt_scope_t {
+ #define RTM_F_EQUALIZE		0x400	/* Multipath equalizer: NI	*/
+ #define RTM_F_PREFIX		0x800	/* Prefix addresses		*/
+ #define RTM_F_LOOKUP_TABLE	0x1000	/* set rtm_table to FIB lookup result */
++#define RTM_F_FIB_MATCH	        0x2000	/* return full fib lookup match */
+ 
+ /* Reserved table identifiers */
+ 
+@@ -319,6 +325,7 @@ enum rtattr_type_t {
+ 	RTA_EXPIRES,
+ 	RTA_PAD,
+ 	RTA_UID,
++	RTA_TTL_PROPAGATE,
+ 	__RTA_MAX
+ };
+ 
+@@ -545,6 +552,8 @@ enum {
+ 	TCA_STATS2,
+ 	TCA_STAB,
+ 	TCA_PAD,
++	TCA_DUMP_INVISIBLE,
++	TCA_CHAIN,
+ 	__TCA_MAX
+ };
+ 
+@@ -658,6 +667,10 @@ enum rtnetlink_groups {
+ #define RTNLGRP_NSID		RTNLGRP_NSID
+ 	RTNLGRP_MPLS_NETCONF,
+ #define RTNLGRP_MPLS_NETCONF	RTNLGRP_MPLS_NETCONF
++	RTNLGRP_IPV4_MROUTE_R,
++#define RTNLGRP_IPV4_MROUTE_R	RTNLGRP_IPV4_MROUTE_R
++	RTNLGRP_IPV6_MROUTE_R,
++#define RTNLGRP_IPV6_MROUTE_R	RTNLGRP_IPV6_MROUTE_R
+ 	__RTNLGRP_MAX
+ };
+ #define RTNLGRP_MAX	(__RTNLGRP_MAX - 1)
+@@ -668,10 +681,29 @@ struct tcamsg {
+ 	unsigned char	tca__pad1;
+ 	unsigned short	tca__pad2;
+ };
++
++enum {
++	TCA_ROOT_UNSPEC,
++	TCA_ROOT_TAB,
++#define TCA_ACT_TAB TCA_ROOT_TAB
++#define TCAA_MAX TCA_ROOT_TAB
++	TCA_ROOT_FLAGS,
++	TCA_ROOT_COUNT,
++	TCA_ROOT_TIME_DELTA, /* in msecs */
++	__TCA_ROOT_MAX,
++#define	TCA_ROOT_MAX (__TCA_ROOT_MAX - 1)
++};
++
+ #define TA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct tcamsg))))
+ #define TA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct tcamsg))
+-#define TCA_ACT_TAB 1 /* attr type must be >=1 */	
+-#define TCAA_MAX 1
++/* tcamsg flags stored in attribute TCA_ROOT_FLAGS
++ *
++ * TCA_FLAG_LARGE_DUMP_ON user->kernel to request for larger than TCA_ACT_MAX_PRIO
++ * actions in a dump. All dump responses will contain the number of actions
++ * being dumped stored in for user app's consumption in TCA_ROOT_COUNT
++ *
++ */
++#define TCA_FLAG_LARGE_DUMP_ON		(1 << 0)
+ 
+ /* New extended info filters for IFLA_EXT_MASK */
+ #define RTEXT_FILTER_VF		(1 << 0)
+diff --git a/include/linux/sctp.h b/include/linux/sctp.h
+index 5e08b3d..fec24c4 100644
+--- a/include/linux/sctp.h
++++ b/include/linux/sctp.h
+@@ -115,10 +115,13 @@ typedef __s32 sctp_assoc_t;
+ #define SCTP_PR_SUPPORTED	113
+ #define SCTP_DEFAULT_PRINFO	114
+ #define SCTP_PR_ASSOC_STATUS	115
++#define SCTP_PR_STREAM_STATUS	116
++#define SCTP_RECONFIG_SUPPORTED	117
+ #define SCTP_ENABLE_STREAM_RESET	118
+ #define SCTP_RESET_STREAMS	119
+ #define SCTP_RESET_ASSOC	120
+ #define SCTP_ADD_STREAMS	121
++#define SCTP_SOCKOPT_PEELOFF_FLAGS 122
+ 
+ /* PR-SCTP policies */
+ #define SCTP_PR_SCTP_NONE	0x0000
+@@ -502,6 +505,28 @@ struct sctp_stream_reset_event {
+ 	__u16 strreset_stream_list[];
+ };
+ 
++#define SCTP_ASSOC_RESET_DENIED		0x0004
++#define SCTP_ASSOC_RESET_FAILED		0x0008
++struct sctp_assoc_reset_event {
++	__u16 assocreset_type;
++	__u16 assocreset_flags;
++	__u32 assocreset_length;
++	sctp_assoc_t assocreset_assoc_id;
++	__u32 assocreset_local_tsn;
++	__u32 assocreset_remote_tsn;
++};
++
++#define SCTP_ASSOC_CHANGE_DENIED	0x0004
++#define SCTP_ASSOC_CHANGE_FAILED	0x0008
++struct sctp_stream_change_event {
++	__u16 strchange_type;
++	__u16 strchange_flags;
++	__u32 strchange_length;
++	sctp_assoc_t strchange_assoc_id;
++	__u16 strchange_instrms;
++	__u16 strchange_outstrms;
++};
++
+ /*
+  * Described in Section 7.3
+  *   Ancillary Data and Notification Interest Options
+@@ -518,6 +543,8 @@ struct sctp_event_subscribe {
+ 	__u8 sctp_authentication_event;
+ 	__u8 sctp_sender_dry_event;
+ 	__u8 sctp_stream_reset_event;
++	__u8 sctp_assoc_reset_event;
++	__u8 sctp_stream_change_event;
+ };
+ 
+ /*
+@@ -543,6 +570,8 @@ union sctp_notification {
+ 	struct sctp_authkey_event sn_authkey_event;
+ 	struct sctp_sender_dry_event sn_sender_dry_event;
+ 	struct sctp_stream_reset_event sn_strreset_event;
++	struct sctp_assoc_reset_event sn_assocreset_event;
++	struct sctp_stream_change_event sn_strchange_event;
+ };
+ 
+ /* Section 5.3.1
+@@ -572,6 +601,10 @@ enum sctp_sn_type {
+ #define SCTP_SENDER_DRY_EVENT		SCTP_SENDER_DRY_EVENT
+ 	SCTP_STREAM_RESET_EVENT,
+ #define SCTP_STREAM_RESET_EVENT		SCTP_STREAM_RESET_EVENT
++	SCTP_ASSOC_RESET_EVENT,
++#define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
++	SCTP_STREAM_CHANGE_EVENT,
++#define SCTP_STREAM_CHANGE_EVENT	SCTP_STREAM_CHANGE_EVENT
+ };
+ 
+ /* Notification error codes used to fill up the error fields in some
+@@ -940,6 +973,11 @@ typedef struct {
+ 	int sd;
+ } sctp_peeloff_arg_t;
+ 
++typedef struct {
++	sctp_peeloff_arg_t p_arg;
++	unsigned flags;
++} sctp_peeloff_flags_arg_t;
++
+ /*
+  *  Peer Address Thresholds socket option
+  */
+diff --git a/include/linux/seg6.h b/include/linux/seg6.h
+new file mode 100644
+index 0000000..0715279
+--- /dev/null
++++ b/include/linux/seg6.h
+@@ -0,0 +1,54 @@
++/*
++ *  SR-IPv6 implementation
++ *
++ *  Author:
++ *  David Lebrun <david.lebrun@uclouvain.be>
++ *
++ *
++ *  This program is free software; you can redistribute it and/or
++ *      modify it under the terms of the GNU General Public License
++ *      as published by the Free Software Foundation; either version
++ *      2 of the License, or (at your option) any later version.
++ */
++
++#ifndef _LINUX_SEG6_H
++#define _LINUX_SEG6_H
++
++#include <linux/types.h>
++#include <linux/in6.h>		/* For struct in6_addr. */
++
++/*
++ * SRH
++ */
++struct ipv6_sr_hdr {
++	__u8	nexthdr;
++	__u8	hdrlen;
++	__u8	type;
++	__u8	segments_left;
++	__u8	first_segment;
++	__u8	flags;
++	__u16	reserved;
++
++	struct in6_addr segments[0];
++};
++
++#define SR6_FLAG1_PROTECTED	(1 << 6)
++#define SR6_FLAG1_OAM		(1 << 5)
++#define SR6_FLAG1_ALERT		(1 << 4)
++#define SR6_FLAG1_HMAC		(1 << 3)
++
++#define SR6_TLV_INGRESS		1
++#define SR6_TLV_EGRESS		2
++#define SR6_TLV_OPAQUE		3
++#define SR6_TLV_PADDING		4
++#define SR6_TLV_HMAC		5
++
++#define sr_has_hmac(srh) ((srh)->flags & SR6_FLAG1_HMAC)
++
++struct sr6_tlv {
++	__u8 type;
++	__u8 len;
++	__u8 data[0];
++};
++
++#endif
+diff --git a/include/linux/seg6_genl.h b/include/linux/seg6_genl.h
+new file mode 100644
+index 0000000..99382f9
+--- /dev/null
++++ b/include/linux/seg6_genl.h
+@@ -0,0 +1,32 @@
++#ifndef _LINUX_SEG6_GENL_H
++#define _LINUX_SEG6_GENL_H
++
++#define SEG6_GENL_NAME		"SEG6"
++#define SEG6_GENL_VERSION	0x1
++
++enum {
++	SEG6_ATTR_UNSPEC,
++	SEG6_ATTR_DST,
++	SEG6_ATTR_DSTLEN,
++	SEG6_ATTR_HMACKEYID,
++	SEG6_ATTR_SECRET,
++	SEG6_ATTR_SECRETLEN,
++	SEG6_ATTR_ALGID,
++	SEG6_ATTR_HMACINFO,
++	__SEG6_ATTR_MAX,
++};
++
++#define SEG6_ATTR_MAX (__SEG6_ATTR_MAX - 1)
++
++enum {
++	SEG6_CMD_UNSPEC,
++	SEG6_CMD_SETHMAC,
++	SEG6_CMD_DUMPHMAC,
++	SEG6_CMD_SET_TUNSRC,
++	SEG6_CMD_GET_TUNSRC,
++	__SEG6_CMD_MAX,
++};
++
++#define SEG6_CMD_MAX (__SEG6_CMD_MAX - 1)
++
++#endif
+diff --git a/include/linux/seg6_hmac.h b/include/linux/seg6_hmac.h
+new file mode 100644
+index 0000000..704f93e
+--- /dev/null
++++ b/include/linux/seg6_hmac.h
+@@ -0,0 +1,22 @@
++#ifndef _LINUX_SEG6_HMAC_H
++#define _LINUX_SEG6_HMAC_H
++
++#include <linux/types.h>
++#include <linux/seg6.h>
++
++#define SEG6_HMAC_SECRET_LEN	64
++#define SEG6_HMAC_FIELD_LEN	32
++
++struct sr6_tlv_hmac {
++	struct sr6_tlv tlvhdr;
++	__u16 reserved;
++	__be32 hmackeyid;
++	__u8 hmac[SEG6_HMAC_FIELD_LEN];
++};
++
++enum {
++	SEG6_HMAC_ALGO_SHA1 = 1,
++	SEG6_HMAC_ALGO_SHA256 = 2,
++};
++
++#endif
+diff --git a/include/linux/seg6_iptunnel.h b/include/linux/seg6_iptunnel.h
+new file mode 100644
+index 0000000..a5dc05a
+--- /dev/null
++++ b/include/linux/seg6_iptunnel.h
+@@ -0,0 +1,40 @@
++/*
++ *  SR-IPv6 implementation
++ *
++ *  Author:
++ *  David Lebrun <david.lebrun@uclouvain.be>
++ *
++ *
++ *  This program is free software; you can redistribute it and/or
++ *      modify it under the terms of the GNU General Public License
++ *      as published by the Free Software Foundation; either version
++ *      2 of the License, or (at your option) any later version.
++ */
++
++#ifndef _LINUX_SEG6_IPTUNNEL_H
++#define _LINUX_SEG6_IPTUNNEL_H
++
++#include <linux/seg6.h>		/* For struct ipv6_sr_hdr. */
++
++enum {
++	SEG6_IPTUNNEL_UNSPEC,
++	SEG6_IPTUNNEL_SRH,
++	__SEG6_IPTUNNEL_MAX,
++};
++#define SEG6_IPTUNNEL_MAX (__SEG6_IPTUNNEL_MAX - 1)
++
++struct seg6_iptunnel_encap {
++	int mode;
++	struct ipv6_sr_hdr srh[0];
++};
++
++#define SEG6_IPTUN_ENCAP_SIZE(x) ((sizeof(*x)) + (((x)->srh->hdrlen + 1) << 3))
++
++enum {
++	SEG6_IPTUN_MODE_INLINE,
++	SEG6_IPTUN_MODE_ENCAP,
++	SEG6_IPTUN_MODE_L2ENCAP,
++};
++
++
++#endif
+diff --git a/include/linux/seg6_local.h b/include/linux/seg6_local.h
+new file mode 100644
+index 0000000..76b90d6
+--- /dev/null
++++ b/include/linux/seg6_local.h
+@@ -0,0 +1,68 @@
++/*
++ *  SR-IPv6 implementation
++ *
++ *  Author:
++ *  David Lebrun <david.lebrun@uclouvain.be>
++ *
++ *
++ *  This program is free software; you can redistribute it and/or
++ *      modify it under the terms of the GNU General Public License
++ *      as published by the Free Software Foundation; either version
++ *      2 of the License, or (at your option) any later version.
++ */
++
++#ifndef _LINUX_SEG6_LOCAL_H
++#define _LINUX_SEG6_LOCAL_H
++
++#include <linux/seg6.h>
++
++enum {
++	SEG6_LOCAL_UNSPEC,
++	SEG6_LOCAL_ACTION,
++	SEG6_LOCAL_SRH,
++	SEG6_LOCAL_TABLE,
++	SEG6_LOCAL_NH4,
++	SEG6_LOCAL_NH6,
++	SEG6_LOCAL_IIF,
++	SEG6_LOCAL_OIF,
++	__SEG6_LOCAL_MAX,
++};
++#define SEG6_LOCAL_MAX (__SEG6_LOCAL_MAX - 1)
++
++enum {
++	SEG6_LOCAL_ACTION_UNSPEC	= 0,
++	/* node segment */
++	SEG6_LOCAL_ACTION_END		= 1,
++	/* adjacency segment (IPv6 cross-connect) */
++	SEG6_LOCAL_ACTION_END_X		= 2,
++	/* lookup of next seg NH in table */
++	SEG6_LOCAL_ACTION_END_T		= 3,
++	/* decap and L2 cross-connect */
++	SEG6_LOCAL_ACTION_END_DX2	= 4,
++	/* decap and IPv6 cross-connect */
++	SEG6_LOCAL_ACTION_END_DX6	= 5,
++	/* decap and IPv4 cross-connect */
++	SEG6_LOCAL_ACTION_END_DX4	= 6,
++	/* decap and lookup of DA in v6 table */
++	SEG6_LOCAL_ACTION_END_DT6	= 7,
++	/* decap and lookup of DA in v4 table */
++	SEG6_LOCAL_ACTION_END_DT4	= 8,
++	/* binding segment with insertion */
++	SEG6_LOCAL_ACTION_END_B6	= 9,
++	/* binding segment with encapsulation */
++	SEG6_LOCAL_ACTION_END_B6_ENCAP	= 10,
++	/* binding segment with MPLS encap */
++	SEG6_LOCAL_ACTION_END_BM	= 11,
++	/* lookup last seg in table */
++	SEG6_LOCAL_ACTION_END_S		= 12,
++	/* forward to SR-unaware VNF with static proxy */
++	SEG6_LOCAL_ACTION_END_AS	= 13,
++	/* forward to SR-unaware VNF with masquerading */
++	SEG6_LOCAL_ACTION_END_AM	= 14,
++
++	__SEG6_LOCAL_ACTION_MAX,
++};
++
++#define SEG6_LOCAL_ACTION_MAX (__SEG6_LOCAL_ACTION_MAX - 1)
++
++#endif
+diff --git a/include/linux/tc_act/tc_bpf.h b/include/linux/tc_act/tc_bpf.h
+index 975b50d..8dc2ac0 100644
+--- a/include/linux/tc_act/tc_bpf.h
++++ b/include/linux/tc_act/tc_bpf.h
+@@ -28,6 +28,7 @@ enum {
+ 	TCA_ACT_BPF_NAME,
+ 	TCA_ACT_BPF_PAD,
+ 	TCA_ACT_BPF_TAG,
++	TCA_ACT_BPF_ID,
+ 	__TCA_ACT_BPF_MAX,
+ };
+ #define TCA_ACT_BPF_MAX (__TCA_ACT_BPF_MAX - 1)
+diff --git a/include/linux/tc_act/tc_tunnel_key.h b/include/linux/tc_act/tc_tunnel_key.h
+index 84ea55e..afcd4be 100644
+--- a/include/linux/tc_act/tc_tunnel_key.h
++++ b/include/linux/tc_act/tc_tunnel_key.h
+@@ -34,6 +34,7 @@ enum {
+ 	TCA_TUNNEL_KEY_ENC_KEY_ID,	/* be64 */
+ 	TCA_TUNNEL_KEY_PAD,
+ 	TCA_TUNNEL_KEY_ENC_DST_PORT,	/* be16 */
++	TCA_TUNNEL_KEY_NO_CSUM,		/* u8 */
+ 	__TCA_TUNNEL_KEY_MAX,
+ };
+ 
+diff --git a/include/linux/tcp.h b/include/linux/tcp.h
+index d34fb5c..8edad3f 100644
+--- a/include/linux/tcp.h
++++ b/include/linux/tcp.h
+@@ -117,6 +117,8 @@ enum {
+ #define TCP_SAVED_SYN		28	/* Get SYN headers recorded for connection */
+ #define TCP_REPAIR_WINDOW	29	/* Get/set window parameters */
+ #define TCP_FASTOPEN_CONNECT	30	/* Attempt FastOpen with connect */
++#define TCP_ULP			31	/* Attach a ULP to a TCP connection */
++#define TCP_MD5SIG_EXT		32	/* TCP MD5 Signature with extensions */
+ 
+ struct tcp_repair_opt {
+ 	__u32	opt_code;
+@@ -229,17 +231,38 @@ enum {
+ 	TCP_NLA_SNDBUF_LIMITED,	/* Time (usec) limited by send buffer */
+ 	TCP_NLA_DATA_SEGS_OUT,	/* Data pkts sent including retransmission */
+ 	TCP_NLA_TOTAL_RETRANS,	/* Data pkts retransmitted */
++	TCP_NLA_PACING_RATE,    /* Pacing rate in bytes per second */
++	TCP_NLA_DELIVERY_RATE,  /* Delivery rate in bytes per second */
++	TCP_NLA_SND_CWND,       /* Sending congestion window */
++	TCP_NLA_REORDERING,     /* Reordering metric */
++	TCP_NLA_MIN_RTT,        /* minimum RTT */
++	TCP_NLA_RECUR_RETRANS,  /* Recurring retransmits for the current pkt */
++	TCP_NLA_DELIVERY_RATE_APP_LMT, /* delivery rate application limited ? */
++
+ };
+ 
+ /* for TCP_MD5SIG socket option */
+ #define TCP_MD5SIG_MAXKEYLEN	80
+ 
++/* tcp_md5sig extension flags for TCP_MD5SIG_EXT */
++#define TCP_MD5SIG_FLAG_PREFIX		1	/* address prefix length */
++
+ struct tcp_md5sig {
+ 	struct __kernel_sockaddr_storage tcpm_addr;	/* address associated */
+-	__u16	__tcpm_pad1;				/* zero */
++	__u8	tcpm_flags;				/* extension flags */
++	__u8	tcpm_prefixlen;				/* address prefix */
+ 	__u16	tcpm_keylen;				/* key length */
+-	__u32	__tcpm_pad2;				/* zero */
++	__u32	__tcpm_pad;				/* zero */
+ 	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
+ };
+ 
++/* INET_DIAG_MD5SIG */
++struct tcp_diag_md5sig {
++	__u8	tcpm_family;
++	__u8	tcpm_prefixlen;
++	__u16	tcpm_keylen;
++	__be32	tcpm_addr[4];
++	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];
++};
++
+ #endif /* _LINUX_TCP_H */
+diff --git a/include/linux/xfrm.h b/include/linux/xfrm.h
+index d2dd1fd..5790293 100644
+--- a/include/linux/xfrm.h
++++ b/include/linux/xfrm.h
+@@ -303,6 +303,8 @@ enum xfrm_attr_type_t {
+ 	XFRMA_PROTO,		/* __u8 */
+ 	XFRMA_ADDRESS_FILTER,	/* struct xfrm_address_filter */
+ 	XFRMA_PAD,
++	XFRMA_OFFLOAD_DEV,	/* struct xfrm_state_offload */
++	XFRMA_OUTPUT_MARK,	/* __u32 */
+ 	__XFRMA_MAX
+ 
+ #define XFRMA_MAX (__XFRMA_MAX - 1)
+@@ -494,6 +496,13 @@ struct xfrm_address_filter {
+ 	__u8				dplen;
+ };
+ 
++struct xfrm_user_offload {
++	int				ifindex;
++	__u8				flags;
++};
++#define XFRM_OFFLOAD_IPV6	1
++#define XFRM_OFFLOAD_INBOUND	2
++
+ /* backwards compatibility for userspace */
+ #define XFRMGRP_ACQUIRE		1
+ #define XFRMGRP_EXPIRE		2
+-- 
+1.8.3.1
+

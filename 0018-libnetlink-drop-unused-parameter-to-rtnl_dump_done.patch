@@ -1,0 +1,47 @@
+From 9346e08c2f9059decf889fb89f2859e7ed61f573 Mon Sep 17 00:00:00 2001
+From: Hangbin Liu <haliu@redhat.com>
+Date: Wed, 8 Nov 2017 14:39:08 +0800
+Subject: [PATCH] libnetlink: drop unused parameter to rtnl_dump_done
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1380803
+Upstream Status: iproute2.git commit 0efa625765b4
+
+commit 0efa625765b4481e1e474526eb0feda747b720e5
+Author: Stephen Hemminger <stephen@networkplumber.org>
+Date:   Thu Aug 24 15:02:32 2017 -0700
+
+    libnetlink: drop unused parameter to rtnl_dump_done
+
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+
+Signed-off-by: Hangbin Liu <haliu@redhat.com>
+---
+ lib/libnetlink.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/lib/libnetlink.c b/lib/libnetlink.c
+index e91bd5a..b08518d 100644
+--- a/lib/libnetlink.c
++++ b/lib/libnetlink.c
+@@ -261,8 +261,7 @@ int rtnl_dump_request_n(struct rtnl_handle *rth, struct nlmsghdr *n)
+ 	return sendmsg(rth->fd, &msg, 0);
+ }
+ 
+-static int rtnl_dump_done(const struct rtnl_handle *rth,
+-			  struct nlmsghdr *h)
++static int rtnl_dump_done(struct nlmsghdr *h)
+ {
+ 	int len = *(int *)NLMSG_DATA(h);
+ 
+@@ -368,7 +367,7 @@ int rtnl_dump_filter_l(struct rtnl_handle *rth,
+ 					dump_intr = 1;
+ 
+ 				if (h->nlmsg_type == NLMSG_DONE) {
+-					err = rtnl_dump_done(rth, h);
++					err = rtnl_dump_done(h);
+ 					if (err < 0)
+ 						return -1;
+ 
+-- 
+1.8.3.1
+

@@ -1,0 +1,42 @@
+From dbc597c9d1e0e65cc9d989d8057f9a083c2f5779 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Fri, 15 Dec 2017 16:13:46 +0100
+Subject: [PATCH] tc: fix command "tc actions del" hang issue
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1526394
+Upstream Status: iproute2.git commit 83cf5bc73b858
+
+commit 83cf5bc73b858608d59c3c6126a9f37e793e15dd
+Author: Chris Mi <chrism@mellanox.com>
+Date:   Thu Dec 14 18:09:00 2017 +0900
+
+    tc: fix command "tc actions del" hang issue
+
+    If command is RTM_DELACTION, a non-NULL pointer is passed to rtnl_talk().
+    Then flag NLM_F_ACK is not set on n->nlmsg_flags and netlink_ack() will
+    not be called. Command tc will wait for the reply for ever.
+
+    Fixes: 86bf43c7c2fd ("lib/libnetlink: update rtnl_talk to support malloc buff at run time")
+    Reviewed-by: Jiri Pirko <jiri@mellanox.com>
+    Signed-off-by: Chris Mi <chrism@mellanox.com>
+    Signed-off-by: Stephen Hemminger <stephen@networkplumber.org>
+---
+ tc/m_action.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tc/m_action.c b/tc/m_action.c
+index 90b2a11..7cfd9e0 100644
+--- a/tc/m_action.c
++++ b/tc/m_action.c
+@@ -507,7 +507,7 @@ static int tc_action_gd(int cmd, unsigned int flags, int *argc_p, char ***argv_p
+ 
+ 	req.n.nlmsg_seq = rth.dump = ++rth.seq;
+ 
+-	if (rtnl_talk(&rth, &req.n, &ans) < 0) {
++	if (rtnl_talk(&rth, &req.n, cmd == RTM_DELACTION ? NULL : &ans) < 0) {
+ 		fprintf(stderr, "We have an error talking to the kernel\n");
+ 		return 1;
+ 	}
+-- 
+1.8.3.1
+

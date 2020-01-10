@@ -16,7 +16,7 @@ ip-route \- routing table management
 
 .ti -8
 .BR "ip route" " { "
-.BR list " | " flush " } "
+.BR show " | " flush " } "
 .I  SELECTOR
 
 .ti -8
@@ -33,7 +33,9 @@ ip-route \- routing table management
 .RB " ] [ " oif
 .IR STRING " ] [ "
 .B  tos
-.IR TOS " ]"
+.IR TOS " ] [ "
+.B  vrf
+.IR NAME " ] "
 
 .ti -8
 .BR "ip route" " { " add " | " del " | " change " | " append " | "\
@@ -50,6 +52,8 @@ replace " } "
 .IR PREFIX " ] [ "
 .B  table
 .IR TABLE_ID " ] [ "
+.B  vrf
+.IR NAME " ] [ "
 .B  proto
 .IR RTPROTO " ] [ "
 .B  type
@@ -80,12 +84,19 @@ replace " } "
 
 .ti -8
 .IR NH " := [ "
+.B  encap
+.IR ENCAP " ] [ "
 .B  via
-.IR ADDRESS " ] [ "
+[
+.IR FAMILY " ] " ADDRESS " ] [ "
 .B  dev
 .IR STRING " ] [ "
 .B  weight
 .IR NUMBER " ] " NHFLAGS
+
+.ti -8
+.IR FAMILY " := [ "
+.BR inet " | " inet6 " | " ipx " | " dnet " | " mpls " | " bridge " | " link " ]"
 
 .ti -8
 .IR OPTIONS " := " FLAGS " [ "
@@ -93,6 +104,11 @@ replace " } "
 .IR NUMBER " ] [ "
 .B  advmss
 .IR NUMBER " ] [ "
+.B  as
+[
+.B to
+]
+.IR ADDRESS " ]"
 .B  rtt
 .IR TIME " ] [ "
 .B  rttvar
@@ -119,6 +135,8 @@ replace " } "
 .IR BOOL " ] [ "
 .B  congctl
 .IR NAME " ] [ "
+.B  pref
+.IR PREF " ] [ "
 .B  expires
 .IR TIME " ]"
 
@@ -150,6 +168,43 @@ throw " | " unreachable " | " prohibit " | " blackhole " | " nat " ]"
 .IR FEATURES " := [ "
 .BR ecn " | ]"
 
+.ti -8
+.IR PREF " := [ "
+.BR low " | " medium " | " high " ]"
+
+.ti -8
+.IR ENCAP " := [ "
+.IR MPLS " | " IP | " BPF " ] "
+
+.ti -8
+.IR ENCAP_MPLS " := "
+.BR mpls " [ "
+.IR LABEL " ]"
+
+.ti -8
+.IR ENCAP_IP " := "
+.B ip
+.B id
+.IR TUNNEL_ID
+.B  dst
+.IR REMOTE_IP " [ "
+.B tos
+.IR TOS " ] ["
+.B  ttl
+.IR TTL " ]"
+
+
+.ti -8
+.IR ENCAP_BPF " := "
+.BR bpf " [ "
+.B in
+.IR PROG " ] ["
+.B out
+.IR PROG " ] ["
+.B xmit
+.IR PROG " ] ["
+.B headroom
+.IR SIZE " ]"
 
 .SH DESCRIPTION
 .B ip route
@@ -331,13 +386,19 @@ routes, which are put into the
 table by default.
 
 .TP
+.BI vrf " NAME"
+the vrf name to add this route to. Implicitly means the table
+associated with the VRF.
+
+.TP
 .BI dev " NAME"
 the output device name.
 
 .TP
-.BI via " ADDRESS"
-the address of the nexthop router. Actually, the sense of this field
-depends on the route type. For normal
+.BI via " [ FAMILY ] ADDRESS"
+the address of the nexthop router, in the address family FAMILY.
+Actually, the sense of this field depends on the route type.  For
+normal
 .B unicast
 routes it is either the true next hop router or, if it is a direct
 route installed in BSD compatibility mode, it can be a local address
@@ -422,7 +483,7 @@ The default value is zero, meaning to use Slow Start value.
 
 .TP
 .BI features " FEATURES " (3.18+ only)
-Enable or disable per-route features.  Only available feature at this
+Enable or disable per-route features. Only available feature at this
 time is
 .B ecn
 to enable explicit congestion notification when initiating connections to the
@@ -474,7 +535,7 @@ is a complex value with its own syntax similar to the top level
 argument lists:
 
 .in +8
-.BI via " ADDRESS"
+.BI via " [ FAMILY ] ADDRESS"
 - is the nexthop router.
 .sp
 
@@ -553,13 +614,103 @@ to assign (or not to assign) protocol tags.
 .B onlink
 pretend that the nexthop is directly attached to this link,
 even if it does not match any interface prefix.
-.RE
+
+.TP
+.BI pref " PREF"
+the IPv6 route preference.
+.I PREF
+is a string specifying the route preference as defined in RFC4191 for Router
+Discovery messages. Namely:
+
+.in +8
+.B low
+- the route has a lowest priority
+.sp
+
+.B medium
+- the route has a default priority
+.sp
+
+.B high
+- the route has a highest priority
+.sp
+
+.TP
+.BI encap " ENCAPTYPE ENCAPHDR"
+attach tunnel encapsulation attributes to this route.
+.sp
+.I ENCAPTYPE
+is a string specifying the supported encapsulation type. Namely:
+
+.in +8
+.BI mpls
+- encapsulation type MPLS
+.sp
+.BI ip
+- IP encapsulation (Geneve, GRE, VXLAN, ...)
+.sp
+.BI bpf
+- Execution of BPF program
+.sp
+
+.in -8
+.I ENCAPHDR
+is a set of encapsulation attributes specific to the
+.I ENCAPTYPE.
+
+.in +8
+.B mpls
+.in +2
+.I MPLSLABEL
+- mpls label stack with labels separated by
+.I "/"
+.in -2
+.sp
+
+.B ip
+.in +2
+.B id
+.I TUNNEL_ID
+.B  dst
+.IR REMOTE_IP " [ "
+.B tos
+.IR TOS " ] ["
+.B  ttl
+.IR TTL " ]"
+.in -2
+.sp
+
+.B bpf
+.in +2
+.B in
+.I PROG
+- BPF program to execute for incoming packets
+.sp
+
+.B out
+.I PROG
+- BPF program to execute for outgoing packets
+.sp
+
+.B xmit
+.I PROG
+- BPF program to execute for transmitted packets
+.sp
+
+.B headroom
+.I SIZE
+- Size of header BPF program will attach (xmit)
+.in -2
+.sp
+
+.in -8
 
 .TP
 .BI expires " TIME " "(4.4+ only)"
 the route will be deleted after the expires time.
 .B Only
 support IPv6 at present.
+.RE
 
 .TP
 ip route delete
@@ -643,6 +794,10 @@ may either be the ID of a real table or one of the special values:
 .in -8
 
 .TP
+.BI vrf " NAME"
+show the routes for the table associated with the vrf name
+
+.TP
 .B cloned
 .TP
 .B cached
@@ -677,7 +832,7 @@ only list routes of this type.
 only list routes going via this device.
 
 .TP
-.BI via " PREFIX"
+.BI via " [ FAMILY ] PREFIX"
 only list routes going via the nexthop routers selected by
 .IR PREFIX "."
 
@@ -752,6 +907,10 @@ the device from which this packet is expected to arrive.
 force the output device on which this packet will be routed.
 
 .TP
+.BI vrf " NAME"
+force the vrf device on which this packet will be routed.
+
+.TP
 .B connected
 if no source address
 .RB "(option " from ")"
@@ -804,6 +963,12 @@ routes are left unchanged. Any routes specified in the data stream that
 already exist in the table will be ignored.
 .RE
 
+.SH NOTES
+Starting with Linux kernel version 3.6, there is no routing cache for IPv4
+anymore. Hence
+.B "ip route show cached"
+will never print any entries on systems with this or newer kernel versions.
+
 .SH EXAMPLES
 .PP
 ip ro
@@ -816,7 +981,11 @@ ip route add default via 192.168.1.1 dev eth0
 Adds a default route (for all addresses) via the local gateway 192.168.1.1 that can
 be reached on device eth0.
 .RE
-
+.PP
+ip route add 10.1.1.0/30 encap mpls 200/300 via 10.1.1.1 dev eth0
+.RS 4
+Adds an ipv4 route with mpls encapsulation attributes attached to it.
+.RE
 .SH SEE ALSO
 .br
 .BR ip (8)

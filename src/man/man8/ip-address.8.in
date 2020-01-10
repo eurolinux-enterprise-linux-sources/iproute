@@ -45,6 +45,8 @@ ip-address \- protocol address management
 .IR DEVICE " ] [ "
 .B  type
 .IR TYPE " ] [ "
+.B vrf
+.IR NAME " ] [ "
 .BR up " ] ]"
 
 .ti -8
@@ -99,7 +101,9 @@ ip-address \- protocol address management
 .ti -8
 .IR TYPE " := [ "
 .BR bridge " | "
+.BR bridge_slave " |"
 .BR bond " | "
+.BR bond_slave " |"
 .BR can " | "
 .BR dummy " | "
 .BR hsr " | "
@@ -119,7 +123,9 @@ ip-address \- protocol address management
 .BR ip6gre " |"
 .BR ip6gretap " |"
 .BR vti " |"
+.BR vrf " |"
 .BR nlmon " |"
+.BR ipvlan " |"
 .BR lowpan " |"
 .BR geneve " |"
 .BR macsec " ]"
@@ -296,6 +302,10 @@ is a usual shell style pattern.
 .TP
 .BI master " DEVICE"
 only list interfaces enslaved to this master device.
+
+.TP
+.BI vrf " NAME "
+only list interfaces enslaved to this vrf.
 
 .TP
 .BI type " TYPE"

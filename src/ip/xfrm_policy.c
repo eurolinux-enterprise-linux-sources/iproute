@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses>.
  */
 /*
  * based on iproute.c
@@ -30,12 +29,11 @@
 #include <string.h>
 #include <netdb.h>
 #include <linux/netlink.h>
-#include <linux/xfrm.h>
 #include "utils.h"
 #include "xfrm.h"
 #include "ip_common.h"
 
-//#define NLMSG_DELETEALL_BUF_SIZE (4096-512)
+/* #define NLMSG_DELETEALL_BUF_SIZE (4096-512) */
 #define NLMSG_DELETEALL_BUF_SIZE 8192
 
 /*
@@ -243,41 +241,35 @@ int xfrm_sctx_parse(char *ctxstr, char *s,
 	return 0;
 }
 
-static int xfrm_policy_modify(int cmd, unsigned flags, int argc, char **argv)
+static int xfrm_policy_modify(int cmd, unsigned int flags, int argc, char **argv)
 {
 	struct rtnl_handle rth;
 	struct {
 		struct nlmsghdr			n;
 		struct xfrm_userpolicy_info	xpinfo;
 		char				buf[RTA_BUF_SIZE];
-	} req;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(req.xpinfo)),
+		.n.nlmsg_flags = NLM_F_REQUEST | flags,
+		.n.nlmsg_type = cmd,
+		.xpinfo.sel.family = preferred_family,
+		.xpinfo.lft.soft_byte_limit = XFRM_INF,
+		.xpinfo.lft.hard_byte_limit = XFRM_INF,
+		.xpinfo.lft.soft_packet_limit = XFRM_INF,
+		.xpinfo.lft.hard_packet_limit = XFRM_INF,
+	};
 	char *dirp = NULL;
 	char *selp = NULL;
 	char *ptypep = NULL;
 	char *sctxp = NULL;
-	struct xfrm_userpolicy_type upt;
-	char tmpls_buf[XFRM_TMPLS_BUF_SIZE];
+	struct xfrm_userpolicy_type upt = {};
+	char tmpls_buf[XFRM_TMPLS_BUF_SIZE] = {};
 	int tmpls_len = 0;
 	struct xfrm_mark mark = {0, 0};
 	struct {
 		struct xfrm_user_sec_ctx sctx;
 		char	str[CTX_BUF_SIZE];
-	} ctx;
-
-	memset(&req, 0, sizeof(req));
-	memset(&upt, 0, sizeof(upt));
-	memset(&tmpls_buf, 0, sizeof(tmpls_buf));
-	memset(&ctx, 0, sizeof(ctx));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(req.xpinfo));
-	req.n.nlmsg_flags = NLM_F_REQUEST|flags;
-	req.n.nlmsg_type = cmd;
-	req.xpinfo.sel.family = preferred_family;
-
-	req.xpinfo.lft.soft_byte_limit = XFRM_INF;
-	req.xpinfo.lft.hard_byte_limit = XFRM_INF;
-	req.xpinfo.lft.soft_packet_limit = XFRM_INF;
-	req.xpinfo.lft.hard_packet_limit = XFRM_INF;
+	} ctx = {};
 
 	while (argc > 0) {
 		if (strcmp(*argv, "dir") == 0) {
@@ -374,11 +366,11 @@ static int xfrm_policy_modify(int cmd, unsigned flags, int argc, char **argv)
 			  (void *)tmpls_buf, tmpls_len);
 	}
 
-	if (mark.m & mark.v) {
+	if (mark.m) {
 		int r = addattr_l(&req.n, sizeof(req.buf), XFRMA_MARK,
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
-			fprintf(stderr, "%s: XFRMA_MARK failed\n",__func__);
+			fprintf(stderr, "%s: XFRMA_MARK failed\n", __func__);
 			exit(1);
 		}
 	}
@@ -461,13 +453,13 @@ static int xfrm_policy_filter_match(struct xfrm_userpolicy_info *xpinfo,
 int xfrm_policy_print(const struct sockaddr_nl *who, struct nlmsghdr *n,
 		      void *arg)
 {
-	struct rtattr * tb[XFRMA_MAX+1];
-	struct rtattr * rta;
+	struct rtattr *tb[XFRMA_MAX+1];
+	struct rtattr *rta;
 	struct xfrm_userpolicy_info *xpinfo = NULL;
 	struct xfrm_user_polexpire *xpexp = NULL;
 	struct xfrm_userpolicy_id *xpid = NULL;
 	__u8 ptype = XFRM_POLICY_TYPE_MAIN;
-	FILE *fp = (FILE*)arg;
+	FILE *fp = (FILE *)arg;
 	int len = n->nlmsg_len;
 
 	if (n->nlmsg_type != XFRM_MSG_NEWPOLICY &&
@@ -513,7 +505,7 @@ int xfrm_policy_print(const struct sockaddr_nl *who, struct nlmsghdr *n,
 			fprintf(stderr, "too short XFRMA_POLICY_TYPE len\n");
 			return -1;
 		}
-		upt = (struct xfrm_userpolicy_type *)RTA_DATA(tb[XFRMA_POLICY_TYPE]);
+		upt = RTA_DATA(tb[XFRMA_POLICY_TYPE]);
 		ptype = upt->type;
 	}
 
@@ -528,7 +520,7 @@ int xfrm_policy_print(const struct sockaddr_nl *who, struct nlmsghdr *n,
 		fprintf(fp, "Expired ");
 
 	if (n->nlmsg_type == XFRM_MSG_DELPOLICY) {
-		//xfrm_policy_id_print();
+		/* xfrm_policy_id_print(); */
 		if (!tb[XFRMA_POLICY]) {
 			fprintf(stderr, "Buggy XFRM_MSG_DELPOLICY: no XFRMA_POLICY\n");
 			return -1;
@@ -537,7 +529,7 @@ int xfrm_policy_print(const struct sockaddr_nl *who, struct nlmsghdr *n,
 			fprintf(stderr, "Buggy XFRM_MSG_DELPOLICY: too short XFRMA_POLICY len\n");
 			return -1;
 		}
-		xpinfo = (struct xfrm_userpolicy_info *)RTA_DATA(tb[XFRMA_POLICY]);
+		xpinfo = RTA_DATA(tb[XFRMA_POLICY]);
 	}
 
 	xfrm_policy_info_print(xpinfo, tb, fp, NULL, NULL);
@@ -563,27 +555,23 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 		struct nlmsghdr			n;
 		struct xfrm_userpolicy_id	xpid;
 		char				buf[RTA_BUF_SIZE];
-	} req;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(req.xpid)),
+		.n.nlmsg_flags = NLM_F_REQUEST,
+		.n.nlmsg_type = delete ? XFRM_MSG_DELPOLICY
+				       : XFRM_MSG_GETPOLICY,
+	};
 	char *dirp = NULL;
 	char *selp = NULL;
 	char *indexp = NULL;
 	char *ptypep = NULL;
 	char *sctxp = NULL;
-	struct xfrm_userpolicy_type upt;
+	struct xfrm_userpolicy_type upt = {};
 	struct xfrm_mark mark = {0, 0};
 	struct {
 		struct xfrm_user_sec_ctx sctx;
 		char    str[CTX_BUF_SIZE];
-	} ctx;
-
-
-	memset(&req, 0, sizeof(req));
-	memset(&upt, 0, sizeof(upt));
-	memset(&ctx, 0, sizeof(ctx));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(req.xpid));
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = delete ? XFRM_MSG_DELPOLICY : XFRM_MSG_GETPOLICY;
+	} ctx = {};
 
 	while (argc > 0) {
 		if (strcmp(*argv, "dir") == 0) {
@@ -661,7 +649,7 @@ static int xfrm_policy_get_or_delete(int argc, char **argv, int delete,
 		int r = addattr_l(&req.n, sizeof(req.buf), XFRMA_MARK,
 				  (void *)&mark, sizeof(mark));
 		if (r < 0) {
-			fprintf(stderr, "%s: XFRMA_MARK failed\n",__func__);
+			fprintf(stderr, "%s: XFRMA_MARK failed\n", __func__);
 			exit(1);
 		}
 	}
@@ -686,14 +674,12 @@ static int xfrm_policy_delete(int argc, char **argv)
 
 static int xfrm_policy_get(int argc, char **argv)
 {
-	char buf[NLMSG_BUF_SIZE];
+	char buf[NLMSG_BUF_SIZE] = {};
 	struct nlmsghdr *n = (struct nlmsghdr *)buf;
-
-	memset(buf, 0, sizeof(buf));
 
 	xfrm_policy_get_or_delete(argc, argv, 0, n, sizeof(buf));
 
-	if (xfrm_policy_print(NULL, n, (void*)stdout) < 0) {
+	if (xfrm_policy_print(NULL, n, (void *)stdout) < 0) {
 		fprintf(stderr, "An error :-)\n");
 		exit(1);
 	}
@@ -739,17 +725,15 @@ static int xfrm_policy_keep(const struct sockaddr_nl *who,
 			fprintf(stderr, "too short XFRMA_POLICY_TYPE len\n");
 			return -1;
 		}
-		upt = (struct xfrm_userpolicy_type *)RTA_DATA(tb[XFRMA_POLICY_TYPE]);
+		upt = RTA_DATA(tb[XFRMA_POLICY_TYPE]);
 		ptype = upt->type;
 	}
 
 	if (!xfrm_policy_filter_match(xpinfo, ptype))
 		return 0;
 
-	if (xb->offset > xb->size) {
-		fprintf(stderr, "Policy buffer overflow\n");
-		return -1;
-	}
+	if (xb->offset + NLMSG_LENGTH(sizeof(*xpid)) > xb->size)
+		return 0;
 
 	new_n = (struct nlmsghdr *)(xb->buf + xb->offset);
 	new_n->nlmsg_len = NLMSG_LENGTH(sizeof(*xpid));
@@ -763,7 +747,7 @@ static int xfrm_policy_keep(const struct sockaddr_nl *who,
 	xpid->index = xpinfo->index;
 
 	xb->offset += new_n->nlmsg_len;
-	xb->nlmsg_count ++;
+	xb->nlmsg_count++;
 
 	return 0;
 }
@@ -849,13 +833,23 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 		xb.rth = &rth;
 
 		for (i = 0; ; i++) {
+			struct {
+				struct nlmsghdr n;
+				char buf[NLMSG_BUF_SIZE];
+			} req = {
+				.n.nlmsg_len = NLMSG_HDRLEN,
+				.n.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+				.n.nlmsg_type = XFRM_MSG_GETPOLICY,
+				.n.nlmsg_seq = rth.dump = ++rth.seq,
+			};
+
 			xb.offset = 0;
 			xb.nlmsg_count = 0;
 
 			if (show_stats > 1)
 				fprintf(stderr, "Delete-all round = %d\n", i);
 
-			if (rtnl_wilddump_request(&rth, preferred_family, XFRM_MSG_GETPOLICY) < 0) {
+			if (rtnl_send(&rth, (void *)&req, req.n.nlmsg_len) < 0) {
 				perror("Cannot send dump request");
 				exit(1);
 			}
@@ -881,7 +875,17 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 			xb.nlmsg_count = 0;
 		}
 	} else {
-		if (rtnl_wilddump_request(&rth, preferred_family, XFRM_MSG_GETPOLICY) < 0) {
+		struct {
+			struct nlmsghdr n;
+			char buf[NLMSG_BUF_SIZE];
+		} req = {
+			.n.nlmsg_len = NLMSG_HDRLEN,
+			.n.nlmsg_flags = NLM_F_DUMP | NLM_F_REQUEST,
+			.n.nlmsg_type = XFRM_MSG_GETPOLICY,
+			.n.nlmsg_seq = rth.dump = ++rth.seq,
+		};
+
+		if (rtnl_send(&rth, (void *)&req, req.n.nlmsg_len) < 0) {
 			perror("Cannot send dump request");
 			exit(1);
 		}
@@ -897,12 +901,12 @@ static int xfrm_policy_list_or_deleteall(int argc, char **argv, int deleteall)
 	exit(0);
 }
 
-static int print_spdinfo( struct nlmsghdr *n, void *arg)
+static int print_spdinfo(struct nlmsghdr *n, void *arg)
 {
-	FILE *fp = (FILE*)arg;
+	FILE *fp = (FILE *)arg;
 	__u32 *f = NLMSG_DATA(n);
-	struct rtattr * tb[XFRMA_SPD_MAX+1];
-	struct rtattr * rta;
+	struct rtattr *tb[XFRMA_SPD_MAX+1];
+	struct rtattr *rta;
 
 	int len = n->nlmsg_len;
 
@@ -915,7 +919,7 @@ static int print_spdinfo( struct nlmsghdr *n, void *arg)
 	rta = XFRMSAPD_RTA(f);
 	parse_rtattr(tb, XFRMA_SPD_MAX, rta, len);
 
-	fprintf(fp,"\t SPD");
+	fprintf(fp, "\t SPD");
 	if (tb[XFRMA_SPD_INFO]) {
 		struct xfrmu_spdinfo *si;
 
@@ -924,16 +928,16 @@ static int print_spdinfo( struct nlmsghdr *n, void *arg)
 			return -1;
 		}
 		si = RTA_DATA(tb[XFRMA_SPD_INFO]);
-		fprintf(fp," IN  %d", si->incnt);
-		fprintf(fp," OUT %d", si->outcnt);
-		fprintf(fp," FWD %d", si->fwdcnt);
+		fprintf(fp, " IN  %d", si->incnt);
+		fprintf(fp, " OUT %d", si->outcnt);
+		fprintf(fp, " FWD %d", si->fwdcnt);
 
 		if (show_stats) {
-			fprintf(fp," (Sock:");
-			fprintf(fp," IN %d", si->inscnt);
-			fprintf(fp," OUT %d", si->outscnt);
-			fprintf(fp," FWD %d", si->fwdscnt);
-			fprintf(fp,")");
+			fprintf(fp, " (Sock:");
+			fprintf(fp, " IN %d", si->inscnt);
+			fprintf(fp, " OUT %d", si->outscnt);
+			fprintf(fp, " FWD %d", si->fwdscnt);
+			fprintf(fp, ")");
 		}
 
 		fprintf(fp, "%s", _SL_);
@@ -947,34 +951,36 @@ static int print_spdinfo( struct nlmsghdr *n, void *arg)
 				return -1;
 			}
 			sh = RTA_DATA(tb[XFRMA_SPD_HINFO]);
-			fprintf(fp,"\t SPD buckets:");
-			fprintf(fp," count %d", sh->spdhcnt);
-			fprintf(fp," Max %d", sh->spdhmcnt);
+			fprintf(fp, "\t SPD buckets:");
+			fprintf(fp, " count %d", sh->spdhcnt);
+			fprintf(fp, " Max %d", sh->spdhmcnt);
 			fprintf(fp, "%s", _SL_);
 		}
 		if (tb[XFRMA_SPD_IPV4_HTHRESH]) {
 			struct xfrmu_spdhthresh *th;
+
 			if (RTA_PAYLOAD(tb[XFRMA_SPD_IPV4_HTHRESH]) < sizeof(*th)) {
 				fprintf(stderr, "SPDinfo: Wrong len %d\n", len);
 				return -1;
 			}
 			th = RTA_DATA(tb[XFRMA_SPD_IPV4_HTHRESH]);
-			fprintf(fp,"\t SPD IPv4 thresholds:");
-			fprintf(fp," local %d", th->lbits);
-			fprintf(fp," remote %d", th->rbits);
+			fprintf(fp, "\t SPD IPv4 thresholds:");
+			fprintf(fp, " local %d", th->lbits);
+			fprintf(fp, " remote %d", th->rbits);
 			fprintf(fp, "%s", _SL_);
 
 		}
 		if (tb[XFRMA_SPD_IPV6_HTHRESH]) {
 			struct xfrmu_spdhthresh *th;
+
 			if (RTA_PAYLOAD(tb[XFRMA_SPD_IPV6_HTHRESH]) < sizeof(*th)) {
 				fprintf(stderr, "SPDinfo: Wrong len %d\n", len);
 				return -1;
 			}
 			th = RTA_DATA(tb[XFRMA_SPD_IPV6_HTHRESH]);
-			fprintf(fp,"\t SPD IPv6 thresholds:");
-			fprintf(fp," local %d", th->lbits);
-			fprintf(fp," remote %d", th->rbits);
+			fprintf(fp, "\t SPD IPv6 thresholds:");
+			fprintf(fp, " local %d", th->lbits);
+			fprintf(fp, " remote %d", th->rbits);
 			fprintf(fp, "%s", _SL_);
 		}
 	}
@@ -982,7 +988,7 @@ static int print_spdinfo( struct nlmsghdr *n, void *arg)
 	if (oneline)
 		fprintf(fp, "\n");
 
-        return 0;
+	return 0;
 }
 
 static int xfrm_spd_setinfo(int argc, char **argv)
@@ -992,17 +998,15 @@ static int xfrm_spd_setinfo(int argc, char **argv)
 		struct nlmsghdr			n;
 		__u32				flags;
 		char				buf[RTA_BUF_SIZE];
-	} req;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(__u32)),
+		.n.nlmsg_flags = NLM_F_REQUEST,
+		.n.nlmsg_type = XFRM_MSG_NEWSPDINFO,
+		.flags = 0XFFFFFFFF,
+	};
 
 	char *thr4 = NULL;
 	char *thr6 = NULL;
-
-	memset(&req, 0, sizeof(req));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(__u32));
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = XFRM_MSG_NEWSPDINFO;
-	req.flags = 0XFFFFFFFF;
 
 	while (argc > 0) {
 		if (strcmp(*argv, "hthresh4") == 0) {
@@ -1060,14 +1064,12 @@ static int xfrm_spd_getinfo(int argc, char **argv)
 		struct nlmsghdr			n;
 		__u32				flags;
 		char				ans[128];
-	} req;
-
-	memset(&req, 0, sizeof(req));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(__u32));
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = XFRM_MSG_GETSPDINFO;
-	req.flags = 0XFFFFFFFF;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(__u32)),
+		.n.nlmsg_flags = NLM_F_REQUEST,
+		.n.nlmsg_type = XFRM_MSG_GETSPDINFO,
+		.flags = 0XFFFFFFFF,
+	};
 
 	if (rtnl_open_byproto(&rth, 0, NETLINK_XFRM) < 0)
 		exit(1);
@@ -1075,7 +1077,7 @@ static int xfrm_spd_getinfo(int argc, char **argv)
 	if (rtnl_talk(&rth, &req.n, &req.n, sizeof(req)) < 0)
 		exit(2);
 
-	print_spdinfo(&req.n, (void*)stdout);
+	print_spdinfo(&req.n, (void *)stdout);
 
 	rtnl_close(&rth);
 
@@ -1088,16 +1090,13 @@ static int xfrm_policy_flush(int argc, char **argv)
 	struct {
 		struct nlmsghdr	n;
 		char		buf[RTA_BUF_SIZE];
-	} req;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(0), /* nlmsg data is nothing */
+		.n.nlmsg_flags = NLM_F_REQUEST,
+		.n.nlmsg_type = XFRM_MSG_FLUSHPOLICY,
+	};
 	char *ptypep = NULL;
-	struct xfrm_userpolicy_type upt;
-
-	memset(&req, 0, sizeof(req));
-	memset(&upt, 0, sizeof(upt));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(0); /* nlmsg data is nothing */
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = XFRM_MSG_FLUSHPOLICY;
+	struct xfrm_userpolicy_type upt = {};
 
 	while (argc > 0) {
 		if (strcmp(*argv, "ptype") == 0) {

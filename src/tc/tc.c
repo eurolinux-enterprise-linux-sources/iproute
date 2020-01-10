@@ -31,28 +31,33 @@
 #include "tc_common.h"
 #include "namespace.h"
 
-int show_stats = 0;
-int show_details = 0;
-int show_raw = 0;
-int show_pretty = 0;
-int batch_mode = 0;
+int show_stats;
+int show_details;
+int show_raw;
+int show_pretty;
+int show_graph;
+int timestamp;
 
-int resolve_hosts = 0;
-int use_iec = 0;
-int force = 0;
-int ok = 0;
+int batch_mode;
+int resolve_hosts;
+int use_iec;
+int force;
+bool use_names;
+
+static char *conf_file;
+
 struct rtnl_handle rth;
 
-static void *BODY = NULL;	/* cached handle dlopen(NULL) */
-static struct qdisc_util * qdisc_list;
-static struct filter_util * filter_list;
+static void *BODY;	/* cached handle dlopen(NULL) */
+static struct qdisc_util *qdisc_list;
+static struct filter_util *filter_list;
 
 static int print_noqopt(struct qdisc_util *qu, FILE *f,
 			struct rtattr *opt)
 {
 	if (opt && RTA_PAYLOAD(opt))
 		fprintf(f, "[Unknown qdisc, optlen=%u] ",
-			(unsigned) RTA_PAYLOAD(opt));
+			(unsigned int) RTA_PAYLOAD(opt));
 	return 0;
 }
 
@@ -69,7 +74,7 @@ static int print_nofopt(struct filter_util *qu, FILE *f, struct rtattr *opt, __u
 {
 	if (opt && RTA_PAYLOAD(opt))
 		fprintf(f, "fh %08x [Unknown filter, optlen=%u] ",
-			fhandle, (unsigned) RTA_PAYLOAD(opt));
+			fhandle, (unsigned int) RTA_PAYLOAD(opt));
 	else if (fhandle)
 		fprintf(f, "fh %08x ", fhandle);
 	return 0;
@@ -85,6 +90,7 @@ static int parse_nofopt(struct filter_util *qu, char *fhandle, int argc, char **
 	}
 	if (fhandle) {
 		struct tcmsg *t = NLMSG_DATA(n);
+
 		if (get_u32(&handle, fhandle, 16)) {
 			fprintf(stderr, "Unparsable filter ID \"%s\"\n", fhandle);
 			return -1;
@@ -127,11 +133,9 @@ reg:
 	return q;
 
 noexist:
-	q = malloc(sizeof(*q));
+	q = calloc(1, sizeof(*q));
 	if (q) {
-
-		memset(q, 0, sizeof(*q));
-		q->id = strcpy(malloc(strlen(str)+1), str);
+		q->id = strdup(str);
 		q->parse_qopt = parse_noqopt;
 		q->print_qopt = print_noqopt;
 		goto reg;
@@ -171,9 +175,8 @@ reg:
 	filter_list = q;
 	return q;
 noexist:
-	q = malloc(sizeof(*q));
+	q = calloc(1, sizeof(*q));
 	if (q) {
-		memset(q, 0, sizeof(*q));
 		strncpy(q->id, str, 15);
 		q->parse_fopt = parse_nofopt;
 		q->print_fopt = print_nofopt;
@@ -185,29 +188,26 @@ noexist:
 static void usage(void)
 {
 	fprintf(stderr, "Usage: tc [ OPTIONS ] OBJECT { COMMAND | help }\n"
-			"       tc [-force] [-OK] -batch filename\n"
-	                "where  OBJECT := { qdisc | class | filter | action | monitor }\n"
-	                "       OPTIONS := { -s[tatistics] | -d[etails] | -r[aw] | -p[retty] | -b[atch] [filename] | "
-			"-n[etns] name }\n");
+			"       tc [-force] -batch filename\n"
+			"where  OBJECT := { qdisc | class | filter | action | monitor | exec }\n"
+	                "       OPTIONS := { -s[tatistics] | -d[etails] | -r[aw] | -p[retty] | -b[atch] [filename] | -n[etns] name |\n"
+			"                    -nm | -nam[es] | { -cf | -conf } path }\n");
 }
 
 static int do_cmd(int argc, char **argv)
 {
 	if (matches(*argv, "qdisc") == 0)
 		return do_qdisc(argc-1, argv+1);
-
 	if (matches(*argv, "class") == 0)
 		return do_class(argc-1, argv+1);
-
 	if (matches(*argv, "filter") == 0)
 		return do_filter(argc-1, argv+1);
-
 	if (matches(*argv, "actions") == 0)
 		return do_action(argc-1, argv+1);
-
 	if (matches(*argv, "monitor") == 0)
 		return do_tcmonitor(argc-1, argv+1);
-
+	if (matches(*argv, "exec") == 0)
+		return do_exec(argc-1, argv+1);
 	if (matches(*argv, "help") == 0) {
 		usage();
 		return 0;
@@ -254,9 +254,6 @@ static int batch(const char *name)
 			ret = 1;
 			if (!force)
 				break;
-		} else if (ok) {
-			printf("OK\n");
-			fflush(stdout);
 		}
 	}
 	if (line)
@@ -284,6 +281,8 @@ int main(int argc, char **argv)
 			++show_raw;
 		} else if (matches(argv[1], "-pretty") == 0) {
 			++show_pretty;
+		} else if (matches(argv[1], "-graph") == 0) {
+			show_graph = 1;
 		} else if (matches(argv[1], "-Version") == 0) {
 			printf("tc utility, iproute2-ss%s\n", SNAPSHOT);
 			return 0;
@@ -294,9 +293,7 @@ int main(int argc, char **argv)
 			return 0;
 		} else if (matches(argv[1], "-force") == 0) {
 			++force;
-		} else if (matches(argv[1], "-OK") == 0) {
-			++ok;
-		} else 	if (matches(argv[1], "-batch") == 0) {
+		} else if (matches(argv[1], "-batch") == 0) {
 			argc--;	argv++;
 			if (argc <= 1)
 				usage();
@@ -305,6 +302,18 @@ int main(int argc, char **argv)
 			NEXT_ARG();
 			if (netns_switch(argv[1]))
 				return -1;
+		} else if (matches(argv[1], "-names") == 0 ||
+				matches(argv[1], "-nm") == 0) {
+			use_names = true;
+		} else if (matches(argv[1], "-cf") == 0 ||
+				matches(argv[1], "-conf") == 0) {
+			NEXT_ARG();
+			conf_file = argv[1];
+		} else if (matches(argv[1], "-timestamp") == 0) {
+			timestamp++;
+		} else if (matches(argv[1], "-tshort") == 0) {
+			++timestamp;
+			++timestamp_short;
 		} else {
 			fprintf(stderr, "Option \"%s\" is unknown, try \"tc -help\".\n", argv[1]);
 			return -1;
@@ -326,8 +335,17 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	if (use_names && cls_names_init(conf_file)) {
+		ret = -1;
+		goto Exit;
+	}
+
 	ret = do_cmd(argc-1, argv+1);
+Exit:
 	rtnl_close(&rth);
+
+	if (use_names)
+		cls_names_uninit();
 
 	return ret;
 }

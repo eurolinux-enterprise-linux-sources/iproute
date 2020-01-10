@@ -1,0 +1,27 @@
+From 3905b2d8f676601c022804d197be9165dacff11c Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Wed, 6 Sep 2017 15:44:19 +0200
+Subject: [PATCH] tc-simple.8: Fix one more reference to non-existing
+ tc-actions.8
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1477523
+Upstream Status: RHEL-only
+
+Previous fix missed to update the SEE ALSO section as well.
+---
+ man/man8/tc-simple.8 | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/man/man8/tc-simple.8 b/man/man8/tc-simple.8
+index a0deb0b..beab313 100644
+--- a/man/man8/tc-simple.8
++++ b/man/man8/tc-simple.8
+@@ -96,4 +96,4 @@ display stats again and observe increment by 1
+ .EE
+ .SH SEE ALSO
+ .BR tc (8)
+-.BR tc-actions (8)
++.BR tc-pedit (8)
+-- 
+1.8.3.1
+

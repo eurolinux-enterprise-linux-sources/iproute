@@ -1,0 +1,40 @@
+From beb8e1aa7ed08f86fb87ff58f7c69aaa2b68b862 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Thu, 14 Sep 2017 15:38:46 +0200
+Subject: [PATCH] tc: fix typo in manpage
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1417162
+Upstream Status: iproute2.git commit b09515553fded
+
+commit b09515553fded944713955815a3f1cc855384abd
+Author: Matteo Croce <mcroce@redhat.com>
+Date:   Fri Jul 7 15:08:33 2017 +0200
+
+    tc: fix typo in manpage
+
+    Fix a typo in the 'tc' manpage and reword some sentences.
+
+    Signed-off-by: Matteo Croce <mcroce@redhat.com>
+---
+ man/man8/tc-csum.8 | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/man/man8/tc-csum.8 b/man/man8/tc-csum.8
+index 718301d..409ab71 100644
+--- a/man/man8/tc-csum.8
++++ b/man/man8/tc-csum.8
+@@ -29,9 +29,9 @@ csum - checksum update action
+ The
+ .B csum
+ action triggers checksum recalculation of specified packet headers. It is
+-commonly used after packet editing using the
++commonly used to fix incorrect checksums after the
+ .B pedit
+-action to fix for then incorrect checksums.
++action has modified the packet content.
+ .SH OPTIONS
+ .TP
+ .I TARGET
+-- 
+1.8.3.1
+

@@ -1,0 +1,48 @@
+From c560900fc16eeac064cc7c43a96c5343fe68ae76 Mon Sep 17 00:00:00 2001
+From: Hangbin Liu <haliu@redhat.com>
+Date: Wed, 8 Nov 2017 14:39:11 +0800
+Subject: [PATCH] iplink: double the buffer size also in iplink_get()
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=1380803
+Upstream Status: iproute2.git commit 460c03f3f3cc
+
+commit 460c03f3f3cc436ff4673d75722ba68a6ec9343d
+Author: Michal Kubecek <mkubecek@suse.cz>
+Date:   Fri Sep 1 18:39:16 2017 +0200
+
+    iplink: double the buffer size also in iplink_get()
+
+    Commit 72b365e8e0fd ("libnetlink: Double the dump buffer size") increased
+    the buffer size for "ip link show" command to 32 KB to handle NICs with
+    large number of VFs. With "dev" filter, a different code path is taken and
+    iplink_get() still uses only 16 KB buffer.
+
+    The size of 32768 is not very future-proof as NICs supporting 120-128 VFs
+    are already in use so that single RTM_NEWLINK message in the dump can
+    exceed 30000 bytes. But it's what rtnl_talk() and rtnl_dump_filter_l() use
+    so let's be consistent. Once this proves insufficient, all three sizes
+    should be increased.
+
+    Signed-off-by: Michal Kubecek <mkubecek@suse.cz>
+
+Signed-off-by: Hangbin Liu <haliu@redhat.com>
+---
+ ip/iplink.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ip/iplink.c b/ip/iplink.c
+index 2b2421f..5afbadf 100644
+--- a/ip/iplink.c
++++ b/ip/iplink.c
+@@ -1015,7 +1015,7 @@ int iplink_get(unsigned int flags, char *name, __u32 filt_mask)
+ 	};
+ 	struct {
+ 		struct nlmsghdr n;
+-		char buf[16384];
++		char buf[32768];
+ 	} answer;
+ 
+ 	if (name) {
+-- 
+1.8.3.1
+

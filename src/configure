@@ -57,6 +57,14 @@ EOF
     rm -f $TMPDIR/atmtest.c $TMPDIR/atmtest
 }
 
+check_xtables()
+{
+	if ! ${PKG_CONFIG} xtables --exists
+	then
+		echo "TC_CONFIG_NO_XT:=y" >>Config
+	fi
+}
+
 check_xt()
 {
     #check if we have xtables from iptables >= 1.4.5.
@@ -201,7 +209,7 @@ check_setns()
 {
     cat >$TMPDIR/setnstest.c <<EOF
 #include <sched.h>
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
 	(void)setns(0,0);
 	return 0;
@@ -249,6 +257,29 @@ EOF
     rm -f $TMPDIR/ipsettest.c $TMPDIR/ipsettest
 }
 
+check_elf()
+{
+    cat >$TMPDIR/elftest.c <<EOF
+#include <libelf.h>
+#include <gelf.h>
+int main(void)
+{
+	Elf_Scn *scn __attribute__((__unused__));
+	GElf_Shdr shdr  __attribute__((__unused__));;
+	return elf_version(EV_CURRENT);
+}
+EOF
+
+    if $CC -I$INCLUDE -o $TMPDIR/elftest $TMPDIR/elftest.c -lelf >/dev/null 2>&1
+    then
+	echo "HAVE_ELF:=y" >>Config
+	echo "yes"
+    else
+	echo "no"
+    fi
+    rm -f $TMPDIR/elftest.c $TMPDIR/elftest
+}
+
 check_selinux()
 # SELinux is a compile time option in the ss utility
 {
@@ -266,13 +297,63 @@ check_mnl()
 	if ${PKG_CONFIG} libmnl --exists
 	then
 		echo "HAVE_MNL:=y" >>Config
-		echo -n "yes"
+		echo "yes"
 	else
-		echo -n "no"
+		echo "no"
 	fi
 }
 
+check_berkeley_db()
+{
+    cat >$TMPDIR/dbtest.c <<EOF
+#include <fcntl.h>
+#include <stdlib.h>
+#include <db_185.h>
+int main(int argc, char **argv) {
+	dbopen("/tmp/xxx_test_db.db", O_CREAT|O_RDWR, 0644, DB_HASH, NULL);
+	return 0;
+}
+EOF
+    $CC -I$INCLUDE -o $TMPDIR/dbtest $TMPDIR/dbtest.c -ldb >/dev/null 2>&1
+    if [ $? -eq 0 ]
+    then
+	echo "HAVE_BERKELEY_DB:=y" >>Config
+	echo "yes"
+    else
+	echo "no"
+    fi
+    rm -f $TMPDIR/dbtest.c $TMPDIR/dbtest
+}
+
+quiet_config()
+{
+	cat <<EOF
+# user can control verbosity similar to kernel builds (e.g., V=1)
+ifeq ("\$(origin V)", "command line")
+  VERBOSE = \$(V)
+endif
+ifndef VERBOSE
+  VERBOSE = 0
+endif
+ifeq (\$(VERBOSE),1)
+  Q =
+else
+  Q = @
+endif
+
+ifeq (\$(VERBOSE), 0)
+    QUIET_CC       = @echo '    CC       '\$@;
+    QUIET_AR       = @echo '    AR       '\$@;
+    QUIET_LINK     = @echo '    LINK     '\$@;
+    QUIET_YACC     = @echo '    YACC     '\$@;
+    QUIET_LEX      = @echo '    LEX      '\$@;
+endif
+EOF
+}
+
 echo "# Generated config based on" $INCLUDE >Config
+quiet_config >> Config
+
 check_toolchain
 
 echo "TC schedulers"
@@ -280,18 +361,25 @@ echo "TC schedulers"
 echo -n " ATM	"
 check_atm
 
-echo -n " IPT	"
-check_xt
-check_xt_old
-check_xt_old_internal_h
-check_ipt
+check_xtables
+if ! grep -q TC_CONFIG_NO_XT Config
+then
+	echo -n " IPT	"
+	check_xt
+	check_xt_old
+	check_xt_old_internal_h
+	check_ipt
 
-echo -n " IPSET  "
-check_ipset
+	echo -n " IPSET  "
+	check_ipset
+fi
 
 echo
-echo -n "iptables modules directory: "
-check_ipt_lib_dir
+if ! grep -q TC_CONFIG_NO_XT Config
+then
+	echo -n "iptables modules directory: "
+	check_ipt_lib_dir
+fi
 
 echo -n "libc has setns: "
 check_setns
@@ -299,10 +387,20 @@ check_setns
 echo -n "SELinux support: "
 check_selinux
 
+echo -n "ELF support: "
+check_elf
+
 echo -n "libmnl support: "
 check_mnl
+
+echo -n "Berkeley DB: "
+check_berkeley_db
 
 echo
 echo -n "docs:"
 check_docs
 echo
+
+echo >> Config
+echo "%.o: %.c" >> Config
+echo '	$(QUIET_CC)$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c -o $@ $<' >> Config

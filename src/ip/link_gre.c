@@ -25,16 +25,29 @@
 
 static void print_usage(FILE *f)
 {
-	fprintf(f, "Usage: ip link { add | set | change | replace | del } NAME\n");
-	fprintf(f, "          type { gre | gretap } [ remote ADDR ] [ local ADDR ]\n");
-	fprintf(f, "          [ [i|o]seq ] [ [i|o]key KEY ] [ [i|o]csum ]\n");
-	fprintf(f, "          [ ttl TTL ] [ tos TOS ] [ [no]pmtudisc ] [ dev PHYS_DEV ]\n");
-	fprintf(f, "\n");
-	fprintf(f, "Where: NAME := STRING\n");
-	fprintf(f, "       ADDR := { IP_ADDRESS | any }\n");
-	fprintf(f, "       TOS  := { NUMBER | inherit }\n");
-	fprintf(f, "       TTL  := { 1..255 | inherit }\n");
-	fprintf(f, "       KEY  := { DOTTED_QUAD | NUMBER }\n");
+	fprintf(f,
+		"Usage: ... { gre | gretap } [ remote ADDR ]\n"
+		"                            [ local ADDR ]\n"
+		"                            [ [i|o]seq ]\n"
+		"                            [ [i|o]key KEY ]\n"
+		"                            [ [i|o]csum ]\n"
+		"                            [ ttl TTL ]\n"
+		"                            [ tos TOS ]\n"
+		"                            [ [no]pmtudisc ]\n"
+		"                            [ dev PHYS_DEV ]\n"
+		"                            [ noencap ]\n"
+		"                            [ encap { fou | gue | none } ]\n"
+		"                            [ encap-sport PORT ]\n"
+		"                            [ encap-dport PORT ]\n"
+		"                            [ [no]encap-csum ]\n"
+		"                            [ [no]encap-csum6 ]\n"
+		"                            [ [no]encap-remcsum ]\n"
+		"\n"
+		"Where: ADDR := { IP_ADDRESS | any }\n"
+		"       TOS  := { NUMBER | inherit }\n"
+		"       TTL  := { 1..255 | inherit }\n"
+		"       KEY  := { DOTTED_QUAD | NUMBER }\n"
+	);
 }
 
 static void usage(void) __attribute__((noreturn));
@@ -47,36 +60,39 @@ static void usage(void)
 static int gre_parse_opt(struct link_util *lu, int argc, char **argv,
 			 struct nlmsghdr *n)
 {
+	struct ifinfomsg *ifi = (struct ifinfomsg *)(n + 1);
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg i;
 		char buf[16384];
-	} req;
-	struct ifinfomsg *ifi = (struct ifinfomsg *)(n + 1);
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(*ifi)),
+		.n.nlmsg_flags = NLM_F_REQUEST,
+		.n.nlmsg_type = RTM_GETLINK,
+		.i.ifi_family = preferred_family,
+		.i.ifi_index = ifi->ifi_index,
+	};
 	struct rtattr *tb[IFLA_MAX + 1];
 	struct rtattr *linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr *greinfo[IFLA_GRE_MAX + 1];
 	__u16 iflags = 0;
 	__u16 oflags = 0;
-	unsigned ikey = 0;
-	unsigned okey = 0;
-	unsigned saddr = 0;
-	unsigned daddr = 0;
-	unsigned link = 0;
+	unsigned int ikey = 0;
+	unsigned int okey = 0;
+	unsigned int saddr = 0;
+	unsigned int daddr = 0;
+	unsigned int link = 0;
 	__u8 pmtudisc = 1;
 	__u8 ttl = 0;
 	__u8 tos = 0;
 	int len;
+	__u16 encaptype = 0;
+	__u16 encapflags = 0;
+	__u16 encapsport = 0;
+	__u16 encapdport = 0;
+	__u8 metadata = 0;
 
 	if (!(n->nlmsg_flags & NLM_F_CREATE)) {
-		memset(&req, 0, sizeof(req));
-
-		req.n.nlmsg_len = NLMSG_LENGTH(sizeof(*ifi));
-		req.n.nlmsg_flags = NLM_F_REQUEST;
-		req.n.nlmsg_type = RTM_GETLINK;
-		req.i.ifi_family = preferred_family;
-		req.i.ifi_index = ifi->ifi_index;
-
 		if (rtnl_talk(&rth, &req.n, &req.n, sizeof(req)) < 0) {
 get_failed:
 			fprintf(stderr,
@@ -132,11 +148,23 @@ get_failed:
 
 		if (greinfo[IFLA_GRE_LINK])
 			link = rta_getattr_u8(greinfo[IFLA_GRE_LINK]);
+
+		if (greinfo[IFLA_GRE_ENCAP_TYPE])
+			encaptype = rta_getattr_u16(greinfo[IFLA_GRE_ENCAP_TYPE]);
+		if (greinfo[IFLA_GRE_ENCAP_FLAGS])
+			encapflags = rta_getattr_u16(greinfo[IFLA_GRE_ENCAP_FLAGS]);
+		if (greinfo[IFLA_GRE_ENCAP_SPORT])
+			encapsport = rta_getattr_u16(greinfo[IFLA_GRE_ENCAP_SPORT]);
+		if (greinfo[IFLA_GRE_ENCAP_DPORT])
+			encapdport = rta_getattr_u16(greinfo[IFLA_GRE_ENCAP_DPORT]);
+
+		if (greinfo[IFLA_GRE_COLLECT_METADATA])
+			metadata = 1;
 	}
 
 	while (argc > 0) {
 		if (!matches(*argv, "key")) {
-			unsigned uval;
+			unsigned int uval;
 
 			NEXT_ARG();
 			iflags |= GRE_KEY;
@@ -154,14 +182,14 @@ get_failed:
 
 			ikey = okey = uval;
 		} else if (!matches(*argv, "ikey")) {
-			unsigned uval;
+			unsigned int uval;
 
 			NEXT_ARG();
 			iflags |= GRE_KEY;
 			if (strchr(*argv, '.'))
 				uval = get_addr32(*argv);
 			else {
-				if (get_unsigned(&uval, *argv, 0)<0) {
+				if (get_unsigned(&uval, *argv, 0) < 0) {
 					fprintf(stderr, "invalid value for \"ikey\": \"%s\"; it should be an unsigned integer\n", *argv);
 					exit(-1);
 				}
@@ -169,14 +197,14 @@ get_failed:
 			}
 			ikey = uval;
 		} else if (!matches(*argv, "okey")) {
-			unsigned uval;
+			unsigned int uval;
 
 			NEXT_ARG();
 			oflags |= GRE_KEY;
 			if (strchr(*argv, '.'))
 				uval = get_addr32(*argv);
 			else {
-				if (get_unsigned(&uval, *argv, 0)<0) {
+				if (get_unsigned(&uval, *argv, 0) < 0) {
 					fprintf(stderr, "invalid value for \"okey\": \"%s\"; it should be an unsigned integer\n", *argv);
 					exit(-1);
 				}
@@ -219,7 +247,7 @@ get_failed:
 			}
 		} else if (!matches(*argv, "ttl") ||
 			   !matches(*argv, "hoplimit")) {
-			unsigned uval;
+			unsigned int uval;
 
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0) {
@@ -241,6 +269,42 @@ get_failed:
 				tos = uval;
 			} else
 				tos = 1;
+		} else if (strcmp(*argv, "noencap") == 0) {
+			encaptype = TUNNEL_ENCAP_NONE;
+		} else if (strcmp(*argv, "encap") == 0) {
+			NEXT_ARG();
+			if (strcmp(*argv, "fou") == 0)
+				encaptype = TUNNEL_ENCAP_FOU;
+			else if (strcmp(*argv, "gue") == 0)
+				encaptype = TUNNEL_ENCAP_GUE;
+			else if (strcmp(*argv, "none") == 0)
+				encaptype = TUNNEL_ENCAP_NONE;
+			else
+				invarg("Invalid encap type.", *argv);
+		} else if (strcmp(*argv, "encap-sport") == 0) {
+			NEXT_ARG();
+			if (strcmp(*argv, "auto") == 0)
+				encapsport = 0;
+			else if (get_u16(&encapsport, *argv, 0))
+				invarg("Invalid source port.", *argv);
+		} else if (strcmp(*argv, "encap-dport") == 0) {
+			NEXT_ARG();
+			if (get_u16(&encapdport, *argv, 0))
+				invarg("Invalid destination port.", *argv);
+		} else if (strcmp(*argv, "encap-csum") == 0) {
+			encapflags |= TUNNEL_ENCAP_FLAG_CSUM;
+		} else if (strcmp(*argv, "noencap-csum") == 0) {
+			encapflags &= ~TUNNEL_ENCAP_FLAG_CSUM;
+		} else if (strcmp(*argv, "encap-udp6-csum") == 0) {
+			encapflags |= TUNNEL_ENCAP_FLAG_CSUM6;
+		} else if (strcmp(*argv, "noencap-udp6-csum") == 0) {
+			encapflags |= ~TUNNEL_ENCAP_FLAG_CSUM6;
+		} else if (strcmp(*argv, "encap-remcsum") == 0) {
+			encapflags |= TUNNEL_ENCAP_FLAG_REMCSUM;
+		} else if (strcmp(*argv, "noencap-remcsum") == 0) {
+			encapflags |= ~TUNNEL_ENCAP_FLAG_REMCSUM;
+		} else if (strcmp(*argv, "external") == 0) {
+			metadata = 1;
 		} else
 			usage();
 		argc--; argv++;
@@ -259,53 +323,58 @@ get_failed:
 		return -1;
 	}
 
-	addattr32(n, 1024, IFLA_GRE_IKEY, ikey);
-	addattr32(n, 1024, IFLA_GRE_OKEY, okey);
-	addattr_l(n, 1024, IFLA_GRE_IFLAGS, &iflags, 2);
-	addattr_l(n, 1024, IFLA_GRE_OFLAGS, &oflags, 2);
-	addattr_l(n, 1024, IFLA_GRE_LOCAL, &saddr, 4);
-	addattr_l(n, 1024, IFLA_GRE_REMOTE, &daddr, 4);
-	addattr_l(n, 1024, IFLA_GRE_PMTUDISC, &pmtudisc, 1);
-	if (link)
-		addattr32(n, 1024, IFLA_GRE_LINK, link);
-	addattr_l(n, 1024, IFLA_GRE_TTL, &ttl, 1);
-	addattr_l(n, 1024, IFLA_GRE_TOS, &tos, 1);
+	if (!metadata) {
+		addattr32(n, 1024, IFLA_GRE_IKEY, ikey);
+		addattr32(n, 1024, IFLA_GRE_OKEY, okey);
+		addattr_l(n, 1024, IFLA_GRE_IFLAGS, &iflags, 2);
+		addattr_l(n, 1024, IFLA_GRE_OFLAGS, &oflags, 2);
+		addattr_l(n, 1024, IFLA_GRE_LOCAL, &saddr, 4);
+		addattr_l(n, 1024, IFLA_GRE_REMOTE, &daddr, 4);
+		addattr_l(n, 1024, IFLA_GRE_PMTUDISC, &pmtudisc, 1);
+		if (link)
+			addattr32(n, 1024, IFLA_GRE_LINK, link);
+		addattr_l(n, 1024, IFLA_GRE_TTL, &ttl, 1);
+		addattr_l(n, 1024, IFLA_GRE_TOS, &tos, 1);
+	} else {
+		addattr_l(n, 1024, IFLA_GRE_COLLECT_METADATA, NULL, 0);
+	}
+
+	addattr16(n, 1024, IFLA_GRE_ENCAP_TYPE, encaptype);
+	addattr16(n, 1024, IFLA_GRE_ENCAP_FLAGS, encapflags);
+	addattr16(n, 1024, IFLA_GRE_ENCAP_SPORT, htons(encapsport));
+	addattr16(n, 1024, IFLA_GRE_ENCAP_DPORT, htons(encapdport));
 
 	return 0;
 }
 
-static void gre_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+static void gre_print_direct_opt(FILE *f, struct rtattr *tb[])
 {
-	char s1[1024];
 	char s2[64];
 	const char *local = "any";
 	const char *remote = "any";
-	unsigned iflags = 0;
-	unsigned oflags = 0;
-
-	if (!tb)
-		return;
+	unsigned int iflags = 0;
+	unsigned int oflags = 0;
 
 	if (tb[IFLA_GRE_REMOTE]) {
-		unsigned addr = rta_getattr_u32(tb[IFLA_GRE_REMOTE]);
+		unsigned int addr = rta_getattr_u32(tb[IFLA_GRE_REMOTE]);
 
 		if (addr)
-			remote = format_host(AF_INET, 4, &addr, s1, sizeof(s1));
+			remote = format_host(AF_INET, 4, &addr);
 	}
 
 	fprintf(f, "remote %s ", remote);
 
 	if (tb[IFLA_GRE_LOCAL]) {
-		unsigned addr = rta_getattr_u32(tb[IFLA_GRE_LOCAL]);
+		unsigned int addr = rta_getattr_u32(tb[IFLA_GRE_LOCAL]);
 
 		if (addr)
-			local = format_host(AF_INET, 4, &addr, s1, sizeof(s1));
+			local = format_host(AF_INET, 4, &addr);
 	}
 
 	fprintf(f, "local %s ", local);
 
 	if (tb[IFLA_GRE_LINK] && rta_getattr_u32(tb[IFLA_GRE_LINK])) {
-		unsigned link = rta_getattr_u32(tb[IFLA_GRE_LINK]);
+		unsigned int link = rta_getattr_u32(tb[IFLA_GRE_LINK]);
 		const char *n = if_indextoname(link, s2);
 
 		if (n)
@@ -357,6 +426,60 @@ static void gre_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 		fputs("icsum ", f);
 	if (oflags & GRE_CSUM)
 		fputs("ocsum ", f);
+}
+
+static void gre_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
+{
+	if (!tb)
+		return;
+
+	if (!tb[IFLA_GRE_COLLECT_METADATA])
+		gre_print_direct_opt(f, tb);
+	else
+		fputs("external ", f);
+
+	if (tb[IFLA_GRE_ENCAP_TYPE] &&
+	    rta_getattr_u16(tb[IFLA_GRE_ENCAP_TYPE]) != TUNNEL_ENCAP_NONE) {
+		__u16 type = rta_getattr_u16(tb[IFLA_GRE_ENCAP_TYPE]);
+		__u16 flags = rta_getattr_u16(tb[IFLA_GRE_ENCAP_FLAGS]);
+		__u16 sport = rta_getattr_u16(tb[IFLA_GRE_ENCAP_SPORT]);
+		__u16 dport = rta_getattr_u16(tb[IFLA_GRE_ENCAP_DPORT]);
+
+		fputs("encap ", f);
+		switch (type) {
+		case TUNNEL_ENCAP_FOU:
+			fputs("fou ", f);
+			break;
+		case TUNNEL_ENCAP_GUE:
+			fputs("gue ", f);
+			break;
+		default:
+			fputs("unknown ", f);
+			break;
+		}
+
+		if (sport == 0)
+			fputs("encap-sport auto ", f);
+		else
+			fprintf(f, "encap-sport %u", ntohs(sport));
+
+		fprintf(f, "encap-dport %u ", ntohs(dport));
+
+		if (flags & TUNNEL_ENCAP_FLAG_CSUM)
+			fputs("encap-csum ", f);
+		else
+			fputs("noencap-csum ", f);
+
+		if (flags & TUNNEL_ENCAP_FLAG_CSUM6)
+			fputs("encap-csum6 ", f);
+		else
+			fputs("noencap-csum6 ", f);
+
+		if (flags & TUNNEL_ENCAP_FLAG_REMCSUM)
+			fputs("encap-remcsum ", f);
+		else
+			fputs("noencap-remcsum ", f);
+	}
 }
 
 static void gre_print_help(struct link_util *lu, int argc, char **argv,

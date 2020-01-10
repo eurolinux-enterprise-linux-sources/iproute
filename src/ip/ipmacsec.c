@@ -79,21 +79,6 @@ static int genl_family = -1;
 		     _cmd, _flags)
 
 
-static void init_genl(void)
-{
-	if (genl_family >= 0)
-		return;
-
-	if (rtnl_open_byproto(&genl_rth, 0, NETLINK_GENERIC) < 0) {
-		fprintf(stderr, "Cannot open generic netlink socket\n");
-		exit(1);
-	}
-
-	genl_family = genl_resolve_family(&genl_rth, MACSEC_GENL_NAME);
-	if (genl_family < 0)
-		exit(1);
-}
-
 static void ipmacsec_usage(void)
 {
 	fprintf(stderr, "Usage: ip macsec add DEV tx sa { 0..3 } [ OPTS ] key ID KEY\n");
@@ -110,7 +95,7 @@ static void ipmacsec_usage(void)
 	fprintf(stderr, "where  OPTS := [ pn <u32> ] [ on | off ]\n");
 	fprintf(stderr, "       ID   := 128-bit hex string\n");
 	fprintf(stderr, "       KEY  := 128-bit hex string\n");
-	fprintf(stderr, "       SCI  := { sci <u64> | port <u16> address <lladdr> }\n");
+	fprintf(stderr, "       SCI  := { sci <u64> | port { 1..2^16-1 } address <lladdr> }\n");
 
 	exit(-1);
 }
@@ -149,12 +134,12 @@ static int get_an(__u8 *val, const char *arg)
 
 static int get_sci(__u64 *sci, const char *arg)
 {
-	return get_u64(sci, arg, 16);
+	return get_be64(sci, arg, 16);
 }
 
 static int get_port(__be16 *port, const char *arg)
 {
-	return get_be16(port, arg, 10);
+	return get_be16(port, arg, 0);
 }
 
 #define _STR(a) #a
@@ -167,9 +152,9 @@ static void get_icvlen(__u8 *icvlen, char *arg)
 	if (ret)
 		invarg("expected ICV length", arg);
 
-	if (*icvlen < MACSEC_MIN_ICV_LEN || *icvlen > MACSEC_MAX_ICV_LEN)
+	if (*icvlen < MACSEC_MIN_ICV_LEN || *icvlen > MACSEC_STD_ICV_LEN)
 		invarg("ICV length must be in the range {"
-		       STR(MACSEC_MIN_ICV_LEN) ".." STR(MACSEC_MAX_ICV_LEN)
+		       STR(MACSEC_MIN_ICV_LEN) ".." STR(MACSEC_STD_ICV_LEN)
 		       "}", arg);
 }
 
@@ -649,10 +634,10 @@ static void print_one_stat(const char **names, struct rtattr **attr, int idx,
 }
 
 static const char *txsc_stats_names[NUM_MACSEC_TXSC_STATS_ATTR] = {
-	[MACSEC_TXSC_STATS_ATTR_OUT_PKTS_PROTECTED] = "OutOctetsProtected",
-	[MACSEC_TXSC_STATS_ATTR_OUT_PKTS_ENCRYPTED] = "OutOctetsEncrypted",
-	[MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_PROTECTED] = "OutPktsProtected",
-	[MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_ENCRYPTED] = "OutPktsEncrypted",
+	[MACSEC_TXSC_STATS_ATTR_OUT_PKTS_PROTECTED] = "OutPktsProtected",
+	[MACSEC_TXSC_STATS_ATTR_OUT_PKTS_ENCRYPTED] = "OutPktsEncrypted",
+	[MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_PROTECTED] = "OutOctetsProtected",
+	[MACSEC_TXSC_STATS_ATTR_OUT_OCTETS_ENCRYPTED] = "OutOctetsEncrypted",
 };
 
 static void print_txsc_stats(const char *prefix, struct rtattr *attr)
@@ -791,7 +776,7 @@ static void print_tx_sc(const char *prefix, __u64 sci, __u8 encoding_sa,
 	struct rtattr *a;
 	int rem;
 
-	printf("%sTXSC: %016llx on SA %d\n", prefix, sci, encoding_sa);
+	printf("%sTXSC: %016llx on SA %d\n", prefix, ntohll(sci), encoding_sa);
 	print_secy_stats(prefix, secy_stats);
 	print_txsc_stats(prefix, txsc_stats);
 
@@ -860,7 +845,7 @@ static void print_rx_sc(const char *prefix, __u64 sci, __u8 active,
 	struct rtattr *a;
 	int rem;
 
-	printf("%sRXSC: %016llx, state %s\n", prefix, sci,
+	printf("%sRXSC: %016llx, state %s\n", prefix, ntohll(sci),
 	       values_on_off[!!active]);
 	print_rxsc_stats(prefix, rxsc_stats);
 
@@ -1001,13 +986,14 @@ static int do_show(int argc, char **argv)
 
 int do_ipmacsec(int argc, char **argv)
 {
-	init_genl();
-
 	if (argc < 1)
 		ipmacsec_usage();
 
 	if (matches(*argv, "help") == 0)
 		ipmacsec_usage();
+
+	if (genl_init_handle(&genl_rth, MACSEC_GENL_NAME, &genl_family))
+		exit(1);
 
 	if (matches(*argv, "show") == 0)
 		return do_show(argc-1, argv+1);
@@ -1032,7 +1018,7 @@ static void macsec_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 
 	if (tb[IFLA_MACSEC_SCI]) {
 		fprintf(f, "sci %016llx ",
-			rta_getattr_u64(tb[IFLA_MACSEC_SCI]));
+			ntohll(rta_getattr_u64(tb[IFLA_MACSEC_SCI])));
 	}
 
 	print_flag(f, tb, "protect", IFLA_MACSEC_PROTECT);
@@ -1083,7 +1069,7 @@ static bool check_txsc_flags(bool es, bool scb, bool sci)
 static void usage(FILE *f)
 {
 	fprintf(f,
-		"Usage: ... macsec [ port PORT | sci SCI ]\n"
+		"Usage: ... macsec [ [ address <lladdr> ] port { 1..2^16-1 } | sci <u64> ]\n"
 		"                  [ cipher { default | gcm-aes-128 } ]\n"
 		"                  [ icvlen { 8..16 } ]\n"
 		"                  [ encrypt { on | off } ]\n"
@@ -1279,5 +1265,4 @@ struct link_util macsec_link_util = {
 	.parse_opt = macsec_parse_opt,
 	.print_help = macsec_print_help,
 	.print_opt = macsec_print_opt,
-	.slave = false,
 };

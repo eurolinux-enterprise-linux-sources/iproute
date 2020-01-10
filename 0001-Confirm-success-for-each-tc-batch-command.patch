@@ -1,0 +1,105 @@
+From d9a1dc236a9bcc06f04d609e2654f76c6a9459e7 Mon Sep 17 00:00:00 2001
+From: Phil Sutter <psutter@redhat.com>
+Date: Mon, 14 Dec 2015 21:02:18 +0100
+Subject: [PATCH] Confirm success for each tc -batch command
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Bugzilla: https://bugzilla.redhat.com/show_bug.cgi?id=977844
+Upstream Status: Rejected.
+
+The original patch has been extended by the related man page additions
+which were contained in another local patch.
+
+commit 8c5024483cbbfdc092945a00be05d917485b9af3
+Author: Petr Písař <ppisar@redhat.com>
+Date:   Thu Sep 19 11:25:49 2013 +0200
+
+    Confirm success for each tc -batch command
+
+    If `tc -force -batch' is fed by a controlling program from a pipe,
+    it's not possible to recognize when a command has been processes
+    successfully.
+
+    This patch adds an optional `-OK' option to the tc(8) tool, so `tc
+    -force -OK -batch' will print "OK\n" to standard output on each
+    successfully completed tc command.
+
+    Signed-off-by: Petr Písař <ppisar@redhat.com>
+
+Signed-off-by: Phil Sutter <psutter@redhat.com>
+---
+ man/man8/tc.8 | 8 +++++++-
+ tc/tc.c       | 8 +++++++-
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/man/man8/tc.8 b/man/man8/tc.8
+index f96911a..a341a8f 100644
+--- a/man/man8/tc.8
++++ b/man/man8/tc.8
+@@ -62,7 +62,7 @@ tc \- show / manipulate traffic control settings
+ .P
+ .ti 8
+ .IR OPTIONS " := {"
+-\fB[ -force ] -b\fR[\fIatch\fR] \fB[ filename ] \fR|
++\fB[ -force ] [ -OK ] -b\fR[\fIatch\fR] \fB[ filename ] \fR|
+ \fB[ \fB-n\fR[\fIetns\fR] name \fB] \fR|
+ \fB[ \fB-nm \fR| \fB-nam\fR[\fIes\fR] \fB] \fR|
+ \fB[ \fR{ \fB-cf \fR| \fB-c\fR[\fIonf\fR] \fR} \fB[ filename ] \fB] \fR}
+@@ -603,6 +603,12 @@ don't terminate tc on errors in batch mode.
+ If there were any errors during execution of the commands, the application return code will be non zero.
+ 
+ .TP
++.BR "\-OK"
++in batch mode, print
++.B OK
++and a new line on standard output after each successfully interpreted command.
++
++.TP
+ .BR "\-n" , " \-net" , " \-netns " <NETNS>
+ switches
+ .B tc
+diff --git a/tc/tc.c b/tc/tc.c
+index 8e64a82..360c9f1 100644
+--- a/tc/tc.c
++++ b/tc/tc.c
+@@ -42,6 +42,7 @@ int batch_mode;
+ int resolve_hosts;
+ int use_iec;
+ int force;
++int ok;
+ bool use_names;
+ 
+ static char *conf_file;
+@@ -188,7 +189,7 @@ noexist:
+ static void usage(void)
+ {
+ 	fprintf(stderr, "Usage: tc [ OPTIONS ] OBJECT { COMMAND | help }\n"
+-			"       tc [-force] -batch filename\n"
++			"       tc [-force] [-OK] -batch filename\n"
+ 			"where  OBJECT := { qdisc | class | filter | action | monitor | exec }\n"
+ 	                "       OPTIONS := { -s[tatistics] | -d[etails] | -r[aw] | -p[retty] | -b[atch] [filename] | -n[etns] name |\n"
+ 			"                    -nm | -nam[es] | { -cf | -conf } path }\n");
+@@ -254,6 +255,9 @@ static int batch(const char *name)
+ 			ret = 1;
+ 			if (!force)
+ 				break;
++		} else if (ok) {
++			printf("OK\n");
++			fflush(stdout);
+ 		}
+ 	}
+ 	if (line)
+@@ -293,6 +297,8 @@ int main(int argc, char **argv)
+ 			return 0;
+ 		} else if (matches(argv[1], "-force") == 0) {
+ 			++force;
++		} else if (matches(argv[1], "-OK") == 0) {
++			++ok;
+ 		} else if (matches(argv[1], "-batch") == 0) {
+ 			argc--;	argv++;
+ 			if (argc <= 1)
+-- 
+1.8.3.1
+

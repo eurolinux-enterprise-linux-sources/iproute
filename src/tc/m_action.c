@@ -28,12 +28,11 @@
 #include "tc_common.h"
 #include "tc_util.h"
 
-static struct action_util * action_list;
+static struct action_util *action_list;
 #ifdef CONFIG_GACT
-int gact_ld = 0 ; //fuckin backward compatibility
+int gact_ld; /* f*ckin backward compatibility */
 #endif
-int batch_c = 0;
-int tab_flush = 0;
+int tab_flush;
 
 static void act_usage(void)
 {
@@ -44,10 +43,10 @@ static void act_usage(void)
 	 * does that, they would know how to fix this ..
 	 *
 	*/
-	fprintf (stderr, "usage: tc actions <ACTSPECOP>*\n");
+	fprintf(stderr, "usage: tc actions <ACTSPECOP>*\n");
 	fprintf(stderr,
 		"Where: \tACTSPECOP := ACR | GD | FL\n"
-			"\tACR := add | change | replace <ACTSPEC>* \n"
+			"\tACR := add | change | replace <ACTSPEC>*\n"
 			"\tGD := get | delete | <ACTISPEC>*\n"
 			"\tFL := ls | list | flush | <ACTNAMESPEC>\n"
 			"\tACTNAMESPEC :=  action <ACTNAME>\n"
@@ -55,7 +54,7 @@ static void act_usage(void)
 			"\tACTSPEC := action <ACTDETAIL> [INDEXSPEC]\n"
 			"\tINDEXSPEC := index <32 bit indexvalue>\n"
 			"\tACTDETAIL := <ACTNAME> <ACTPARAMS>\n"
-			"\t\tExample ACTNAME is gact, mirred etc\n"
+			"\t\tExample ACTNAME is gact, mirred, bpf, etc\n"
 			"\t\tEach action has its own parameters (ACTPARAMS)\n"
 			"\n");
 
@@ -66,7 +65,7 @@ static int print_noaopt(struct action_util *au, FILE *f, struct rtattr *opt)
 {
 	if (opt && RTA_PAYLOAD(opt))
 		fprintf(f, "[Unknown action, optlen=%u] ",
-			(unsigned) RTA_PAYLOAD(opt));
+			(unsigned int) RTA_PAYLOAD(opt));
 	return 0;
 }
 
@@ -123,13 +122,12 @@ noexist:
 #ifdef CONFIG_GACT
 	if (!looked4gact) {
 		looked4gact = 1;
-		strcpy(str,"gact");
+		strcpy(str, "gact");
 		goto restart_s;
 	}
 #endif
-	a = malloc(sizeof(*a));
+	a = calloc(1, sizeof(*a));
 	if (a) {
-		memset(a, 0, sizeof(*a));
 		strncpy(a->id, "noact", 15);
 		a->parse_aopt = parse_noaopt;
 		a->print_aopt = print_noaopt;
@@ -142,8 +140,9 @@ static int
 new_cmd(char **argv)
 {
 	if ((matches(*argv, "change") == 0) ||
-		(matches(*argv, "replace") == 0)||
-		(matches(*argv, "delete") == 0)||
+		(matches(*argv, "replace") == 0) ||
+		(matches(*argv, "delete") == 0) ||
+		(matches(*argv, "get") == 0) ||
 		(matches(*argv, "add") == 0))
 			return 1;
 
@@ -151,18 +150,19 @@ new_cmd(char **argv)
 
 }
 
-int
-parse_action(int *argc_p, char ***argv_p, int tca_id, struct nlmsghdr *n)
+int parse_action(int *argc_p, char ***argv_p, int tca_id, struct nlmsghdr *n)
 {
 	int argc = *argc_p;
 	char **argv = *argv_p;
 	struct rtattr *tail, *tail2;
 	char k[16];
+	int act_ck_len = 0;
 	int ok = 0;
 	int eap = 0; /* expect action parameters */
 
 	int ret = 0;
 	int prio = 0;
+	unsigned char act_ck[TC_COOKIE_MAX_SIZE];
 
 	if (argc <= 0)
 		return -1;
@@ -173,9 +173,9 @@ parse_action(int *argc_p, char ***argv_p, int tca_id, struct nlmsghdr *n)
 
 	while (argc > 0) {
 
-		memset(k, 0, sizeof (k));
+		memset(k, 0, sizeof(k));
 
-		if (strcmp(*argv, "action") == 0 ) {
+		if (strcmp(*argv, "action") == 0) {
 			argc--;
 			argv++;
 			eap = 1;
@@ -185,15 +185,20 @@ parse_action(int *argc_p, char ***argv_p, int tca_id, struct nlmsghdr *n)
 			}
 #endif
 			continue;
+		} else if (strcmp(*argv, "flowid") == 0) {
+			break;
+		} else if (strcmp(*argv, "classid") == 0) {
+			break;
 		} else if (strcmp(*argv, "help") == 0) {
 			return -1;
 		} else if (new_cmd(argv)) {
 			goto done0;
 		} else {
 			struct action_util *a = NULL;
-			strncpy(k, *argv, sizeof (k) - 1);
+
+			strncpy(k, *argv, sizeof(k) - 1);
 			eap = 0;
-			if (argc > 0 ) {
+			if (argc > 0) {
 				a = get_action_kind(k);
 			} else {
 done0:
@@ -203,7 +208,7 @@ done0:
 					goto done;
 			}
 
-			if (NULL == a) {
+			if (a == NULL) {
 				goto bad_val;
 			}
 
@@ -211,20 +216,48 @@ done0:
 			addattr_l(n, MAX_MSG, ++prio, NULL, 0);
 			addattr_l(n, MAX_MSG, TCA_ACT_KIND, k, strlen(k) + 1);
 
-			ret = a->parse_aopt(a,&argc, &argv, TCA_ACT_OPTIONS, n);
+			ret = a->parse_aopt(a, &argc, &argv, TCA_ACT_OPTIONS,
+					    n);
 
 			if (ret < 0) {
-				fprintf(stderr,"bad action parsing\n");
+				fprintf(stderr, "bad action parsing\n");
 				goto bad_val;
 			}
+
+			if (*argv && strcmp(*argv, "cookie") == 0) {
+				size_t slen;
+
+				NEXT_ARG();
+				slen = strlen(*argv);
+				if (slen > TC_COOKIE_MAX_SIZE * 2) {
+					char cookie_err_m[128];
+
+					snprintf(cookie_err_m, 128,
+						 "%zd Max allowed size %d",
+						 slen, TC_COOKIE_MAX_SIZE*2);
+					invarg(cookie_err_m, *argv);
+				}
+
+				if (hex2mem(*argv, act_ck, slen / 2) < 0)
+					invarg("cookie must be a hex string\n",
+					       *argv);
+
+				act_ck_len = slen;
+				argc--;
+				argv++;
+			}
+
+			if (act_ck_len)
+				addattr_l(n, MAX_MSG, TCA_ACT_COOKIE,
+					  &act_ck, act_ck_len);
+
 			tail->rta_len = (void *) NLMSG_TAIL(n) - (void *) tail;
 			ok++;
 		}
-
 	}
 
 	if (eap > 0) {
-		fprintf(stderr,"bad action empty %d\n",eap);
+		fprintf(stderr, "bad action empty %d\n", eap);
 		goto bad_val;
 	}
 
@@ -237,12 +270,11 @@ done:
 bad_val:
 	/* no need to undo things, returning from here should
 	 * cause enough pain */
-	fprintf(stderr, "parse_action: bad value (%d:%s)!\n",argc,*argv);
+	fprintf(stderr, "parse_action: bad value (%d:%s)!\n", argc, *argv);
 	return -1;
 }
 
-static int
-tc_print_one_action(FILE * f, struct rtattr *arg)
+static int tc_print_one_action(FILE *f, struct rtattr *arg)
 {
 
 	struct rtattr *tb[TCA_ACT_MAX + 1];
@@ -253,6 +285,7 @@ tc_print_one_action(FILE * f, struct rtattr *arg)
 		return -1;
 
 	parse_rtattr_nested(tb, TCA_ACT_MAX, arg);
+
 	if (tb[TCA_ACT_KIND] == NULL) {
 		fprintf(stderr, "NULL Action!\n");
 		return -1;
@@ -260,32 +293,60 @@ tc_print_one_action(FILE * f, struct rtattr *arg)
 
 
 	a = get_action_kind(RTA_DATA(tb[TCA_ACT_KIND]));
-	if (NULL == a)
+	if (a == NULL)
 		return err;
 
-	if (tab_flush) {
-		fprintf(f," %s \n", a->id);
-		tab_flush = 0;
-		return 0;
-	}
+	err = a->print_aopt(a, f, tb[TCA_ACT_OPTIONS]);
 
-	err = a->print_aopt(a,f,tb[TCA_ACT_OPTIONS]);
-
-
-	if (0 > err)
+	if (err < 0)
 		return err;
 
 	if (show_stats && tb[TCA_ACT_STATS]) {
+
 		fprintf(f, "\tAction statistics:\n");
 		print_tcstats2_attr(f, tb[TCA_ACT_STATS], "\t", NULL);
+		if (tb[TCA_ACT_COOKIE]) {
+			int strsz = RTA_PAYLOAD(tb[TCA_ACT_COOKIE]);
+			char b1[strsz+1];
+
+			fprintf(f, "\n\tcookie len %d %s ", strsz,
+				hexstring_n2a(RTA_DATA(tb[TCA_ACT_COOKIE]),
+					      strsz, b1, sizeof(b1)));
+		}
 		fprintf(f, "\n");
 	}
 
 	return 0;
 }
 
+static int
+tc_print_action_flush(FILE *f, const struct rtattr *arg)
+{
+
+	struct rtattr *tb[TCA_MAX + 1];
+	int err = 0;
+	struct action_util *a = NULL;
+	__u32 *delete_count = 0;
+
+	parse_rtattr_nested(tb, TCA_MAX, arg);
+
+	if (tb[TCA_KIND] == NULL) {
+		fprintf(stderr, "NULL Action!\n");
+		return -1;
+	}
+
+	a = get_action_kind(RTA_DATA(tb[TCA_KIND]));
+	if (a == NULL)
+		return err;
+
+	delete_count = RTA_DATA(tb[TCA_FCNT]);
+	fprintf(f, " %s (%d entries)\n", a->id, *delete_count);
+	tab_flush = 0;
+	return 0;
+}
+
 int
-tc_print_action(FILE * f, const struct rtattr *arg)
+tc_print_action(FILE *f, const struct rtattr *arg)
 {
 
 	int i;
@@ -296,22 +357,19 @@ tc_print_action(FILE * f, const struct rtattr *arg)
 
 	parse_rtattr_nested(tb, TCA_ACT_MAX_PRIO, arg);
 
-	if (tab_flush && NULL != tb[0]  && NULL == tb[1]) {
-		int ret = tc_print_one_action(f, tb[0]);
-		return ret;
-	}
+	if (tab_flush && NULL != tb[0]  && NULL == tb[1])
+		return tc_print_action_flush(f, tb[0]);
 
 	for (i = 0; i < TCA_ACT_MAX_PRIO; i++) {
 		if (tb[i]) {
-			fprintf(f, "\n\taction order %d: ", i + batch_c);
-			if (0 > tc_print_one_action(f, tb[i])) {
+			fprintf(f, "\n\taction order %d: ", i);
+			if (tc_print_one_action(f, tb[i]) < 0) {
 				fprintf(f, "Error printing action\n");
 			}
 		}
 
 	}
 
-	batch_c+=TCA_ACT_MAX_PRIO ;
 	return 0;
 }
 
@@ -319,10 +377,10 @@ int print_action(const struct sockaddr_nl *who,
 			   struct nlmsghdr *n,
 			   void *arg)
 {
-	FILE *fp = (FILE*)arg;
+	FILE *fp = (FILE *)arg;
 	struct tcamsg *t = NLMSG_DATA(n);
 	int len = n->nlmsg_len;
-	struct rtattr * tb[TCAA_MAX+1];
+	struct rtattr *tb[TCAA_MAX+1];
 
 	len -= NLMSG_LENGTH(sizeof(*t));
 
@@ -333,7 +391,7 @@ int print_action(const struct sockaddr_nl *who,
 
 	parse_rtattr(tb, TCAA_MAX, TA_RTA(t), len);
 
-	if (NULL == tb[TCA_ACT_TAB]) {
+	if (tb[TCA_ACT_TAB] == NULL) {
 		if (n->nlmsg_type != RTM_GETACTION)
 			fprintf(stderr, "print_action: NULL kind\n");
 		return -1;
@@ -344,18 +402,24 @@ int print_action(const struct sockaddr_nl *who,
 			fprintf(fp, "Flushed table ");
 			tab_flush = 1;
 		} else {
-			fprintf(fp, "deleted action ");
+			fprintf(fp, "Deleted action ");
 		}
 	}
 
-	if (n->nlmsg_type == RTM_NEWACTION)
-		fprintf(fp, "Added action ");
+	if (n->nlmsg_type == RTM_NEWACTION) {
+		if ((n->nlmsg_flags & NLM_F_CREATE) &&
+		    !(n->nlmsg_flags & NLM_F_REPLACE)) {
+			fprintf(fp, "Added action ");
+		} else if (n->nlmsg_flags & NLM_F_REPLACE) {
+			fprintf(fp, "Replaced action ");
+		}
+	}
 	tc_print_action(fp, tb[TCA_ACT_TAB]);
 
 	return 0;
 }
 
-static int tc_action_gd(int cmd, unsigned flags, int *argc_p, char ***argv_p)
+static int tc_action_gd(int cmd, unsigned int flags, int *argc_p, char ***argv_p)
 {
 	char k[16];
 	struct action_util *a = NULL;
@@ -364,7 +428,6 @@ static int tc_action_gd(int cmd, unsigned flags, int *argc_p, char ***argv_p)
 	int prio = 0;
 	int ret = 0;
 	__u32 i;
-	struct sockaddr_nl nladdr;
 	struct rtattr *tail;
 	struct rtattr *tail2;
 	struct nlmsghdr *ans = NULL;
@@ -373,27 +436,22 @@ static int tc_action_gd(int cmd, unsigned flags, int *argc_p, char ***argv_p)
 		struct nlmsghdr         n;
 		struct tcamsg           t;
 		char                    buf[MAX_MSG];
-	} req;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcamsg)),
+		.n.nlmsg_flags = NLM_F_REQUEST | flags,
+		.n.nlmsg_type = cmd,
+		.t.tca_family = AF_UNSPEC,
+	};
 
-	req.t.tca_family = AF_UNSPEC;
-
-	memset(&req, 0, sizeof(req));
-
-	memset(&nladdr, 0, sizeof(nladdr));
-	nladdr.nl_family = AF_NETLINK;
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcamsg));
-	req.n.nlmsg_flags = NLM_F_REQUEST|flags;
-	req.n.nlmsg_type = cmd;
-	argc -=1;
-	argv +=1;
+	argc -= 1;
+	argv += 1;
 
 
 	tail = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, MAX_MSG, TCA_ACT_TAB, NULL, 0);
 
 	while (argc > 0) {
-		if (strcmp(*argv, "action") == 0 ) {
+		if (strcmp(*argv, "action") == 0) {
 			argc--;
 			argv++;
 			continue;
@@ -401,23 +459,23 @@ static int tc_action_gd(int cmd, unsigned flags, int *argc_p, char ***argv_p)
 			return -1;
 		}
 
-		strncpy(k, *argv, sizeof (k) - 1);
+		strncpy(k, *argv, sizeof(k) - 1);
 		a = get_action_kind(k);
-		if (NULL == a) {
-			fprintf(stderr, "Error: non existent action: %s\n",k);
+		if (a == NULL) {
+			fprintf(stderr, "Error: non existent action: %s\n", k);
 			ret = -1;
 			goto bad_val;
 		}
 		if (strcmp(a->id, k) != 0) {
-			fprintf(stderr, "Error: non existent action: %s\n",k);
+			fprintf(stderr, "Error: non existent action: %s\n", k);
 			ret = -1;
 			goto bad_val;
 		}
 
-		argc -=1;
-		argv +=1;
+		argc -= 1;
+		argv += 1;
 		if (argc <= 0) {
-			fprintf(stderr, "Error: no index specified action: %s\n",k);
+			fprintf(stderr, "Error: no index specified action: %s\n", k);
 			ret = -1;
 			goto bad_val;
 		}
@@ -429,10 +487,10 @@ static int tc_action_gd(int cmd, unsigned flags, int *argc_p, char ***argv_p)
 				ret = -1;
 				goto bad_val;
 			}
-			argc -=1;
-			argv +=1;
+			argc -= 1;
+			argv += 1;
 		} else {
-			fprintf(stderr, "Error: no index specified action: %s\n",k);
+			fprintf(stderr, "Error: no index specified action: %s\n", k);
 			ret = -1;
 			goto bad_val;
 		}
@@ -456,7 +514,7 @@ static int tc_action_gd(int cmd, unsigned flags, int *argc_p, char ***argv_p)
 		return 1;
 	}
 
-	if (ans && print_action(NULL, &req.n, (void*)stdout) < 0) {
+	if (ans && print_action(NULL, &req.n, (void *)stdout) < 0) {
 		fprintf(stderr, "Dump terminated\n");
 		return 1;
 	}
@@ -467,29 +525,25 @@ bad_val:
 	return ret;
 }
 
-static int tc_action_modify(int cmd, unsigned flags, int *argc_p, char ***argv_p)
+static int tc_action_modify(int cmd, unsigned int flags, int *argc_p, char ***argv_p)
 {
 	int argc = *argc_p;
 	char **argv = *argv_p;
 	int ret = 0;
-
-	struct rtattr *tail;
 	struct {
 		struct nlmsghdr         n;
 		struct tcamsg           t;
 		char                    buf[MAX_MSG];
-	} req;
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcamsg)),
+		.n.nlmsg_flags = NLM_F_REQUEST | flags,
+		.n.nlmsg_type = cmd,
+		.t.tca_family = AF_UNSPEC,
+	};
+	struct rtattr *tail = NLMSG_TAIL(&req.n);
 
-	req.t.tca_family = AF_UNSPEC;
-
-	memset(&req, 0, sizeof(req));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcamsg));
-	req.n.nlmsg_flags = NLM_F_REQUEST|flags;
-	req.n.nlmsg_type = cmd;
-	tail = NLMSG_TAIL(&req.n);
-	argc -=1;
-	argv +=1;
+	argc -= 1;
+	argv += 1;
 	if (parse_action(&argc, &argv, TCA_ACT_TAB, &req.n)) {
 		fprintf(stderr, "Illegal \"action\"\n");
 		return -1;
@@ -511,40 +565,37 @@ static int tc_act_list_or_flush(int argc, char **argv, int event)
 {
 	int ret = 0, prio = 0, msg_size = 0;
 	char k[16];
-	struct rtattr *tail,*tail2;
+	struct rtattr *tail, *tail2;
 	struct action_util *a = NULL;
 	struct {
 		struct nlmsghdr         n;
 		struct tcamsg           t;
 		char                    buf[MAX_MSG];
-	} req;
-
-	req.t.tca_family = AF_UNSPEC;
-
-	memset(&req, 0, sizeof(req));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcamsg));
+	} req = {
+		.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct tcamsg)),
+		.t.tca_family = AF_UNSPEC,
+	};
 
 	tail = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, MAX_MSG, TCA_ACT_TAB, NULL, 0);
 	tail2 = NLMSG_TAIL(&req.n);
 
-	strncpy(k, *argv, sizeof (k) - 1);
+	strncpy(k, *argv, sizeof(k) - 1);
 #ifdef CONFIG_GACT
 	if (!gact_ld) {
 		get_action_kind("gact");
 	}
 #endif
 	a = get_action_kind(k);
-	if (NULL == a) {
-		fprintf(stderr,"bad action %s\n",k);
+	if (a == NULL) {
+		fprintf(stderr, "bad action %s\n", k);
 		goto bad_val;
 	}
 	if (strcmp(a->id, k) != 0) {
-		fprintf(stderr,"bad action %s\n",k);
+		fprintf(stderr, "bad action %s\n", k);
 		goto bad_val;
 	}
-	strncpy(k, *argv, sizeof (k) - 1);
+	strncpy(k, *argv, sizeof(k) - 1);
 
 	addattr_l(&req.n, MAX_MSG, ++prio, NULL, 0);
 	addattr_l(&req.n, MAX_MSG, TCA_ACT_KIND, k, strlen(k) + 1);
@@ -591,12 +642,12 @@ int do_action(int argc, char **argv)
 			  matches(*argv, "replace") == 0) {
 			ret = tc_action_modify(RTM_NEWACTION, NLM_F_CREATE|NLM_F_REPLACE, &argc, &argv);
 		} else if (matches(*argv, "delete") == 0) {
-			argc -=1;
-			argv +=1;
+			argc -= 1;
+			argv += 1;
 			ret = tc_action_gd(RTM_DELACTION, 0,  &argc, &argv);
 		} else if (matches(*argv, "get") == 0) {
-			argc -=1;
-			argv +=1;
+			argc -= 1;
+			argv += 1;
 			ret = tc_action_gd(RTM_GETACTION, 0,  &argc, &argv);
 		} else if (matches(*argv, "list") == 0 || matches(*argv, "show") == 0
 						|| matches(*argv, "lst") == 0) {
@@ -615,16 +666,13 @@ int do_action(int argc, char **argv)
 			act_usage();
 			return -1;
 		} else {
-
-			ret = -1;
-		}
-
-		if (ret < 0) {
 			fprintf(stderr, "Command \"%s\" is unknown, try \"tc actions help\".\n", *argv);
 			return -1;
 		}
+
+		if (ret < 0)
+			return -1;
 	}
 
 	return 0;
 }
-

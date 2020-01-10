@@ -17,16 +17,24 @@
 
 static void print_explain(FILE *f)
 {
-	fprintf(f, "Usage: ... geneve id VNI remote ADDR\n");
-	fprintf(f, "                 [ ttl TTL ] [ tos TOS ] [ flowlabel LABEL ]\n");
-	fprintf(f, "                 [ dstport PORT ] [ [no]external ]\n");
-	fprintf(f, "                 [ [no]udpcsum ] [ [no]udp6zerocsumtx ] [ [no]udp6zerocsumrx ]\n");
-	fprintf(f, "\n");
-	fprintf(f, "Where: VNI   := 0-16777215\n");
-	fprintf(f, "       ADDR  := IP_ADDRESS\n");
-	fprintf(f, "       TOS   := { NUMBER | inherit }\n");
-	fprintf(f, "       TTL   := { 1..255 | inherit }\n");
-	fprintf(f, "       LABEL := 0-1048575\n");
+	fprintf(f,
+		"Usage: ... geneve id VNI\n"
+		"                  remote ADDR\n"
+		"                  [ ttl TTL ]\n"
+		"                  [ tos TOS ]\n"
+		"                  [ flowlabel LABEL ]\n"
+		"                  [ dstport PORT ]\n"
+		"                  [ [no]external ]\n"
+		"                  [ [no]udpcsum ]\n"
+		"                  [ [no]udp6zerocsumtx ]\n"
+		"                  [ [no]udp6zerocsumrx ]\n"
+		"\n"
+		"Where: VNI   := 0-16777215\n"
+		"       ADDR  := IP_ADDRESS\n"
+		"       TOS   := { NUMBER | inherit }\n"
+		"       TTL   := { 1..255 | inherit }\n"
+		"       LABEL := 0-1048575\n"
+	);
 }
 
 static void explain(void)
@@ -71,7 +79,7 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 				invarg("invalid remote address", *argv);
 		} else if (!matches(*argv, "ttl") ||
 			   !matches(*argv, "hoplimit")) {
-			unsigned uval;
+			unsigned int uval;
 
 			NEXT_ARG();
 			if (strcmp(*argv, "inherit") != 0) {
@@ -150,7 +158,7 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 			return -1;
 		}
 
-		if (!daddr && memcmp(&daddr6, &in6addr_any, sizeof(daddr6)) == 0) {
+		if (!daddr && IN6_IS_ADDR_UNSPECIFIED(&daddr6)) {
 			fprintf(stderr, "geneve: remote link partner not specified\n");
 			return -1;
 		}
@@ -159,7 +167,7 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 	addattr32(n, 1024, IFLA_GENEVE_ID, vni);
 	if (daddr)
 		addattr_l(n, 1024, IFLA_GENEVE_REMOTE, &daddr, 4);
-	if (memcmp(&daddr6, &in6addr_any, sizeof(daddr6)) != 0)
+	if (!IN6_IS_ADDR_UNSPECIFIED(&daddr6))
 		addattr_l(n, 1024, IFLA_GENEVE_REMOTE6, &daddr6, sizeof(struct in6_addr));
 	addattr32(n, 1024, IFLA_GENEVE_LABEL, label);
 	addattr8(n, 1024, IFLA_GENEVE_TTL, ttl);
@@ -181,7 +189,6 @@ static int geneve_parse_opt(struct link_util *lu, int argc, char **argv,
 static void geneve_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 {
 	__u32 vni;
-	char s1[1024];
 	__u8 tos;
 
 	if (!tb)
@@ -196,21 +203,24 @@ static void geneve_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 
 	if (tb[IFLA_GENEVE_REMOTE]) {
 		__be32 addr = rta_getattr_u32(tb[IFLA_GENEVE_REMOTE]);
+
 		if (addr)
 			fprintf(f, "remote %s ",
-				format_host(AF_INET, 4, &addr, s1, sizeof(s1)));
+				format_host(AF_INET, 4, &addr));
 	} else if (tb[IFLA_GENEVE_REMOTE6]) {
 		struct in6_addr addr;
+
 		memcpy(&addr, RTA_DATA(tb[IFLA_GENEVE_REMOTE6]), sizeof(struct in6_addr));
-		if (memcmp(&addr, &in6addr_any, sizeof(addr)) != 0) {
+		if (!IN6_IS_ADDR_UNSPECIFIED(&addr)) {
 			if (!IN6_IS_ADDR_MULTICAST(&addr))
 				fprintf(f, "remote %s ",
-					format_host(AF_INET6, sizeof(struct in6_addr), &addr, s1, sizeof(s1)));
+					format_host(AF_INET6, sizeof(struct in6_addr), &addr));
 		}
 	}
 
 	if (tb[IFLA_GENEVE_TTL]) {
 		__u8 ttl = rta_getattr_u8(tb[IFLA_GENEVE_TTL]);
+
 		if (ttl)
 			fprintf(f, "ttl %d ", ttl);
 	}
@@ -232,7 +242,7 @@ static void geneve_print_opt(struct link_util *lu, FILE *f, struct rtattr *tb[])
 
 	if (tb[IFLA_GENEVE_PORT])
 		fprintf(f, "dstport %u ",
-			ntohs(rta_getattr_u16(tb[IFLA_GENEVE_PORT])));
+			rta_getattr_be16(tb[IFLA_GENEVE_PORT]));
 
 	if (tb[IFLA_GENEVE_COLLECT_METADATA])
 		fputs("external ", f);

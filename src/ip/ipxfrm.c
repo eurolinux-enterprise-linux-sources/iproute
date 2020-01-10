@@ -14,8 +14,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * along with this program; if not, see <http://www.gnu.org/licenses>.
  */
 /*
  * based on ip.c, iproute.c
@@ -35,7 +34,6 @@
 #include <netdb.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#include <linux/xfrm.h>
 
 #include "utils.h"
 #include "xfrm.h"
@@ -52,7 +50,7 @@
 			strncat(buf, str, len); \
 			buf[sizeof(buf) - 1] = '\0'; \
 		} \
-	} while(0);
+	} while (0);
 
 struct xfrm_filter filter;
 
@@ -113,7 +111,7 @@ struct typeent {
 	int t_type;
 };
 
-static const struct typeent xfrmproto_types[]= {
+static const struct typeent xfrmproto_types[] = {
 	{ "esp", IPPROTO_ESP }, { "ah", IPPROTO_AH }, { "comp", IPPROTO_COMP },
 	{ "route2", IPPROTO_ROUTING }, { "hao", IPPROTO_DSTOPTS },
 	{ "ipsec-any", IPSEC_PROTO_ANY },
@@ -126,6 +124,7 @@ int xfrm_xfrmproto_getbyname(char *name)
 
 	for (i = 0; ; i++) {
 		const struct typeent *t = &xfrmproto_types[i];
+
 		if (!t->t_name || t->t_type == -1)
 			break;
 
@@ -143,6 +142,7 @@ const char *strxf_xfrmproto(__u8 proto)
 
 	for (i = 0; ; i++) {
 		const struct typeent *t = &xfrmproto_types[i];
+
 		if (!t->t_name || t->t_type == -1)
 			break;
 
@@ -154,7 +154,7 @@ const char *strxf_xfrmproto(__u8 proto)
 	return str;
 }
 
-static const struct typeent algo_types[]= {
+static const struct typeent algo_types[] = {
 	{ "enc", XFRMA_ALG_CRYPT }, { "auth", XFRMA_ALG_AUTH },
 	{ "comp", XFRMA_ALG_COMP }, { "aead", XFRMA_ALG_AEAD },
 	{ "auth-trunc", XFRMA_ALG_AUTH_TRUNC },
@@ -167,6 +167,7 @@ int xfrm_algotype_getbyname(char *name)
 
 	for (i = 0; ; i++) {
 		const struct typeent *t = &algo_types[i];
+
 		if (!t->t_name || t->t_type == -1)
 			break;
 
@@ -184,6 +185,7 @@ const char *strxf_algotype(int type)
 
 	for (i = 0; ; i++) {
 		const struct typeent *t = &algo_types[i];
+
 		if (!t->t_name || t->t_type == -1)
 			break;
 
@@ -283,17 +285,11 @@ void xfrm_id_info_print(xfrm_address_t *saddr, struct xfrm_id *id,
 			__u8 mode, __u32 reqid, __u16 family, int force_spi,
 			FILE *fp, const char *prefix, const char *title)
 {
-	char abuf[256];
-
 	if (title)
 		fputs(title, fp);
 
-	memset(abuf, '\0', sizeof(abuf));
-	fprintf(fp, "src %s ", rt_addr_n2a(family, sizeof(*saddr),
-					   saddr, abuf, sizeof(abuf)));
-	memset(abuf, '\0', sizeof(abuf));
-	fprintf(fp, "dst %s", rt_addr_n2a(family, sizeof(id->daddr),
-					  &id->daddr, abuf, sizeof(abuf)));
+	fprintf(fp, "src %s ", rt_addr_n2a(family, sizeof(*saddr), saddr));
+	fprintf(fp, "dst %s", rt_addr_n2a(family, sizeof(id->daddr), &id->daddr));
 	fprintf(fp, "%s", _SL_);
 
 	if (prefix)
@@ -304,6 +300,7 @@ void xfrm_id_info_print(xfrm_address_t *saddr, struct xfrm_id *id,
 
 	if (show_stats > 0 || force_spi || id->spi) {
 		__u32 spi = ntohl(id->spi);
+
 		fprintf(fp, "spi 0x%08x", spi);
 		if (show_stats > 0)
 			fprintf(fp, "(%u)", spi);
@@ -342,6 +339,7 @@ void xfrm_id_info_print(xfrm_address_t *saddr, struct xfrm_id *id,
 static const char *strxf_limit(__u64 limit)
 {
 	static char str[32];
+
 	if (limit == XFRM_INF)
 		strcpy(str, "(INF)");
 	else
@@ -391,7 +389,7 @@ void xfrm_lifetime_print(struct xfrm_lifetime_cfg *cfg,
 	if (cfg) {
 		if (prefix)
 			fputs(prefix, fp);
-		fprintf(fp, "lifetime config:%s",_SL_);
+		fprintf(fp, "lifetime config:%s", _SL_);
 
 		if (prefix)
 			fputs(prefix, fp);
@@ -443,7 +441,6 @@ void xfrm_lifetime_print(struct xfrm_lifetime_cfg *cfg,
 void xfrm_selector_print(struct xfrm_selector *sel, __u16 family,
 			 FILE *fp, const char *prefix)
 {
-	char abuf[256];
 	__u16 f;
 
 	f = sel->family;
@@ -455,16 +452,12 @@ void xfrm_selector_print(struct xfrm_selector *sel, __u16 family,
 	if (prefix)
 		fputs(prefix, fp);
 
-	memset(abuf, '\0', sizeof(abuf));
 	fprintf(fp, "src %s/%u ",
-		rt_addr_n2a(f, sizeof(sel->saddr), &sel->saddr,
-			    abuf, sizeof(abuf)),
+		rt_addr_n2a(f, sizeof(sel->saddr), &sel->saddr),
 		sel->prefixlen_s);
 
-	memset(abuf, '\0', sizeof(abuf));
 	fprintf(fp, "dst %s/%u ",
-		rt_addr_n2a(f, sizeof(sel->daddr), &sel->daddr,
-			    abuf, sizeof(abuf)),
+		rt_addr_n2a(f, sizeof(sel->daddr), &sel->daddr),
 		sel->prefixlen_d);
 
 	if (sel->proto)
@@ -540,7 +533,7 @@ static void __xfrm_algo_print(struct xfrm_algo *algo, int type, int len,
 
 	if (keylen > 0) {
 		fprintf(fp, "0x");
-		for (i = 0; i < keylen; i ++)
+		for (i = 0; i < keylen; i++)
 			fprintf(fp, "%.2x", (unsigned char)algo->alg_key[i]);
 
 		if (show_stats > 0)
@@ -693,43 +686,49 @@ void xfrm_xfrma_print(struct rtattr *tb[], __u16 family,
 {
 	if (tb[XFRMA_MARK]) {
 		struct rtattr *rta = tb[XFRMA_MARK];
-		struct xfrm_mark *m = (struct xfrm_mark *) RTA_DATA(rta);
-		fprintf(fp, "\tmark %d/0x%x\n", m->v, m->m);
+		struct xfrm_mark *m = RTA_DATA(rta);
+
+		fprintf(fp, "\tmark %#x/%#x", m->v, m->m);
+		fprintf(fp, "%s", _SL_);
 	}
 
 	if (tb[XFRMA_ALG_AUTH] && !tb[XFRMA_ALG_AUTH_TRUNC]) {
 		struct rtattr *rta = tb[XFRMA_ALG_AUTH];
-		xfrm_algo_print((struct xfrm_algo *) RTA_DATA(rta),
+
+		xfrm_algo_print(RTA_DATA(rta),
 				XFRMA_ALG_AUTH, RTA_PAYLOAD(rta), fp, prefix);
 	}
 
 	if (tb[XFRMA_ALG_AUTH_TRUNC]) {
 		struct rtattr *rta = tb[XFRMA_ALG_AUTH_TRUNC];
-		xfrm_auth_trunc_print((struct xfrm_algo_auth *) RTA_DATA(rta),
+
+		xfrm_auth_trunc_print(RTA_DATA(rta),
 				      RTA_PAYLOAD(rta), fp, prefix);
 	}
 
 	if (tb[XFRMA_ALG_AEAD]) {
 		struct rtattr *rta = tb[XFRMA_ALG_AEAD];
-		xfrm_aead_print((struct xfrm_algo_aead *)RTA_DATA(rta),
+
+		xfrm_aead_print(RTA_DATA(rta),
 				RTA_PAYLOAD(rta), fp, prefix);
 	}
 
 	if (tb[XFRMA_ALG_CRYPT]) {
 		struct rtattr *rta = tb[XFRMA_ALG_CRYPT];
-		xfrm_algo_print((struct xfrm_algo *) RTA_DATA(rta),
+
+		xfrm_algo_print(RTA_DATA(rta),
 				XFRMA_ALG_CRYPT, RTA_PAYLOAD(rta), fp, prefix);
 	}
 
 	if (tb[XFRMA_ALG_COMP]) {
 		struct rtattr *rta = tb[XFRMA_ALG_COMP];
-		xfrm_algo_print((struct xfrm_algo *) RTA_DATA(rta),
+
+		xfrm_algo_print(RTA_DATA(rta),
 				XFRMA_ALG_COMP, RTA_PAYLOAD(rta), fp, prefix);
 	}
 
 	if (tb[XFRMA_ENCAP]) {
 		struct xfrm_encap_tmpl *e;
-		char abuf[256];
 
 		if (prefix)
 			fputs(prefix, fp);
@@ -740,7 +739,7 @@ void xfrm_xfrma_print(struct rtattr *tb[], __u16 family,
 			fprintf(fp, "%s", _SL_);
 			return;
 		}
-		e = (struct xfrm_encap_tmpl *) RTA_DATA(tb[XFRMA_ENCAP]);
+		e = RTA_DATA(tb[XFRMA_ENCAP]);
 
 		fprintf(fp, "type ");
 		switch (e->encap_type) {
@@ -757,39 +756,34 @@ void xfrm_xfrma_print(struct rtattr *tb[], __u16 family,
 		fprintf(fp, "sport %u ", ntohs(e->encap_sport));
 		fprintf(fp, "dport %u ", ntohs(e->encap_dport));
 
-		memset(abuf, '\0', sizeof(abuf));
 		fprintf(fp, "addr %s",
-			rt_addr_n2a(family, sizeof(e->encap_oa), &e->encap_oa,
-				    abuf, sizeof(abuf)));
+			rt_addr_n2a(family, sizeof(e->encap_oa), &e->encap_oa));
 		fprintf(fp, "%s", _SL_);
 	}
 
 	if (tb[XFRMA_TMPL]) {
 		struct rtattr *rta = tb[XFRMA_TMPL];
-		xfrm_tmpl_print((struct xfrm_user_tmpl *) RTA_DATA(rta),
+
+		xfrm_tmpl_print(RTA_DATA(rta),
 				RTA_PAYLOAD(rta), fp, prefix);
 	}
 
 	if (tb[XFRMA_COADDR]) {
-		char abuf[256];
-		xfrm_address_t *coa;
+		const xfrm_address_t *coa;
 
 		if (prefix)
 			fputs(prefix, fp);
 		fprintf(fp, "coa ");
 
-		coa = (xfrm_address_t *)RTA_DATA(tb[XFRMA_COADDR]);
-
+		coa = RTA_DATA(tb[XFRMA_COADDR]);
 		if (RTA_PAYLOAD(tb[XFRMA_COADDR]) < sizeof(*coa)) {
 			fprintf(fp, "(ERROR truncated)");
 			fprintf(fp, "%s", _SL_);
 			return;
 		}
 
-		memset(abuf, '\0', sizeof(abuf));
 		fprintf(fp, "%s",
-			rt_addr_n2a(family, sizeof(*coa), coa,
-				    abuf, sizeof(abuf)));
+			rt_addr_n2a(family, sizeof(*coa), coa));
 		fprintf(fp, "%s", _SL_);
 	}
 
@@ -812,13 +806,67 @@ void xfrm_xfrma_print(struct rtattr *tb[], __u16 family,
 		fprintf(fp, "%s", _SL_);
 	}
 
+	if (tb[XFRMA_REPLAY_VAL]) {
+		struct xfrm_replay_state *replay;
+
+		if (prefix)
+			fputs(prefix, fp);
+		fprintf(fp, "anti-replay context: ");
+
+		if (RTA_PAYLOAD(tb[XFRMA_REPLAY_VAL]) < sizeof(*replay)) {
+			fprintf(fp, "(ERROR truncated)");
+			fprintf(fp, "%s", _SL_);
+			return;
+		}
+
+		replay = RTA_DATA(tb[XFRMA_REPLAY_VAL]);
+		fprintf(fp, "seq 0x%x, oseq 0x%x, bitmap 0x%08x",
+			replay->seq, replay->oseq, replay->bitmap);
+		fprintf(fp, "%s", _SL_);
+	}
+
+	if (tb[XFRMA_REPLAY_ESN_VAL]) {
+		struct xfrm_replay_state_esn *replay;
+		unsigned int i, j;
+
+		if (prefix)
+			fputs(prefix, fp);
+		fprintf(fp, "anti-replay esn context:");
+
+		if (RTA_PAYLOAD(tb[XFRMA_REPLAY_ESN_VAL]) < sizeof(*replay)) {
+			fprintf(fp, "(ERROR truncated)");
+			fprintf(fp, "%s", _SL_);
+			return;
+		}
+		fprintf(fp, "%s", _SL_);
+
+		replay = RTA_DATA(tb[XFRMA_REPLAY_ESN_VAL]);
+		if (prefix)
+			fputs(prefix, fp);
+		fprintf(fp, " seq-hi 0x%x, seq 0x%x, oseq-hi 0x%0x, oseq 0x%0x",
+			replay->seq_hi, replay->seq, replay->oseq_hi,
+			replay->oseq);
+		fprintf(fp, "%s", _SL_);
+		if (prefix)
+			fputs(prefix, fp);
+		fprintf(fp, " replay_window %u, bitmap-length %u",
+			replay->replay_window, replay->bmp_len);
+		for (i = replay->bmp_len, j = 0; i; i--) {
+			if (j++ % 8 == 0) {
+				fprintf(fp, "%s", _SL_);
+				if (prefix)
+					fputs(prefix, fp);
+				fprintf(fp, " ");
+			}
+			fprintf(fp, "%08x ", replay->bmp[i - 1]);
+		}
+		fprintf(fp, "%s", _SL_);
+	}
 }
 
 static int xfrm_selector_iszero(struct xfrm_selector *s)
 {
-	struct xfrm_selector s0;
-
-	memset(&s0, 0, sizeof(s0));
+	struct xfrm_selector s0 = {};
 
 	return (memcmp(&s0, s, sizeof(s0)) == 0);
 }
@@ -827,10 +875,8 @@ void xfrm_state_info_print(struct xfrm_usersa_info *xsinfo,
 			    struct rtattr *tb[], FILE *fp, const char *prefix,
 			    const char *title)
 {
-	char buf[STRBUF_SIZE];
+	char buf[STRBUF_SIZE] = {};
 	int force_spi = xfrm_xfrmproto_is_ipsec(xsinfo->id.proto);
-
-	memset(buf, '\0', sizeof(buf));
 
 	xfrm_id_info_print(&xsinfo->saddr, &xsinfo->id, xsinfo->mode,
 			   xsinfo->reqid, xsinfo->family, force_spi, fp,
@@ -855,11 +901,12 @@ void xfrm_state_info_print(struct xfrm_usersa_info *xsinfo,
 		XFRM_FLAG_PRINT(fp, flags, XFRM_STATE_ICMP, "icmp");
 		XFRM_FLAG_PRINT(fp, flags, XFRM_STATE_AF_UNSPEC, "af-unspec");
 		XFRM_FLAG_PRINT(fp, flags, XFRM_STATE_ALIGN4, "align4");
+		XFRM_FLAG_PRINT(fp, flags, XFRM_STATE_ESN, "esn");
 		if (flags)
 			fprintf(fp, "%x", flags);
 	}
 	if (show_stats > 0 && tb[XFRMA_SA_EXTRA_FLAGS]) {
-		__u32 extra_flags = *(__u32 *)RTA_DATA(tb[XFRMA_SA_EXTRA_FLAGS]);
+		__u32 extra_flags = rta_getattr_u32(tb[XFRMA_SA_EXTRA_FLAGS]);
 
 		fprintf(fp, "extra_flag ");
 		XFRM_FLAG_PRINT(fp, extra_flags,
@@ -896,7 +943,7 @@ void xfrm_state_info_print(struct xfrm_usersa_info *xsinfo,
 		if (RTA_PAYLOAD(tb[XFRMA_SEC_CTX]) < sizeof(*sctx))
 			fprintf(fp, "(ERROR truncated)");
 
-		sctx = (struct xfrm_user_sec_ctx *)RTA_DATA(tb[XFRMA_SEC_CTX]);
+		sctx = RTA_DATA(tb[XFRMA_SEC_CTX]);
 
 		fprintf(fp, "%s %s", (char *)(sctx + 1), _SL_);
 	}
@@ -907,9 +954,7 @@ void xfrm_policy_info_print(struct xfrm_userpolicy_info *xpinfo,
 			    struct rtattr *tb[], FILE *fp, const char *prefix,
 			    const char *title)
 {
-	char buf[STRBUF_SIZE];
-
-	memset(buf, '\0', sizeof(buf));
+	char buf[STRBUF_SIZE] = {};
 
 	xfrm_selector_print(&xpinfo->sel, preferred_family, fp, title);
 
@@ -921,7 +966,7 @@ void xfrm_policy_info_print(struct xfrm_userpolicy_info *xpinfo,
 		if (RTA_PAYLOAD(tb[XFRMA_SEC_CTX]) < sizeof(*sctx))
 			fprintf(fp, "(ERROR truncated)");
 
-		sctx = (struct xfrm_user_sec_ctx *)RTA_DATA(tb[XFRMA_SEC_CTX]);
+		sctx = RTA_DATA(tb[XFRMA_SEC_CTX]);
 
 		fprintf(fp, "%s ", (char *)(sctx + 1));
 		fprintf(fp, "%s", _SL_);
@@ -979,7 +1024,7 @@ void xfrm_policy_info_print(struct xfrm_userpolicy_info *xpinfo,
 		if (RTA_PAYLOAD(tb[XFRMA_POLICY_TYPE]) < sizeof(*upt))
 			fprintf(fp, "(ERROR truncated)");
 
-		upt = (struct xfrm_userpolicy_type *)RTA_DATA(tb[XFRMA_POLICY_TYPE]);
+		upt = RTA_DATA(tb[XFRMA_POLICY_TYPE]);
 		fprintf(fp, "%s ", strxf_ptype(upt->type));
 	}
 
@@ -1010,11 +1055,8 @@ int xfrm_id_parse(xfrm_address_t *saddr, struct xfrm_id *id, __u16 *family,
 {
 	int argc = *argcp;
 	char **argv = *argvp;
-	inet_prefix dst;
-	inet_prefix src;
-
-	memset(&dst, 0, sizeof(dst));
-	memset(&src, 0, sizeof(src));
+	inet_prefix dst = {};
+	inet_prefix src = {};
 
 	while (1) {
 		if (strcmp(*argv, "src") == 0) {
@@ -1079,11 +1121,11 @@ int xfrm_id_parse(xfrm_address_t *saddr, struct xfrm_id *id, __u16 *family,
 	if (id->spi && id->proto) {
 		if (xfrm_xfrmproto_is_ro(id->proto)) {
 			fprintf(stderr, "\"spi\" is invalid with XFRM-PROTO value \"%s\"\n",
-			        strxf_xfrmproto(id->proto));
+				strxf_xfrmproto(id->proto));
 			exit(1);
 		} else if (id->proto == IPPROTO_COMP && ntohl(id->spi) >= 0x10000) {
 			fprintf(stderr, "SPI value is too large with XFRM-PROTO value \"%s\"\n",
-			        strxf_xfrmproto(id->proto));
+				strxf_xfrmproto(id->proto));
 			exit(1);
 		}
 	}
@@ -1177,6 +1219,7 @@ static int xfrm_selector_upspec_parse(struct xfrm_selector *sel,
 				upspec = 0;
 			else {
 				struct protoent *pp;
+
 				pp = getprotobyname(*argv);
 				if (pp)
 					upspec = pp->p_proto;
@@ -1241,7 +1284,7 @@ static int xfrm_selector_upspec_parse(struct xfrm_selector *sel,
 			filter.upspec_dport_mask = XFRM_FILTER_MASK_FULL;
 
 		} else if (strcmp(*argv, "key") == 0) {
-			unsigned uval;
+			unsigned int uval;
 
 			grekey = *argv;
 
@@ -1250,7 +1293,7 @@ static int xfrm_selector_upspec_parse(struct xfrm_selector *sel,
 			if (strchr(*argv, '.'))
 				uval = htonl(get_addr32(*argv));
 			else {
-				if (get_unsigned(&uval, *argv, 0)<0) {
+				if (get_unsigned(&uval, *argv, 0) < 0) {
 					fprintf(stderr, "value after \"key\" is invalid\n");
 					exit(-1);
 				}
@@ -1318,12 +1361,9 @@ int xfrm_selector_parse(struct xfrm_selector *sel, int *argcp, char ***argvp)
 {
 	int argc = *argcp;
 	char **argv = *argvp;
-	inet_prefix dst;
-	inet_prefix src;
+	inet_prefix dst = {};
+	inet_prefix src = {};
 	char *upspecp = NULL;
-
-	memset(&dst, 0, sizeof(dst));
-	memset(&src, 0, sizeof(src));
 
 	while (1) {
 		if (strcmp(*argv, "src") == 0) {

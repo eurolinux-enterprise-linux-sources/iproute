@@ -8,11 +8,11 @@ endif
 
 all: bridge
 
-bridge: $(BROBJ) $(LIBNETLINK) 
+bridge: $(BROBJ) $(LIBNETLINK)
+	$(QUIET_LINK)$(CC) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
 install: all
 	install -m 0755 bridge $(DESTDIR)$(SBINDIR)
 
 clean:
 	rm -f $(BROBJ) bridge
-
